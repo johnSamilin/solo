@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -7,42 +7,19 @@ import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
-import { Tag } from 'lucide-react';
+import { observer } from 'mobx-react-lite';
 import { Censored } from './extensions/Censored';
-import { generateUniqueId, buildTagTree } from './utils';
-import { Note, Notebook, TagNode, TypographySettings } from './types';
-import { defaultSettings } from './constants';
+import { buildTagTree } from './utils';
+import { useStore } from './stores/StoreProvider';
 import { SettingsModal } from './components/Modals/SettingsModal';
 import { NewNotebookModal } from './components/Modals/NewNoteBookModal';
 import { TagModal } from './components/Modals/TagModal';
 import { Sidebar } from './components/Sidebar';
 import { Editor } from './components/Editor/Editor';
+import { generateUniqueId } from './utils';
 
-interface Tag {
-	id: string;
-	path: string;
-}
-
-function App() {
-	const [notes, setNotes] = useState<Note[]>([]);
-	const [notebooks, setNotebooks] = useState<Notebook[]>([{
-		id: 'default',
-		name: 'My Notebook',
-		parentId: null,
-		isExpanded: true
-	}]);
-	const [selectedNote, setSelectedNote] = useState<Note | null>(null);
-	const [isEditing, setIsEditing] = useState(false);
-	const [isZenMode, setIsZenMode] = useState(false);
-	const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-	const [isToolbarExpanded, setIsToolbarExpanded] = useState(false);
-	const [isTagModalOpen, setIsTagModalOpen] = useState(false);
-	const [settings, setSettings] = useState<TypographySettings>(defaultSettings);
-	const [wordCount, setWordCount] = useState(0);
-	const [paragraphCount, setParagraphCount] = useState(0);
-	const [tagTree, setTagTree] = useState<TagNode[]>([]);
-	const [isNewNotebookModalOpen, setIsNewNotebookModalOpen] = useState(false);
-	const [selectedNotebookId, setSelectedNotebookId] = useState<string>('default');
+const App = observer(() => {
+	const { notesStore, settingsStore, tagsStore } = useStore();
 
 	const editor = useEditor({
 		extensions: [
@@ -70,89 +47,22 @@ function App() {
 				nested: true,
 			}),
 		],
-		content: selectedNote?.content || '',
+		content: notesStore.selectedNote?.content || '',
 		onUpdate: ({ editor }) => {
-			if (selectedNote) {
-				const updatedNote = {
-					...selectedNote,
+			if (notesStore.selectedNote) {
+				notesStore.updateNote(notesStore.selectedNote.id, {
 					content: editor.getHTML(),
-				};
-				setSelectedNote(updatedNote);
-				setNotes(notes.map(note =>
-					note.id === updatedNote.id ? updatedNote : note
-				));
-
-				const text = editor.state.doc.textContent;
-				const words = text.trim().split(/\s+/).filter(word => word.length > 0);
-				setWordCount(words.length);
-
-				const paragraphs = editor.state.doc.content.content.filter(
-					node => node.type.name === 'paragraph' || node.type.name === 'heading'
-				);
-				setParagraphCount(paragraphs.length);
+				});
 			}
 		},
 	});
 
 	const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		if (selectedNote) {
-			const updatedNote = {
-				...selectedNote,
+		if (notesStore.selectedNote) {
+			notesStore.updateNote(notesStore.selectedNote.id, {
 				title: e.target.value,
-			};
-			setSelectedNote(updatedNote);
-			setNotes(notes.map(note =>
-				note.id === updatedNote.id ? updatedNote : note
-			));
+			});
 		}
-	};
-
-	const createNewNote = () => {
-		const newNote: Note = {
-			id: generateUniqueId(),
-			title: 'Untitled Note',
-			content: '',
-			createdAt: new Date(),
-			tags: [],
-			notebookId: selectedNotebookId
-		};
-		setNotes([...notes, newNote]);
-		setSelectedNote(newNote);
-		setIsEditing(true);
-		editor?.commands.setContent('');
-		setWordCount(0);
-		setParagraphCount(0);
-	};
-
-	const createNewNotebook = (newNotebookName: string, parentId: string | null = null) => {
-		const newNotebook: Notebook = {
-			id: generateUniqueId(),
-			name: newNotebookName,
-			parentId,
-			isExpanded: true
-		};
-		setNotebooks([...notebooks, newNotebook]);
-		setIsNewNotebookModalOpen(false);
-	};
-
-	const toggleNotebook = (notebookId: string) => {
-		setNotebooks(notebooks.map(notebook =>
-			notebook.id === notebookId
-				? { ...notebook, isExpanded: !notebook.isExpanded }
-				: notebook
-		));
-	};
-
-	const deleteNote = (noteId: string) => {
-		setNotes(notes.filter(note => note.id !== noteId));
-		setSelectedNote(null);
-		editor?.commands.setContent('');
-		setWordCount(0);
-		setParagraphCount(0);
-	};
-
-	const toggleZenMode = () => {
-		setIsZenMode(!isZenMode);
 	};
 
 	const handleImageUpload = () => {
@@ -183,67 +93,17 @@ function App() {
 			.run();
 	};
 
-	const applySelectedTags = () => {
-		if (!selectedNote) return;
-
-		const getSelectedTags = (nodes: TagNode[], parentPath = ''): Tag[] => {
-			return nodes.flatMap(node => {
-				const currentPath = parentPath ? `${parentPath}/${node.name}` : node.name;
-				const tags: Tag[] = [];
-
-				if (node.isChecked) {
-					tags.push({
-						id: generateUniqueId(),
-						path: currentPath
-					});
-				}
-
-				if (node.children.length > 0) {
-					tags.push(...getSelectedTags(node.children, currentPath));
-				}
-
-				return tags;
-			});
-		};
-
-		const selectedTags = getSelectedTags(tagTree);
-		const updatedNote = {
-			...selectedNote,
-			tags: selectedTags
-		};
-
-		setSelectedNote(updatedNote);
-		setNotes(notes.map(note =>
-			note.id === updatedNote.id ? updatedNote : note
-		));
-		setIsTagModalOpen(false);
-	};
-
-	const removeTagFromNote = (tagId: string) => {
-		if (selectedNote) {
-			const updatedNote = {
-				...selectedNote,
-				tags: selectedNote.tags.filter(tag => tag.id !== tagId),
-			};
-
-			setSelectedNote(updatedNote);
-			setNotes(notes.map(note =>
-				note.id === updatedNote.id ? updatedNote : note
-			));
-		}
-	};
-
 	useEffect(() => {
-		if (isTagModalOpen) {
+		if (settingsStore.isTagModalOpen) {
 			const allTags = Array.from(new Set(
-				notes.flatMap(note => note.tags.map(tag => tag.path))
+				notesStore.notes.flatMap(note => note.tags.map(tag => tag.path))
 			)).map(path => ({ id: generateUniqueId(), path }));
 
 			const tree = buildTagTree(allTags);
 
 			const markSelectedTags = (nodes: TagNode[]) => {
 				nodes.forEach(node => {
-					node.isChecked = selectedNote?.tags.some(tag => tag.path.includes(node.name)) || false;
+					node.isChecked = notesStore.selectedNote?.tags.some(tag => tag.path.includes(node.name)) || false;
 					if (node.children.length > 0) {
 						markSelectedTags(node.children);
 					}
@@ -251,88 +111,108 @@ function App() {
 			};
 
 			markSelectedTags(tree);
-			setTagTree(tree);
+			tagsStore.setTagTree(tree);
 		}
-	}, [isTagModalOpen, notes, selectedNote]);
+	}, [settingsStore.isTagModalOpen, notesStore.notes, notesStore.selectedNote]);
 
 	useEffect(() => {
 		const root = document.documentElement;
-		root.style.setProperty('--editor-font-family', settings.editorFontFamily);
-		root.style.setProperty('--editor-font-size', settings.editorFontSize);
-		root.style.setProperty('--editor-line-height', settings.editorLineHeight);
-		root.style.setProperty('--title-font-family', settings.titleFontFamily);
-		root.style.setProperty('--title-font-size', settings.titleFontSize);
-		root.style.setProperty('--sidebar-font-family', settings.sidebarFontFamily);
-		root.style.setProperty('--sidebar-font-size', settings.sidebarFontSize);
-	}, [settings]);
+		root.style.setProperty('--editor-font-family', settingsStore.settings.editorFontFamily);
+		root.style.setProperty('--editor-font-size', settingsStore.settings.editorFontSize);
+		root.style.setProperty('--editor-line-height', settingsStore.settings.editorLineHeight);
+		root.style.setProperty('--title-font-family', settingsStore.settings.titleFontFamily);
+		root.style.setProperty('--title-font-size', settingsStore.settings.titleFontSize);
+		root.style.setProperty('--sidebar-font-family', settingsStore.settings.sidebarFontFamily);
+		root.style.setProperty('--sidebar-font-size', settingsStore.settings.sidebarFontSize);
+	}, [settingsStore.settings]);
 
 	return (
-		<div className={`app ${isZenMode ? 'zen-mode' : ''}`}>
+		<div className={`app ${settingsStore.isZenMode ? 'zen-mode' : ''}`}>
 			{/* Settings Modal */}
-			{isSettingsOpen && (
+			{settingsStore.isSettingsOpen && (
 				<SettingsModal
-					onClose={() => setIsSettingsOpen(false)}
-					settings={settings}
-					setSettings={setSettings}
+					onClose={() => settingsStore.setSettingsOpen(false)}
+					settings={settingsStore.settings}
+					setSettings={settingsStore.updateSettings}
 				/>
 			)}
 
 			{/* New Notebook Modal */}
-			{isNewNotebookModalOpen && (
+			{settingsStore.isNewNotebookModalOpen && (
 				<NewNotebookModal
-					onClose={() => setIsNewNotebookModalOpen(false)}
-					notebooks={notebooks}
-					createNewNotebook={createNewNotebook}
+					onClose={() => settingsStore.setNewNotebookModalOpen(false)}
+					notebooks={notesStore.notebooks}
+					createNewNotebook={notesStore.createNotebook}
 				/>
 			)}
 
 			{/* Tag Modal */}
-			{isTagModalOpen && (
+			{settingsStore.isTagModalOpen && (
 				<TagModal
-					onClose={() => setIsTagModalOpen(false)}
-					tagTree={tagTree}
-					setTagTree={setTagTree}
-					selectedNote={selectedNote}
-					setSelectedNote={setSelectedNote}
-					setNotes={setNotes}
-					notes={notes}
-					applySelectedTags={applySelectedTags}
+					onClose={() => settingsStore.setTagModalOpen(false)}
+					tagTree={tagsStore.tagTree}
+					setTagTree={tagsStore.setTagTree}
+					selectedNote={notesStore.selectedNote}
+					setSelectedNote={notesStore.setSelectedNote}
+					setNotes={(notes) => notesStore.notes = notes}
+					notes={notesStore.notes}
+					applySelectedTags={() => {
+						const getSelectedTags = (nodes: TagNode[], parentPath = '') => {
+							return nodes.flatMap(node => {
+								const currentPath = parentPath ? `${parentPath}/${node.name}` : node.name;
+								const tags = [];
+
+								if (node.isChecked) {
+									tags.push(tagsStore.createTag(currentPath));
+								}
+
+								if (node.children.length > 0) {
+									tags.push(...getSelectedTags(node.children, currentPath));
+								}
+
+								return tags;
+							});
+						};
+
+						if (notesStore.selectedNote) {
+							const selectedTags = getSelectedTags(tagsStore.tagTree);
+							notesStore.updateNote(notesStore.selectedNote.id, {
+								tags: selectedTags
+							});
+						}
+						settingsStore.setTagModalOpen(false);
+					}}
 				/>
 			)}
 
 			{/* Sidebar */}
-			<Sidebar
-				isZenMode={isZenMode}
-				createNewNote={createNewNote}
-				setIsNewNotebookModalOpen={setIsNewNotebookModalOpen}
-				notebooks={notebooks}
-				notes={notes}
-				setSelectedNote={setSelectedNote}
-				setIsEditing={setIsEditing}
-				editor={editor}
-				selectedNote={selectedNote}
-				toggleNotebook={toggleNotebook}
-			/>
+			<Sidebar editor={editor} />
 
 			{/* Main Content */}
 			<div className="main-content">
-				{selectedNote ? (
+				{notesStore.selectedNote ? (
 					<Editor
-						selectedNote={selectedNote}
+						selectedNote={notesStore.selectedNote}
 						handleTitleChange={handleTitleChange}
 						editor={editor}
-						wordCount={wordCount}
-						paragraphCount={paragraphCount}
-						removeTagFromNote={removeTagFromNote}
-						setIsTagModalOpen={setIsTagModalOpen}
-						setIsSettingsOpen={setIsSettingsOpen}
-						isZenMode={isZenMode}
-						toggleZenMode={toggleZenMode}
-						isToolbarExpanded={isToolbarExpanded}
+						wordCount={editor?.state.doc.textContent.trim().split(/\s+/).filter(word => word.length > 0).length || 0}
+						paragraphCount={editor?.state.doc.content.content.filter(
+							node => node.type.name === 'paragraph' || node.type.name === 'heading'
+						).length || 0}
+						removeTagFromNote={(tagId) => {
+							if (notesStore.selectedNote) {
+								notesStore.removeTagFromNote(notesStore.selectedNote.id, tagId);
+							}
+						}}
+						setIsTagModalOpen={settingsStore.setTagModalOpen}
+						setIsSettingsOpen={settingsStore.setSettingsOpen}
+						isZenMode={settingsStore.isZenMode}
+						toggleZenMode={settingsStore.toggleZenMode}
+						isToolbarExpanded={settingsStore.isToolbarExpanded}
 						handleImageUpload={handleImageUpload}
 						handleLinkInsert={handleLinkInsert}
 						insertTaskList={insertTaskList}
-						setIsToolbarExpanded={setIsToolbarExpanded}
+						setIsToolbarExpanded={(expanded) => settingsStore.isToolbarExpanded = expanded}
 					/>
 				) : (
 					<div className="empty-state">
@@ -342,6 +222,6 @@ function App() {
 			</div>
 		</div>
 	);
-}
+});
 
 export default App;

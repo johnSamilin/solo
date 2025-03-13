@@ -1,24 +1,36 @@
 import { ChevronDown, ChevronRight, Folder } from "lucide-react";
-import { Notebook, Note } from "../types";
+import { observer } from "mobx-react-lite";
+import { Notebook } from "../types";
+import { useStore } from "../stores/StoreProvider";
+import { Editor } from "@tiptap/react";
 
-export function NotebookItem({ notebook, notebooks, notes, level = 0, onSelect, selectedNote, onToggle }: {
+type NotebookItemProps = {
 	notebook: Notebook;
-	notebooks: Notebook[];
-	notes: Note[];
 	level?: number;
-	onSelect: (note: Note) => void;
-	selectedNote: Note | null;
-	onToggle: (notebookId: string) => void;
-}) {
-	const childNotebooks = notebooks.filter(n => n.parentId === notebook.id);
-	const notebookNotes = notes.filter(n => n.notebookId === notebook.id);
+	editor: Editor | null;
+};
+
+export const NotebookItem = observer(({ notebook, level = 0, editor }: NotebookItemProps) => {
+	const { notesStore } = useStore();
+
+	const childNotebooks = notesStore.getChildNotebooks(notebook.id);
+	const notebookNotes = notesStore.getNotebookNotes(notebook.id);
+
+	const handleNoteSelect = (noteId: string) => {
+		const note = notesStore.notes.find(n => n.id === noteId);
+		if (note) {
+			notesStore.setSelectedNote(note);
+			notesStore.isEditing = true;
+			editor?.commands.setContent(note.content);
+		}
+	};
 
 	return (
 		<div className="notebook-item" style={{ paddingLeft: `${level * 1.5}rem` }}>
 			<div className="notebook-header">
 				<button 
 					className="notebook-toggle"
-					onClick={() => onToggle(notebook.id)}
+					onClick={() => notesStore.toggleNotebook(notebook.id)}
 				>
 					{notebook.isExpanded ? (
 						<ChevronDown className="h-4 w-4" />
@@ -26,7 +38,6 @@ export function NotebookItem({ notebook, notebooks, notes, level = 0, onSelect, 
 						<ChevronRight className="h-4 w-4" />
 					)}
 				</button>
-				<Folder className="h-4 w-4" />
 				<span className="notebook-name">{notebook.name}</span>
 			</div>
 			{notebook.isExpanded && (
@@ -34,8 +45,8 @@ export function NotebookItem({ notebook, notebooks, notes, level = 0, onSelect, 
 					{notebookNotes.map(note => (
 						<div
 							key={note.id}
-							onClick={() => onSelect(note)}
-							className={`note-item ${selectedNote?.id === note.id ? 'selected' : ''}`}
+							onClick={() => handleNoteSelect(note.id)}
+							className={`note-item ${notesStore.selectedNote?.id === note.id ? 'selected' : ''}`}
 						>
 							<h3 className="note-item-title">{note.title}</h3>
 							<p className="note-item-date">
@@ -47,16 +58,12 @@ export function NotebookItem({ notebook, notebooks, notes, level = 0, onSelect, 
 						<NotebookItem
 							key={childNotebook.id}
 							notebook={childNotebook}
-							notebooks={notebooks}
-							notes={notes}
 							level={level + 1}
-							onSelect={onSelect}
-							selectedNote={selectedNote}
-							onToggle={onToggle}
+							editor={editor}
 						/>
 					))}
 				</>
 			)}
 		</div>
 	);
-}
+});

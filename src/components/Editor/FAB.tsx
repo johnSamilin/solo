@@ -1,14 +1,13 @@
 import { Editor } from "@tiptap/react";
-import { MoreVertical, Undo2, Redo2, ImageIcon, LinkIcon, EyeOff, ListChecks, Settings, Minimize2, Maximize2 } from "lucide-react";
+import { Undo2, Redo2, ImageIcon, LinkIcon, EyeOff, ListChecks, Minimize2, Maximize2 } from "lucide-react";
 import { FC } from "react";
 
 type FABProps = {
 	editor: Editor | null;
-	setIsSettingsOpen: (val: boolean) => void;
 	isZenMode: boolean;
 	toggleZenMode: () => void;
-	isToolbarExpanded: boolean
-	handleImageUpload: (event: React.MouseEvent<HTMLButtonElement>) => void;
+	isToolbarExpanded: boolean;
+	handleImageUpload: () => void;
 	handleLinkInsert: () => void;
 	insertTaskList: () => void;
 	setIsToolbarExpanded: (val: boolean) => void;
@@ -16,7 +15,6 @@ type FABProps = {
 
 export const FAB: FC<FABProps> = ({
 	editor,
-	setIsSettingsOpen,
 	isZenMode,
 	toggleZenMode,
 	isToolbarExpanded,
@@ -32,7 +30,11 @@ export const FAB: FC<FABProps> = ({
 				className="button-icon toggle-button"
 				title="Toggle toolbar"
 			>
-				<MoreVertical className="h-4 w-4" />
+				{isToolbarExpanded ? (
+					<Minimize2 className="h-4 w-4" />
+				) : (
+					<Maximize2 className="h-4 w-4" />
+				)}
 			</button>
 			<div className="toolbar-actions">
 				<div className="editor-toolbar-group">
@@ -85,13 +87,6 @@ export const FAB: FC<FABProps> = ({
 				</div>
 				<div className="editor-toolbar-group">
 					<button
-						onClick={() => setIsSettingsOpen(true)}
-						className="button-icon"
-						title="Typography Settings"
-					>
-						<Settings className="h-4 w-4" />
-					</button>
-					<button
 						onClick={toggleZenMode}
 						className="button-icon"
 						title={isZenMode ? 'Exit Zen Mode' : 'Enter Zen Mode'}
@@ -99,7 +94,7 @@ export const FAB: FC<FABProps> = ({
 						{isZenMode ? (
 							<Minimize2 className="h-4 w-4" />
 						) : (
-							<Maximize2 className="h -4 w-4" />
+							<Maximize2 className="h-4 w-4" />
 						)}
 					</button>
 				</div>

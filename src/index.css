@@ -55,6 +55,7 @@ body {
   display: flex;
   flex-direction: column;
   transition: transform 0.3s ease;
+  position: relative;
 }
 
 .sidebar.hidden {
@@ -65,8 +66,10 @@ body {
 .sidebar-header {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: space-between;
   margin-bottom: 2rem;
+  position: absolute;
+  right: 0;
 }
 
 .sidebar-title {
@@ -74,33 +77,83 @@ body {
   font-size: calc(var(--sidebar-font-size) * 1.25);
   color: var(--color-text);
   margin: 0;
-  text-align: center;
 }
 
-.sidebar-actions {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-}
-
-.new-note-button,
-.new-notebook-button {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  font-size: var(--sidebar-font-size);
-  color: var(--color-text-light);
+/* Sidebar Menu Styles */
+.sidebar-menu-button {
+  padding: 0.5rem;
   background: none;
   border: none;
-  border-radius: 0.5rem;
+  border-radius: 0.375rem;
+  color: var(--color-text-light);
   cursor: pointer;
-  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.5;
+  transition: all 0.2s ease;
 }
 
-.new-note-button:hover,
-.new-notebook-button:hover {
+.relative {
+  position: relative;
+}
+
+.sidebar-menu-button:hover {
+  opacity: 1;
   background-color: var(--color-bg);
+  color: var(--color-text);
+}
+
+.sidebar-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.25rem);
+  width: 200px;
+  background: var(--color-white);
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+  z-index: 50;
+  animation: dropdownFade 0.2s ease;
+}
+
+.sidebar-dropdown-item {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border: none;
+  background: none;
+  color: var(--color-text);
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sidebar-dropdown-item:hover {
+  background-color: var(--color-bg);
+}
+
+.sidebar-dropdown-item:active {
+  background-color: var(--color-border);
+}
+
+.sidebar-dropdown-item:not(:last-child) {
+  border-bottom: 1px solid var(--color-border);
+}
+
+@keyframes dropdownFade {
+  from {
+    opacity: 0;
+    transform: translateY(-0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .notebooks-list {

@@ -1,64 +1,55 @@
 import { EditorContent } from "@tiptap/react";
-import { X, Tag } from "lucide-react";
 import { FC } from "react";
+import { observer } from "mobx-react-lite";
 import { Editor as TEditor } from "@tiptap/react";
-import { Note } from "../../types";
+import { useStore } from "../../stores/StoreProvider";
 import { FAB } from "./FAB";
 import { TagsDisplay } from "./TagsDisplay";
 
 type EditorProps = {
-	selectedNote: Note;
-	handleTitleChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
 	editor: TEditor | null;
-	wordCount: number;
-	paragraphCount: number;
-	removeTagFromNote: (tagId: string) => void;
-	setIsTagModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
-	setIsSettingsOpen: React.Dispatch<React.SetStateAction<boolean>>;
-	isZenMode: boolean;
-	toggleZenMode: () => void;
-	isToolbarExpanded: boolean;
-	handleImageUpload: (event: React.MouseEvent<HTMLButtonElement>) => void;
+	handleImageUpload: () => void;
 	handleLinkInsert: () => void;
 	insertTaskList: () => void;
-	setIsToolbarExpanded: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
-export const Editor: FC<EditorProps> = ({
-	selectedNote,
-	handleTitleChange,
+export const Editor: FC<EditorProps> = observer(({
 	editor,
-	wordCount,
-	paragraphCount,
-	removeTagFromNote,
-	setIsTagModalOpen,
-	setIsSettingsOpen,
-	isZenMode,
-	toggleZenMode,
-	isToolbarExpanded,
 	handleImageUpload,
 	handleLinkInsert,
 	insertTaskList,
-	setIsToolbarExpanded,
 }) => {
+	const { notesStore, settingsStore } = useStore();
+
+	const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		if (notesStore.selectedNote) {
+			notesStore.updateNote(notesStore.selectedNote.id, {
+				title: e.target.value,
+			});
+		}
+	};
+
+	const wordCount = editor?.state.doc.textContent.trim().split(/\s+/).filter(word => word.length > 0).length || 0;
+	const paragraphCount = editor?.state.doc.content.content.filter(
+		node => node.type.name === 'paragraph' || node.type.name === 'heading'
+	).length || 0;
+
+	if (!notesStore.selectedNote) return null;
+
 	return (
 		<div className="editor">
 			<div className="editor-container">
 				<div className="editor-content">
 					<input
 						type="text"
-						value={selectedNote.title}
+						value={notesStore.selectedNote.title}
 						onChange={handleTitleChange}
 						className="editor-title"
 						placeholder="Note Title"
 					/>
 					<EditorContent editor={editor} className="editor-body" />
 					{/* Tags Display */}
-					<TagsDisplay
-						selectedNote={selectedNote}
-						setIsTagModalOpen={setIsTagModalOpen}
-						removeTagFromNote={removeTagFromNote}
-					/>
+					<TagsDisplay />
 					<div className="word-count">
 						{wordCount}/{paragraphCount}
 					</div>
@@ -66,16 +57,16 @@ export const Editor: FC<EditorProps> = ({
 				{/* Floating Action Button Toolbar */}
 				<FAB
 					editor={editor}
-					setIsSettingsOpen={setIsSettingsOpen}
-					isZenMode={isZenMode}
-					toggleZenMode={toggleZenMode}
-					isToolbarExpanded={isToolbarExpanded}
+					isZenMode={settingsStore.isZenMode}
+					toggleZenMode={settingsStore.toggleZenMode}
+					isToolbarExpanded={settingsStore.isToolbarExpanded}
 					handleImageUpload={handleImageUpload}
 					handleLinkInsert={handleLinkInsert}
 					insertTaskList={insertTaskList}
-					setIsToolbarExpanded={setIsToolbarExpanded}
+					setIsToolbarExpanded={(expanded) => settingsStore.isToolbarExpanded = expanded}
+					setIsSettingsOpen={settingsStore.setSettingsOpen}
 				/>
 			</div>
 		</div>
 	);
-};
+});

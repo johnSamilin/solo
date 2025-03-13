@@ -1,25 +1,20 @@
 import { X, Tag } from "lucide-react";
 import { FC } from "react";
-import { Note } from "../../types";
+import { observer } from "mobx-react-lite";
+import { useStore } from "../../stores/StoreProvider";
 
-type TagsDisplayProps = {
-	selectedNote: Note;
-	removeTagFromNote: (tagId: string) => void;
-	setIsTagModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
-};
+export const TagsDisplay: FC = observer(() => {
+	const { notesStore, settingsStore } = useStore();
 
-export const TagsDisplay: FC<TagsDisplayProps> = ({
-	selectedNote,
-	removeTagFromNote,
-	setIsTagModalOpen,
-}) => {
+	if (!notesStore.selectedNote) return null;
+
 	return (
 		<div className="tags-container">
-			{selectedNote.tags.map(tag => (
+			{notesStore.selectedNote.tags.map(tag => (
 				<div key={tag.id} className="tag">
 					<span className="tag-path">{tag.path}</span>
 					<button
-						onClick={() => removeTagFromNote(tag.id)}
+						onClick={() => notesStore.removeTagFromNote(notesStore.selectedNote!.id, tag.id)}
 						className="tag-remove"
 					>
 						<X className="h-3 w-3" />
@@ -27,7 +22,7 @@ export const TagsDisplay: FC<TagsDisplayProps> = ({
 				</div>
 			))}
 			<button
-				onClick={() => setIsTagModalOpen(true)}
+				onClick={() => settingsStore.setTagModalOpen(true)}
 				className="add-tag-button"
 			>
 				<Tag className="h-4 w-4" />
@@ -35,4 +30,4 @@ export const TagsDisplay: FC<TagsDisplayProps> = ({
 			</button>
 		</div>
 	);
-};
+});
