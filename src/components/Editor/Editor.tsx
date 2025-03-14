@@ -1,5 +1,5 @@
 import { EditorContent } from "@tiptap/react";
-import { FC } from "react";
+import { FC, useEffect } from "react";
 import { observer } from "mobx-react-lite";
 import { Editor as TEditor } from "@tiptap/react";
 import { useStore } from "../../stores/StoreProvider";
@@ -20,6 +20,24 @@ export const Editor: FC<EditorProps> = observer(({
 	insertTaskList,
 }) => {
 	const { notesStore, settingsStore } = useStore();
+  useEffect(() => {
+    if (settingsStore.isZenMode) {
+      document.body.requestFullscreen();
+    } else {
+      document.exitFullscreen();
+    }
+
+    function onFSChange() {
+      if (!document.fullscreenElement) {
+        settingsStore.turnZenModeOff();
+      }
+    }
+
+    document.body.addEventListener('fullscreenchange', onFSChange);
+    return () => {
+      document.body.removeEventListener('fullscreenchange', onFSChange);
+    };
+  }, [settingsStore.isZenMode]);
 
 	const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		if (notesStore.selectedNote) {

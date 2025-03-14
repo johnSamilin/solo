@@ -2,6 +2,14 @@ import { makeAutoObservable } from 'mobx';
 import { Note, Tag, Notebook } from '../types';
 import { generateUniqueId } from '../utils';
 
+const STORAGE_KEY = 'solo-notes-data';
+
+interface StoredData {
+  notes: Note[];
+  notebooks: Notebook[];
+  selectedNoteId: string | null;
+}
+
 export class NotesStore {
   notes: Note[] = [];
   notebooks: Notebook[] = [{
@@ -15,7 +23,32 @@ export class NotesStore {
 
   constructor() {
     makeAutoObservable(this);
+    this.loadFromStorage();
   }
+
+  private loadFromStorage = () => {
+    const storedData = localStorage.getItem(STORAGE_KEY);
+    if (storedData) {
+      const data: StoredData = JSON.parse(storedData);
+      this.notes = data.notes.map(note => ({
+        ...note,
+        createdAt: new Date(note.createdAt)
+      }));
+      this.notebooks = data.notebooks;
+      if (data.selectedNoteId) {
+        this.selectedNote = this.notes.find(note => note.id === data.selectedNoteId) || null;
+      }
+    }
+  };
+
+  private saveToStorage = () => {
+    const data: StoredData = {
+      notes: this.notes,
+      notebooks: this.notebooks,
+      selectedNoteId: this.selectedNote?.id || null
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  };
 
   createNote = (notebookId: string = 'default') => {
     const newNote: Note = {
@@ -36,6 +69,7 @@ export class NotesStore {
       notebook.isExpanded = true;
     }
 
+    this.saveToStorage();
     return newNote;
   };
 
@@ -46,6 +80,7 @@ export class NotesStore {
       if (this.selectedNote?.id === noteId) {
         this.selectedNote = this.notes[noteIndex];
       }
+      this.saveToStorage();
     }
   };
 
@@ -55,17 +90,20 @@ export class NotesStore {
       this.selectedNote = null;
       this.isEditing = false;
     }
+    this.saveToStorage();
   };
 
   setSelectedNote = (note: Note | null) => {
     this.selectedNote = note;
     this.isEditing = !!note;
+    this.saveToStorage();
   };
 
   addTagToNote = (noteId: string, tag: Tag) => {
     const note = this.notes.find(n => n.id === noteId);
     if (note) {
       note.tags.push(tag);
+      this.saveToStorage();
     }
   };
 
@@ -73,6 +111,7 @@ export class NotesStore {
     const note = this.notes.find(n => n.id === noteId);
     if (note) {
       note.tags = note.tags.filter(tag => tag.id !== tagId);
+      this.saveToStorage();
     }
   };
 
@@ -84,6 +123,7 @@ export class NotesStore {
       isExpanded: true
     };
     this.notebooks.push(newNotebook);
+    this.saveToStorage();
     return newNotebook;
   };
 
@@ -91,6 +131,7 @@ export class NotesStore {
     const notebook = this.notebooks.find(n => n.id === notebookId);
     if (notebook) {
       notebook.isExpanded = !notebook.isExpanded;
+      this.saveToStorage();
     }
   };
 

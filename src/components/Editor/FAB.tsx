@@ -1,5 +1,5 @@
 import { Editor } from "@tiptap/react";
-import { Undo2, Redo2, ImageIcon, LinkIcon, EyeOff, ListChecks, Minimize2, Maximize2 } from "lucide-react";
+import { Undo2, Redo2, ImageIcon, LinkIcon, EyeOff, ListChecks, Minimize2, Maximize2, Leaf } from "lucide-react";
 import { FC } from "react";
 
 type FABProps = {
@@ -25,18 +25,7 @@ export const FAB: FC<FABProps> = ({
 }) => {
 	return (
 		<div className={`editor-toolbar ${isToolbarExpanded ? 'expanded' : ''}`}>
-			<button
-				onClick={() => setIsToolbarExpanded(!isToolbarExpanded)}
-				className="button-icon toggle-button"
-				title="Toggle toolbar"
-			>
-				{isToolbarExpanded ? (
-					<Minimize2 className="h-4 w-4" />
-				) : (
-					<Maximize2 className="h-4 w-4" />
-				)}
-			</button>
-			<div className="toolbar-actions">
+			<div className="toolbar-actions" onClick={() => setIsToolbarExpanded(false)}>
 				<div className="editor-toolbar-group">
 					<button
 						onClick={() => editor?.commands.undo()}
@@ -91,14 +80,21 @@ export const FAB: FC<FABProps> = ({
 						className="button-icon"
 						title={isZenMode ? 'Exit Zen Mode' : 'Enter Zen Mode'}
 					>
-						{isZenMode ? (
-							<Minimize2 className="h-4 w-4" />
-						) : (
-							<Maximize2 className="h-4 w-4" />
-						)}
+							<Leaf className="h-4 w-4" />
 					</button>
 				</div>
 			</div>
+			<button
+				onClick={() => setIsToolbarExpanded(!isToolbarExpanded)}
+				className="button-icon toggle-button"
+				title="Toggle toolbar"
+			>
+				{isToolbarExpanded ? (
+					<Minimize2 className="h-4 w-4" />
+				) : (
+					<Maximize2 className="h-4 w-4" />
+				)}
+			</button>
 		</div>
 	);
 };

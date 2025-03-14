@@ -1,13 +1,19 @@
 {
   "name": "solo",
   "private": false,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
+  "main": "electron/main.js",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "electron:dev": "concurrently \"vite\" \"electron .\"",
+    "electron:build": "vite build",
+    "electron:package:win": "yarn build && electron-builder --win --config electron-builder.config.cjs",
+    "electron:package:mac": "yarn build && electron-builder --mac --config electron-builder.config.cjs",
+    "electron:package:all": "yarn build && electron-builder -mw --config electron-builder.config.cjs"
   },
   "dependencies": {
     "@tiptap/extension-heading": "^2.2.4",
@@ -30,6 +36,10 @@
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
+    "concurrently": "^8.2.2",
+    "electron": "^29.4.6",
+    "electron-builder": "^24.13.3",
+    "electron-store": "^10.0.1",
     "eslint": "^9.9.1",
     "eslint-plugin-react-hooks": "^5.1.0-rc.0",
     "eslint-plugin-react-refresh": "^0.4.11",
