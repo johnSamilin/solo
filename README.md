@@ -4,3 +4,5 @@ This is a private note-taking web app with features:
 * Minimalistic
 * Typography-focused (you can customize the way how text looks but it already looks good)
 * Zen mode (focus on the text of your notes, not the icons and UI)
+
+SaaS version: https://comforting-starlight-b74676.netlify.app/
