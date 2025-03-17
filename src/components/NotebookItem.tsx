@@ -25,9 +25,14 @@ export const NotebookItem = observer(({ notebook, level = 0, editor }: NotebookI
 		}
 	};
 
+	const handleNotebookClick = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		notesStore.setFocusedNotebook(notebook.id);
+	};
+
 	return (
 		<div className="notebook-item" style={{ paddingLeft: `${level * 1.5}rem` }}>
-			<div className="notebook-header">
+			<div className={`notebook-header ${notesStore.focusedNotebookId === notebook.id ? 'focused' : ''}`} onClick={handleNotebookClick}>
 				<button 
 					className="notebook-toggle"
 					onClick={() => notesStore.toggleNotebook(notebook.id)}
@@ -38,7 +43,9 @@ export const NotebookItem = observer(({ notebook, level = 0, editor }: NotebookI
 						<ChevronRight className="h-4 w-4" />
 					)}
 				</button>
-				<span className="notebook-name">{notebook.name}</span>
+				<span className="notebook-name">
+					{notebook.name}
+				</span>
 			</div>
 			{notebook.isExpanded && (
 				<>
@@ -49,9 +56,6 @@ export const NotebookItem = observer(({ notebook, level = 0, editor }: NotebookI
 							className={`note-item ${notesStore.selectedNote?.id === note.id ? 'selected' : ''}`}
 						>
 							<h3 className="note-item-title">{note.title}</h3>
-							<p className="note-item-date">
-								{new Date(note.createdAt).toLocaleDateString()}
-							</p>
 						</div>
 					))}
 					{childNotebooks.map(childNotebook => (

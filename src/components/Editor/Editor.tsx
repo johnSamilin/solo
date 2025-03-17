@@ -65,6 +65,9 @@ export const Editor: FC<EditorProps> = observer(({
 						className="editor-title"
 						placeholder="Note Title"
 					/>
+					<p className="note-item-date">
+						{new Date(notesStore.selectedNote.createdAt).toLocaleDateString()}
+					</p>
 					<EditorContent editor={editor} className="editor-body" />
 					{/* Tags Display */}
 					<TagsDisplay />

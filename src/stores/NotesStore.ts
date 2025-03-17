@@ -8,6 +8,7 @@ interface StoredData {
   notes: Note[];
   notebooks: Notebook[];
   selectedNoteId: string | null;
+  focusedNotebookId: string | null;
 }
 
 export class NotesStore {
@@ -19,6 +20,7 @@ export class NotesStore {
     isExpanded: true
   }];
   selectedNote: Note | null = null;
+  focusedNotebookId: string | null = null;
   isEditing = false;
 
   constructor() {
@@ -38,6 +40,7 @@ export class NotesStore {
       if (data.selectedNoteId) {
         this.selectedNote = this.notes.find(note => note.id === data.selectedNoteId) || null;
       }
+      this.focusedNotebookId = data.focusedNotebookId;
     }
   };
 
@@ -45,26 +48,28 @@ export class NotesStore {
     const data: StoredData = {
       notes: this.notes,
       notebooks: this.notebooks,
-      selectedNoteId: this.selectedNote?.id || null
+      selectedNoteId: this.selectedNote?.id || null,
+      focusedNotebookId: this.focusedNotebookId
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   };
 
-  createNote = (notebookId: string = 'default') => {
+  createNote = (notebookId?: string) => {
+    const targetNotebookId = notebookId || this.focusedNotebookId || 'default';
     const newNote: Note = {
       id: generateUniqueId(),
       title: 'Untitled Note',
       content: '',
       createdAt: new Date(),
       tags: [],
-      notebookId
+      notebookId: targetNotebookId
     };
     this.notes.push(newNote);
     this.selectedNote = newNote;
     this.isEditing = true;
 
     // Ensure the parent notebook is expanded
-    const notebook = this.notebooks.find(n => n.id === notebookId);
+    const notebook = this.notebooks.find(n => n.id === targetNotebookId);
     if (notebook && !notebook.isExpanded) {
       notebook.isExpanded = true;
     }
@@ -95,7 +100,13 @@ export class NotesStore {
 
   setSelectedNote = (note: Note | null) => {
     this.selectedNote = note;
+    this.setFocusedNotebook(note.notebookId);
     this.isEditing = !!note;
+    this.saveToStorage();
+  };
+
+  setFocusedNotebook = (notebookId: string | null) => {
+    this.focusedNotebookId = notebookId;
     this.saveToStorage();
   };
 

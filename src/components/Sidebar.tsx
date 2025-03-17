@@ -32,8 +32,7 @@ export const Sidebar: FC<SidebarProps> = observer(({ editor }) => {
 	}, []);
 
 	const handleCreateNote = () => {
-		const notebookId = notesStore.selectedNote?.notebookId || 'default';
-		notesStore.createNote(notebookId);
+		notesStore.createNote();
 		if (editor) {
 			editor.commands.setContent('');
 		}
