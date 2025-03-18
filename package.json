@@ -4,6 +4,8 @@
   "version": "1.0.0",
   "type": "module",
   "main": "electron/main.js",
+  "author": "Alexander Saltykov <masteralex@inbox.ru>",
+  "description": "Minimalistic private note-taking app with focus on typography",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

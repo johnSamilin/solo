@@ -33,3 +33,7 @@ export interface TypographySettings {
   sidebarFontSize: string;
 }
 
+export interface CensorshipSettings {
+  pin: string | null;
+  enabled: boolean;
+}

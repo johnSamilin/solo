@@ -1,27 +1,44 @@
 import { makeAutoObservable } from 'mobx';
-import { TypographySettings } from '../types';
+import { TypographySettings, CensorshipSettings } from '../types';
 import { defaultSettings } from '../constants';
 
 const STORAGE_KEY = 'solo-settings';
 
 export class SettingsStore {
   settings: TypographySettings = defaultSettings;
+  censorship: CensorshipSettings = {
+    pin: null,
+    enabled: true
+  };
+  fakeCensorshipDisabled = false;
   isZenMode = false;
   isToolbarExpanded = false;
   isSettingsOpen = false;
   isNewNotebookModalOpen = false;
   isTagModalOpen = false;
+  isNoteSettingsOpen = false;
 
   constructor() {
     makeAutoObservable(this);
     this.loadFromStorage();
+    this.setupKeyboardShortcuts();
   }
+
+  private setupKeyboardShortcuts = () => {
+    document.addEventListener('keydown', (e) => {
+      // Ctrl+. to turn censorship on
+      if (e.ctrlKey && e.key === '.') {
+        this.enableCensorship();
+      }
+    });
+  };
 
   private loadFromStorage = () => {
     const storedSettings = localStorage.getItem(STORAGE_KEY);
     if (storedSettings) {
       const data = JSON.parse(storedSettings);
       this.settings = data.settings;
+      this.censorship = data.censorship ? { ...data.censorship, enabled: true } : { pin: null, enabled: true };
       this.isZenMode = data.isZenMode;
       this.isToolbarExpanded = data.isToolbarExpanded;
     }
@@ -30,6 +47,7 @@ export class SettingsStore {
   private saveToStorage = () => {
     const data = {
       settings: this.settings,
+      censorship: this.censorship,
       isZenMode: this.isZenMode,
       isToolbarExpanded: this.isToolbarExpanded
     };
@@ -39,6 +57,34 @@ export class SettingsStore {
   updateSettings = (newSettings: Partial<TypographySettings>) => {
     this.settings = { ...this.settings, ...newSettings };
     this.saveToStorage();
+  };
+
+  setCensorshipPin = (pin: string) => {
+    this.censorship.pin = pin;
+    this.saveToStorage();
+  };
+
+  enableCensorship = () => {
+    this.censorship.enabled = true;
+    this.fakeCensorshipDisabled = false;
+    this.saveToStorage();
+  };
+
+  disableCensorship = (currentPin: string) => {
+    if (this.censorship.pin === currentPin) {
+      this.censorship.enabled = false;
+      this.fakeCensorshipDisabled = false;
+      this.saveToStorage();
+      return true;
+    }
+    
+    // Fake disabled state when PIN is incorrect
+    this.fakeCensorshipDisabled = true;
+    return true;
+  };
+
+  isCensorshipEnabled = () => {
+    return this.censorship.enabled && !this.fakeCensorshipDisabled;
   };
 
   toggleZenMode = () => {
@@ -66,5 +112,9 @@ export class SettingsStore {
 
   setTagModalOpen = (isOpen: boolean) => {
     this.isTagModalOpen = isOpen;
+  };
+
+  setNoteSettingsOpen = (isOpen: boolean) => {
+    this.isNoteSettingsOpen = isOpen;
   };
 }
