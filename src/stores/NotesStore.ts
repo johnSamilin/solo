@@ -62,7 +62,8 @@ export class NotesStore {
       content: '',
       createdAt: new Date(),
       tags: [],
-      notebookId: targetNotebookId
+      notebookId: targetNotebookId,
+      isCensored: false
     };
     this.notes.push(newNote);
     this.selectedNote = newNote;
@@ -89,6 +90,17 @@ export class NotesStore {
     }
   };
 
+  toggleNoteCensorship = (noteId: string) => {
+    const note = this.notes.find(n => n.id === noteId);
+    if (note) {
+      note.isCensored = !note.isCensored;
+      if (this.selectedNote?.id === noteId) {
+        this.selectedNote = note;
+      }
+      this.saveToStorage();
+    }
+  };
+
   deleteNote = (noteId: string) => {
     this.notes = this.notes.filter(note => note.id !== noteId);
     if (this.selectedNote?.id === noteId) {
@@ -100,7 +112,9 @@ export class NotesStore {
 
   setSelectedNote = (note: Note | null) => {
     this.selectedNote = note;
-    this.setFocusedNotebook(note.notebookId);
+    if (note) {
+      this.setFocusedNotebook(note.notebookId);
+    }
     this.isEditing = !!note;
     this.saveToStorage();
   };

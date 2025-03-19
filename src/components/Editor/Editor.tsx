@@ -83,9 +83,9 @@ export const Editor: FC<EditorProps> = observer(({
             className="editor-title"
             placeholder="Note Title"
           />
-          <p className="note-item-date">
+          {!settingsStore.isZenMode && <p className="note-item-date">
             {new Date(notesStore.selectedNote.createdAt).toLocaleDateString()}
-          </p>
+          </p>}
           <EditorContent editor={editor} className="editor-body" />
           <TagsDisplay />
           <div className="word-count">
@@ -112,6 +112,8 @@ export const Editor: FC<EditorProps> = observer(({
           currentNotebookId={notesStore.selectedNote.notebookId}
           onMoveNote={handleMoveNote}
           onDeleteNote={handleDeleteNote}
+          onToggleCensorship={() => notesStore.toggleNoteCensorship(notesStore.selectedNote.id)}
+          isCensored={notesStore.selectedNote.isCensored}
         />
       )}
     </div>

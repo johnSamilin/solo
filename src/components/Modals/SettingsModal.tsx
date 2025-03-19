@@ -181,9 +181,9 @@ export const SettingsModal: FC<SettingsModalProps> = ({ onClose, settings, setSe
                 </div>
               )}
               <div className="censorship-status">
-                Status: {settingsStore.isCensorshipEnabled() ? 'Enabled' : 'Disabled'}
+                Status: {(settingsStore.fakeCensorshipDisabled || !settingsStore.censorship.enabled) ? 'Disabled' : 'Enabled'}
               </div>
-              {!settingsStore.isCensorshipEnabled() && <div className="setting-item">
+              {(settingsStore.fakeCensorshipDisabled || !settingsStore.censorship.enabled) && <div className="setting-item">
                 <button
                   onClick={() => settingsStore.enableCensorship()}
                   className="button-primary"

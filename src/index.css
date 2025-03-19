@@ -227,6 +227,16 @@ body {
   text-decoration: underline;
 }
 
+.note-item-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.note-item-header .lucide-lock {
+  color: var(--color-text-light);
+}
+
 .note-item-title {
   font-family: var(--sidebar-font-family), Georgia, serif;
   font-size: var(--sidebar-font-size);
@@ -591,6 +601,7 @@ body {
 .editor-body .ProseMirror {
   min-height: calc(100vh - 12rem);
   outline: none;
+  white-space: pre-wrap;
 }
 
 .editor-body .ProseMirror p {
@@ -625,6 +636,12 @@ body {
   color: var(--color-white);
   padding: 0 0.25em;
   border-radius: 0.125em;
+  user-select: none;
+}
+
+.censorship-disabled .editor-body .ProseMirror span[data-censored] {
+  background-color: var(--color-text);
+  color: var(--color-white);
 }
 
 /* Task list styles */

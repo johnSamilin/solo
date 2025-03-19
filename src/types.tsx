@@ -16,6 +16,7 @@ export interface Note {
   createdAt: Date;
   tags: Tag[];
   notebookId: string;
+  isCensored?: boolean;
 }
 export interface Notebook {
   id: string;

@@ -78,13 +78,16 @@ export class SettingsStore {
       return true;
     }
     
-    // Fake disabled state when PIN is incorrect
+    // When PIN is incorrect, set fake disabled state but keep censorship enabled
     this.fakeCensorshipDisabled = true;
+    this.censorship.enabled = true;
+    this.saveToStorage();
     return true;
   };
 
   isCensorshipEnabled = () => {
-    return this.censorship.enabled && !this.fakeCensorshipDisabled;
+    // Always return true if censorship is enabled, regardless of fake disabled state
+    return this.censorship.enabled;
   };
 
   toggleZenMode = () => {

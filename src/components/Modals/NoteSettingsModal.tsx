@@ -1,5 +1,5 @@
 import { FC } from 'react';
-import { X, Trash2, FolderInput } from 'lucide-react';
+import { X, Trash2, Lock, Unlock } from 'lucide-react';
 import { Notebook } from '../../types';
 
 type NoteSettingsModalProps = {
@@ -8,6 +8,8 @@ type NoteSettingsModalProps = {
   currentNotebookId: string;
   onMoveNote: (notebookId: string) => void;
   onDeleteNote: () => void;
+  isCensored: boolean;
+  onToggleCensorship: () => void;
 };
 
 export const NoteSettingsModal: FC<NoteSettingsModalProps> = ({
@@ -16,6 +18,8 @@ export const NoteSettingsModal: FC<NoteSettingsModalProps> = ({
   currentNotebookId,
   onMoveNote,
   onDeleteNote,
+  isCensored,
+  onToggleCensorship,
 }) => {
   return (
     <div className="modal-overlay">
@@ -40,6 +44,20 @@ export const NoteSettingsModal: FC<NoteSettingsModalProps> = ({
                 </option>
               ))}
             </select>
+          </div>
+          <div className="setting-item">
+            <label>Censorship</label>
+            <button
+              onClick={onToggleCensorship}
+              className={`button-icon ${isCensored ? 'active' : ''}`}
+              title={isCensored ? 'Remove Censorship' : 'Mark as Censored'}
+            >
+              {isCensored ? (
+                <Lock className="h-4 w-4" />
+              ) : (
+                <Unlock className="h-4 w-4" />
+              )}
+            </button>
           </div>
           <div className="modal-actions">
             <button
