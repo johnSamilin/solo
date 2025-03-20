@@ -125,6 +125,22 @@ const App = observer(() => {
     root.style.setProperty('--title-font-size', settingsStore.settings.titleFontSize);
     root.style.setProperty('--sidebar-font-family', settingsStore.settings.sidebarFontFamily);
     root.style.setProperty('--sidebar-font-size', settingsStore.settings.sidebarFontSize);
+    root.style.setProperty('--page-margins', settingsStore.settings.pageMargins);
+    root.style.setProperty('--paragraph-spacing', settingsStore.settings.paragraphSpacing);
+    root.style.setProperty('--drop-cap-size', settingsStore.settings.dropCapSize);
+    root.style.setProperty('--drop-cap-line-height', settingsStore.settings.dropCapLineHeight);
+    root.style.setProperty('--horizontal-margins', settingsStore.settings.horizontalMargins);
+    root.style.setProperty('--editor-width', settingsStore.settings.maxEditorWidth);
+
+    // Toggle drop caps
+    const editorContent = document.querySelector('.editor-body');
+    if (editorContent) {
+      if (settingsStore.settings.enableDropCaps) {
+        editorContent.classList.add('drop-caps');
+      } else {
+        editorContent.classList.remove('drop-caps');
+      }
+    }
   }, [settingsStore.settings]);
 
   return (

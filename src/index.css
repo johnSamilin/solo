@@ -20,13 +20,17 @@
   --title-font-size: 2rem;
   --sidebar-font-family: 'Crimson Pro';
   --sidebar-font-size: 1rem;
+  --page-margins: 2rem;
+  --paragraph-spacing: 1em;
+  --drop-cap-size: 3.5em;
+  --drop-cap-line-height: 3.5;
 
   --editor-width: 700px;
 }
 
 @font-face {
-  font-family: 'Byron Mark 2';
-  src: url('./assets/fonts/byron-mark-2.ttf') format('truetype');
+  font-family: 'GNU Typewriter';
+  src: url('./assets/fonts/gtw.ttf') format('truetype');
   font-weight: normal;
   font-style: normal;
 }
@@ -313,7 +317,7 @@ body {
 
 .main-content {
   flex: 1;
-  padding: 2rem;
+  padding: var(--page-margins);
   overflow: hidden;
   transition: background-color 0.3s ease;
 }
@@ -605,7 +609,16 @@ body {
 }
 
 .editor-body .ProseMirror p {
-  margin: 0 0 1em 0;
+  margin: 0 0 var(--paragraph-spacing) 0;
+}
+
+.editor-body.drop-caps .ProseMirror > p:first-child::first-letter {
+  font-size: var(--drop-cap-size);
+  line-height: 1;
+  float: left;
+  margin-right: 0.25em;
+  padding-top: 0;
+  margin-top: 0;
 }
 
 .editor-body .ProseMirror h1 {

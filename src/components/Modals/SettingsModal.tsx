@@ -2,6 +2,7 @@ import { X } from "lucide-react";
 import { FC, useState } from "react";
 import { TypographySettings } from "../../types";
 import { useStore } from "../../stores/StoreProvider";
+import { themes } from "../../constants";
 
 type SettingsModalProps = {
   onClose: () => void;
@@ -25,6 +26,13 @@ export const SettingsModal: FC<SettingsModalProps> = ({ onClose, settings, setSe
     if (!settingsStore.censorship.pin) return;
     settingsStore.disableCensorship(currentPin);
     setCurrentPin('');
+  };
+
+  const handleThemeChange = (themeKey: string) => {
+    const theme = themes[themeKey];
+    if (theme) {
+      setSettings(theme.settings);
+    }
   };
 
   return (
@@ -54,6 +62,22 @@ export const SettingsModal: FC<SettingsModalProps> = ({ onClose, settings, setSe
           {activeTab === 'typography' ? (
             <>
               <div className="settings-group">
+                <h3>Theme</h3>
+                <div className="setting-item">
+                  <label>Select Theme</label>
+                  <select
+                    onChange={(e) => handleThemeChange(e.target.value)}
+                    className="theme-select"
+                  >
+                    {Object.entries(themes).map(([key, theme]) => (
+                      <option key={key} value={key}>
+                        {theme.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="settings-group">
                 <h3>Editor</h3>
                 <div className="setting-item">
                   <label>Font Family</label>
@@ -61,7 +85,7 @@ export const SettingsModal: FC<SettingsModalProps> = ({ onClose, settings, setSe
                     value={settings.editorFontFamily}
                     onChange={(e) => setSettings({ ...settings, editorFontFamily: e.target.value })}
                   >
-                    <option value="Byron Mark 2">Byron Mark II</option>
+                    <option value="GNU Typewriter">GNU Typewriter</option>
                     <option value="Crimson Pro">Crimson Pro</option>
                     <option value="Inter">Inter</option>
                     <option value="Georgia">Georgia</option>
@@ -92,6 +116,88 @@ export const SettingsModal: FC<SettingsModalProps> = ({ onClose, settings, setSe
                 </div>
               </div>
               <div className="settings-group">
+                <h3>Layout</h3>
+                <div className="setting-item">
+                  <label>Page Margins</label>
+                  <select
+                    value={settings.pageMargins}
+                    onChange={(e) => setSettings({ ...settings, pageMargins: e.target.value })}
+                  >
+                    <option value="1rem">Narrow</option>
+                    <option value="2rem">Medium</option>
+                    <option value="3rem">Wide</option>
+                  </select>
+                </div>
+                <div className="setting-item">
+                  <label>Horizontal Margins</label>
+                  <select
+                    value={settings.horizontalMargins}
+                    onChange={(e) => setSettings({ ...settings, horizontalMargins: e.target.value })}
+                  >
+                    <option value="1rem">Narrow</option>
+                    <option value="2rem">Medium</option>
+                    <option value="3rem">Wide</option>
+                  </select>
+                </div>
+                <div className="setting-item">
+                  <label>Maximum Width</label>
+                  <select
+                    value={settings.maxEditorWidth}
+                    onChange={(e) => setSettings({ ...settings, maxEditorWidth: e.target.value })}
+                  >
+                    <option value="600px">Narrow</option>
+                    <option value="700px">Medium</option>
+                    <option value="800px">Wide</option>
+                    <option value="1000px">Very Wide</option>
+                  </select>
+                </div>
+                <div className="setting-item">
+                  <label>Paragraph Spacing</label>
+                  <select
+                    value={settings.paragraphSpacing}
+                    onChange={(e) => setSettings({ ...settings, paragraphSpacing: e.target.value })}
+                  >
+                    <option value="0.5em">Tight</option>
+                    <option value="1em">Normal</option>
+                    <option value="1.5em">Relaxed</option>
+                  </select>
+                </div>
+                <div className="setting-item">
+                  <label>Enable Drop Caps</label>
+                  <input
+                    type="checkbox"
+                    checked={settings.enableDropCaps}
+                    onChange={(e) => setSettings({ ...settings, enableDropCaps: e.target.checked })}
+                  />
+                </div>
+                {settings.enableDropCaps && (
+                  <>
+                    <div className="setting-item">
+                      <label>Drop Cap Size</label>
+                      <select
+                        value={settings.dropCapSize}
+                        onChange={(e) => setSettings({ ...settings, dropCapSize: e.target.value })}
+                      >
+                        <option value="2.5em">Small</option>
+                        <option value="3.5em">Medium</option>
+                        <option value="4.5em">Large</option>
+                      </select>
+                    </div>
+                    <div className="setting-item">
+                      <label>Drop Cap Line Height</label>
+                      <select
+                        value={settings.dropCapLineHeight}
+                        onChange={(e) => setSettings({ ...settings, dropCapLineHeight: e.target.value })}
+                      >
+                        <option value="2.5">Compact</option>
+                        <option value="3.5">Normal</option>
+                        <option value="4.5">Spacious</option>
+                      </select>
+                    </div>
+                  </>
+                )}
+              </div>
+              <div className="settings-group">
                 <h3>Title</h3>
                 <div className="setting-item">
                   <label>Font Family</label>
@@ -99,7 +205,7 @@ export const SettingsModal: FC<SettingsModalProps> = ({ onClose, settings, setSe
                     value={settings.titleFontFamily}
                     onChange={(e) => setSettings({ ...settings, titleFontFamily: e.target.value })}
                   >
-                    <option value="Byron Mark 2">Byron Mark II</option>
+                    <option value="GNU Typewriter">GNU Typewriter</option>
                     <option value="Crimson Pro">Crimson Pro</option>
                     <option value="Inter">Inter</option>
                     <option value="Georgia">Georgia</option>
@@ -125,7 +231,7 @@ export const SettingsModal: FC<SettingsModalProps> = ({ onClose, settings, setSe
                     value={settings.sidebarFontFamily}
                     onChange={(e) => setSettings({ ...settings, sidebarFontFamily: e.target.value })}
                   >
-                    <option value="Byron Mark 2">Byron Mark II</option>
+                    <option value="GNU Typewriter">GNU Typewriter</option>
                     <option value="Crimson Pro">Crimson Pro</option>
                     <option value="Inter">Inter</option>
                     <option value="Georgia">Georgia</option>

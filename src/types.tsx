@@ -32,9 +32,18 @@ export interface TypographySettings {
   titleFontSize: string;
   sidebarFontFamily: string;
   sidebarFontSize: string;
+  pageMargins: string;
+  paragraphSpacing: string;
+  enableDropCaps: boolean;
+  dropCapSize: string;
+  dropCapLineHeight: string;
+  horizontalMargins: string;
+  maxEditorWidth: string;
 }
 
 export interface CensorshipSettings {
   pin: string | null;
   enabled: boolean;
 }
+
+export type ThemeName = 'default' | 'air' | 'typewriter' | 'narrow';
