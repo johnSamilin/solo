@@ -129,7 +129,6 @@ const App = observer(() => {
     root.style.setProperty('--paragraph-spacing', settingsStore.settings.paragraphSpacing);
     root.style.setProperty('--drop-cap-size', settingsStore.settings.dropCapSize);
     root.style.setProperty('--drop-cap-line-height', settingsStore.settings.dropCapLineHeight);
-    root.style.setProperty('--horizontal-margins', settingsStore.settings.horizontalMargins);
     root.style.setProperty('--editor-width', settingsStore.settings.maxEditorWidth);
 
     // Toggle drop caps

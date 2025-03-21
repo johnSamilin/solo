@@ -13,15 +13,10 @@ export const defaultSettings: TypographySettings = {
   enableDropCaps: false,
   dropCapSize: '3.5em',
   dropCapLineHeight: '3.5',
-  horizontalMargins: '2rem',
-  maxEditorWidth: '700px',
+  maxEditorWidth: '75%',
 };
 
 export const themes: Record<string, { name: string; settings: TypographySettings }> = {
-  default: {
-    name: 'Default',
-    settings: defaultSettings,
-  },
   air: {
     name: 'Air',
     settings: {
@@ -30,15 +25,14 @@ export const themes: Record<string, { name: string; settings: TypographySettings
       editorLineHeight: '2',
       titleFontFamily: 'Crimson Pro',
       titleFontSize: '2.5rem',
-      sidebarFontFamily: 'Inter',
+      sidebarFontFamily: 'Crimson Pro',
       sidebarFontSize: '1rem',
       pageMargins: '3rem',
       paragraphSpacing: '1.5em',
       enableDropCaps: true,
       dropCapSize: '4.5em',
       dropCapLineHeight: '4.5',
-      horizontalMargins: '3rem',
-      maxEditorWidth: '800px',
+      maxEditorWidth: '80%',
     },
   },
   typewriter: {
@@ -56,27 +50,25 @@ export const themes: Record<string, { name: string; settings: TypographySettings
       enableDropCaps: false,
       dropCapSize: '3.5em',
       dropCapLineHeight: '3.5',
-      horizontalMargins: '2rem',
-      maxEditorWidth: '700px',
+      maxEditorWidth: '75%',
     },
   },
   narrow: {
     name: 'Narrow',
     settings: {
-      editorFontFamily: 'Inter',
+      editorFontFamily: 'Crimson Pro',
       editorFontSize: '1rem',
       editorLineHeight: '1.5',
-      titleFontFamily: 'Inter',
+      titleFontFamily: 'Crimson Pro',
       titleFontSize: '1.5rem',
-      sidebarFontFamily: 'Inter',
+      sidebarFontFamily: 'Crimson Pro',
       sidebarFontSize: '0.875rem',
       pageMargins: '1rem',
       paragraphSpacing: '0.5em',
       enableDropCaps: false,
       dropCapSize: '2.5em',
       dropCapLineHeight: '2.5',
-      horizontalMargins: '1rem',
-      maxEditorWidth: '600px',
+      maxEditorWidth: '60%',
     },
   },
 };

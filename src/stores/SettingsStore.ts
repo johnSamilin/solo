@@ -1,6 +1,7 @@
 import { makeAutoObservable } from 'mobx';
 import { TypographySettings, CensorshipSettings } from '../types';
 import { defaultSettings } from '../constants';
+import { isPlugin } from '../config';
 
 const STORAGE_KEY = 'solo-settings';
 
@@ -33,25 +34,48 @@ export class SettingsStore {
     });
   };
 
-  private loadFromStorage = () => {
-    const storedSettings = localStorage.getItem(STORAGE_KEY);
-    if (storedSettings) {
-      const data = JSON.parse(storedSettings);
-      this.settings = data.settings;
-      this.censorship = data.censorship ? { ...data.censorship, enabled: true } : { pin: null, enabled: true };
-      this.isZenMode = data.isZenMode;
-      this.isToolbarExpanded = data.isToolbarExpanded;
+  private loadFromStorage = async () => {
+    try {
+      let storedSettings = null;
+      
+      if (isPlugin && window.brigde) {
+        storedSettings = await window.brigde.loadFromStorage(STORAGE_KEY);
+      } else {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          storedSettings = JSON.parse(stored);
+        }
+      }
+
+      if (storedSettings) {
+        const data = storedSettings;
+        this.settings = data.settings;
+        this.censorship = data.censorship ? { ...data.censorship, enabled: true } : { pin: null, enabled: true };
+        this.isZenMode = data.isZenMode;
+        this.isToolbarExpanded = data.isToolbarExpanded;
+      }
+    } catch (error) {
+      console.error('Error loading settings:', error);
     }
   };
 
-  private saveToStorage = () => {
-    const data = {
-      settings: this.settings,
-      censorship: this.censorship,
-      isZenMode: this.isZenMode,
-      isToolbarExpanded: this.isToolbarExpanded
-    };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  private saveToStorage = async () => {
+    try {
+      const data = {
+        settings: this.settings,
+        censorship: this.censorship,
+        isZenMode: this.isZenMode,
+        isToolbarExpanded: this.isToolbarExpanded
+      };
+
+      if (isPlugin && window.brigde) {
+        await window.brigde.saveToStorage(STORAGE_KEY, data);
+      } else {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      }
+    } catch (error) {
+      console.error('Error saving settings:', error);
+    }
   };
 
   updateSettings = (newSettings: Partial<TypographySettings>) => {

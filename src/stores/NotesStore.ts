@@ -1,6 +1,7 @@
 import { makeAutoObservable } from 'mobx';
 import { Note, Tag, Notebook } from '../types';
 import { generateUniqueId } from '../utils';
+import { isPlugin } from '../config';
 
 const STORAGE_KEY = 'solo-notes-data';
 
@@ -28,30 +29,52 @@ export class NotesStore {
     this.loadFromStorage();
   }
 
-  private loadFromStorage = () => {
-    const storedData = localStorage.getItem(STORAGE_KEY);
-    if (storedData) {
-      const data: StoredData = JSON.parse(storedData);
-      this.notes = data.notes.map(note => ({
-        ...note,
-        createdAt: new Date(note.createdAt)
-      }));
-      this.notebooks = data.notebooks;
-      if (data.selectedNoteId) {
-        this.selectedNote = this.notes.find(note => note.id === data.selectedNoteId) || null;
+  private loadFromStorage = async () => {
+    try {
+      let storedData: StoredData | null = null;
+
+      if (isPlugin && window.brigde) {
+        storedData = await window.brigde.loadFromStorage(STORAGE_KEY);
+      } else {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          storedData = JSON.parse(stored);
+        }
       }
-      this.focusedNotebookId = data.focusedNotebookId;
+
+      if (storedData) {
+        this.notes = storedData.notes.map(note => ({
+          ...note,
+          createdAt: new Date(note.createdAt)
+        }));
+        this.notebooks = storedData.notebooks;
+        if (storedData.selectedNoteId) {
+          this.selectedNote = this.notes.find(note => note.id === storedData.selectedNoteId) || null;
+        }
+        this.focusedNotebookId = storedData.focusedNotebookId;
+      }
+    } catch (error) {
+      console.error('Error loading data:', error);
     }
   };
 
-  private saveToStorage = () => {
+  private saveToStorage = async () => {
     const data: StoredData = {
       notes: this.notes,
       notebooks: this.notebooks,
       selectedNoteId: this.selectedNote?.id || null,
       focusedNotebookId: this.focusedNotebookId
     };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+
+    try {
+      if (isPlugin && window.brigde) {
+        await window.brigde.saveToStorage(STORAGE_KEY, data);
+      } else {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      }
+    } catch (error) {
+      console.error('Error saving data:', error);
+    }
   };
 
   createNote = (notebookId?: string) => {

@@ -24,8 +24,7 @@
   --paragraph-spacing: 1em;
   --drop-cap-size: 3.5em;
   --drop-cap-line-height: 3.5;
-
-  --editor-width: 700px;
+  --editor-width: 75%;
 }
 
 @font-face {
@@ -37,7 +36,7 @@
 
 body {
   margin: 0;
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'Crimson Pro', Georgia, serif;
   background-color: var(--color-bg);
   color: var(--color-text);
 }
@@ -49,7 +48,7 @@ body {
 
 .app.zen-mode .main-content {
   background-color: var(--color-white);
-  --editor-width: 900px;
+  --editor-width: 90%;
 }
 
 .sidebar {
@@ -761,6 +760,7 @@ body {
   margin: 0;
   font-size: 1.25rem;
   font-weight: 600;
+  font-family: 'Inter', system-ui, sans-serif;
 }
 
 .modal-content {
@@ -780,6 +780,7 @@ body {
   font-size: 1rem;
   font-weight: 600;
   color: var(--color-text);
+  font-family: 'Inter', system-ui, sans-serif;
 }
 
 .setting-item {
@@ -796,6 +797,8 @@ body {
 .setting-item label {
   font-size: 0.875rem;
   color: var(--color-text);
+  font-family: 'Inter', system-ui, sans-serif;
+  font-weight: 500;
 }
 
 .setting-item select {
@@ -827,6 +830,8 @@ body {
   cursor: pointer;
   font-size: 0.875rem;
   position: relative;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-weight: 500;
 }
 
 .modal-tab.active {
@@ -876,4 +881,20 @@ body {
   border-radius: 0.375rem;
   font-size: 0.875rem;
   color: var(--color-text);
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* Style modal inputs and selects */
+.modal select,
+.modal input[type="text"],
+.modal input[type="password"],
+.modal input[type="number"] {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.875rem;
+}
+
+.button-primary,
+.button-danger {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-weight: 500;
 }

@@ -37,13 +37,23 @@ export interface TypographySettings {
   enableDropCaps: boolean;
   dropCapSize: string;
   dropCapLineHeight: string;
-  horizontalMargins: string;
   maxEditorWidth: string;
 }
 
 export interface CensorshipSettings {
   pin: string | null;
   enabled: boolean;
+}
+
+export interface Bridge {
+  loadFromStorage: (key: string) => Promise<any>;
+  saveToStorage: (key: string, data: any) => Promise<boolean>;
+}
+
+declare global {
+  interface Window {
+    brigde?: Bridge;
+  }
 }
 
 export type ThemeName = 'default' | 'air' | 'typewriter' | 'narrow';

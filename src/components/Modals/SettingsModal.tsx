@@ -69,6 +69,7 @@ export const SettingsModal: FC<SettingsModalProps> = ({ onClose, settings, setSe
                     onChange={(e) => handleThemeChange(e.target.value)}
                     className="theme-select"
                   >
+                    <option key="Air" value="Air">Custom</option>
                     {Object.entries(themes).map(([key, theme]) => (
                       <option key={key} value={key}>
                         {theme.name}
@@ -87,7 +88,6 @@ export const SettingsModal: FC<SettingsModalProps> = ({ onClose, settings, setSe
                   >
                     <option value="GNU Typewriter">GNU Typewriter</option>
                     <option value="Crimson Pro">Crimson Pro</option>
-                    <option value="Inter">Inter</option>
                     <option value="Georgia">Georgia</option>
                     <option value="Times New Roman">Times New Roman</option>
                   </select>
@@ -129,26 +129,15 @@ export const SettingsModal: FC<SettingsModalProps> = ({ onClose, settings, setSe
                   </select>
                 </div>
                 <div className="setting-item">
-                  <label>Horizontal Margins</label>
-                  <select
-                    value={settings.horizontalMargins}
-                    onChange={(e) => setSettings({ ...settings, horizontalMargins: e.target.value })}
-                  >
-                    <option value="1rem">Narrow</option>
-                    <option value="2rem">Medium</option>
-                    <option value="3rem">Wide</option>
-                  </select>
-                </div>
-                <div className="setting-item">
                   <label>Maximum Width</label>
                   <select
                     value={settings.maxEditorWidth}
                     onChange={(e) => setSettings({ ...settings, maxEditorWidth: e.target.value })}
                   >
-                    <option value="600px">Narrow</option>
-                    <option value="700px">Medium</option>
-                    <option value="800px">Wide</option>
-                    <option value="1000px">Very Wide</option>
+                    <option value="50%">Narrow</option>
+                    <option value="60%">Medium</option>
+                    <option value="75%">Wide</option>
+                    <option value="90%">Very Wide</option>
                   </select>
                 </div>
                 <div className="setting-item">
@@ -207,7 +196,6 @@ export const SettingsModal: FC<SettingsModalProps> = ({ onClose, settings, setSe
                   >
                     <option value="GNU Typewriter">GNU Typewriter</option>
                     <option value="Crimson Pro">Crimson Pro</option>
-                    <option value="Inter">Inter</option>
                     <option value="Georgia">Georgia</option>
                   </select>
                 </div>
@@ -233,7 +221,6 @@ export const SettingsModal: FC<SettingsModalProps> = ({ onClose, settings, setSe
                   >
                     <option value="GNU Typewriter">GNU Typewriter</option>
                     <option value="Crimson Pro">Crimson Pro</option>
-                    <option value="Inter">Inter</option>
                     <option value="Georgia">Georgia</option>
                   </select>
                 </div>
