@@ -1,0 +1,17 @@
+
+.notebook-input,
+.notebook-select {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  color: var(--color-text);
+  margin-top: 0.25rem;
+}
+
+.notebook-input:focus,
+.notebook-select:focus {
+  outline: none;
+  border-color: var(--color-text-light);
+}

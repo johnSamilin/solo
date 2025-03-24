@@ -18,6 +18,7 @@ export class SettingsStore {
   isNewNotebookModalOpen = false;
   isTagModalOpen = false;
   isNoteSettingsOpen = false;
+  exportPath = '';
 
   constructor() {
     makeAutoObservable(this);
@@ -38,8 +39,8 @@ export class SettingsStore {
     try {
       let storedSettings = null;
       
-      if (isPlugin && window.brigde) {
-        storedSettings = await window.brigde.loadFromStorage(STORAGE_KEY);
+      if (isPlugin && window.bridge) {
+        storedSettings = JSON.parse(await window.bridge.loadFromStorage(STORAGE_KEY) ?? '{ "settings": {} }');
       } else {
         const stored = localStorage.getItem(STORAGE_KEY);
         if (stored) {
@@ -68,8 +69,8 @@ export class SettingsStore {
         isToolbarExpanded: this.isToolbarExpanded
       };
 
-      if (isPlugin && window.brigde) {
-        await window.brigde.saveToStorage(STORAGE_KEY, data);
+      if (isPlugin && window.bridge) {
+        await window.bridge.saveToStorage(STORAGE_KEY, JSON.stringify(data));
       } else {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
       }

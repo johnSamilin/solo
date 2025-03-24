@@ -7,6 +7,8 @@ import { FAB } from "./FAB";
 import { TagsDisplay } from "./TagsDisplay";
 import { NoteSettingsModal } from "../Modals/NoteSettingsModal";
 
+import './Editor.css';
+
 type EditorProps = {
   editor: TEditor | null;
   handleImageUpload: () => void;
@@ -116,7 +118,7 @@ export const Editor: FC<EditorProps> = observer(({
           currentNotebookId={notesStore.selectedNote.notebookId}
           onMoveNote={handleMoveNote}
           onDeleteNote={handleDeleteNote}
-          onToggleCensorship={() => notesStore.toggleNoteCensorship(notesStore.selectedNote.id)}
+          onToggleCensorship={() => notesStore.toggleNoteCensorship(notesStore?.selectedNote?.id ?? '')}
           isCensored={notesStore.selectedNote.isCensored}
         />
       )}

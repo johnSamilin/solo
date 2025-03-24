@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -11,12 +11,13 @@ import { observer } from 'mobx-react-lite';
 import { Censored } from './extensions/Censored';
 import { buildTagTree } from './utils';
 import { useStore } from './stores/StoreProvider';
-import { SettingsModal } from './components/Modals/SettingsModal';
+import { SettingsModal } from './components/Modals/SettingsModal/SettingsModal';
 import { NewNotebookModal } from './components/Modals/NewNoteBookModal';
 import { TagModal } from './components/Modals/TagModal';
-import { Sidebar } from './components/Sidebar';
+import { Sidebar } from './components/Sidebar/Sidebar';
 import { Editor } from './components/Editor/Editor';
 import { generateUniqueId } from './utils';
+import { TagNode } from './types';
 
 const App = observer(() => {
   const { notesStore, settingsStore, tagsStore } = useStore();
@@ -148,8 +149,6 @@ const App = observer(() => {
       {settingsStore.isSettingsOpen && (
         <SettingsModal
           onClose={() => settingsStore.setSettingsOpen(false)}
-          settings={settingsStore.settings}
-          setSettings={settingsStore.updateSettings}
         />
       )}
 
@@ -157,8 +156,6 @@ const App = observer(() => {
       {settingsStore.isNewNotebookModalOpen && (
         <NewNotebookModal
           onClose={() => settingsStore.setNewNotebookModalOpen(false)}
-          notebooks={notesStore.notebooks}
-          createNewNotebook={notesStore.createNotebook}
         />
       )}
 
@@ -166,38 +163,6 @@ const App = observer(() => {
       {settingsStore.isTagModalOpen && (
         <TagModal
           onClose={() => settingsStore.setTagModalOpen(false)}
-          tagTree={tagsStore.tagTree}
-          setTagTree={tagsStore.setTagTree}
-          selectedNote={notesStore.selectedNote}
-          setSelectedNote={notesStore.setSelectedNote}
-          setNotes={(notes) => notesStore.notes = notes}
-          notes={notesStore.notes}
-          applySelectedTags={() => {
-            const getSelectedTags = (nodes: TagNode[], parentPath = '') => {
-              return nodes.flatMap(node => {
-                const currentPath = parentPath ? `${parentPath}/${node.name}` : node.name;
-                const tags = [];
-
-                if (node.isChecked) {
-                  tags.push(tagsStore.createTag(currentPath));
-                }
-
-                if (node.children.length > 0) {
-                  tags.push(...getSelectedTags(node.children, currentPath));
-                }
-
-                return tags;
-              });
-            };
-
-            if (notesStore.selectedNote) {
-              const selectedTags = getSelectedTags(tagsStore.tagTree);
-              notesStore.updateNote(notesStore.selectedNote.id, {
-                tags: selectedTags
-              });
-            }
-            settingsStore.setTagModalOpen(false);
-          }}
         />
       )}
 
@@ -208,7 +173,6 @@ const App = observer(() => {
       <div className="main-content">
         {notesStore.selectedNote ? (
           <Editor
-            selectedNote={notesStore.selectedNote}
             editor={editor}
             handleImageUpload={() => {
               const input = document.createElement('input');

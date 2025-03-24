@@ -48,11 +48,20 @@ export interface CensorshipSettings {
 export interface Bridge {
   loadFromStorage: (key: string) => Promise<any>;
   saveToStorage: (key: string, data: any) => Promise<boolean>;
+  pickExportFolder: () => Promise<string>;
+  pickImportFolder: () => Promise<string>;
+  /**
+   * 
+   * @param data { notes: Note[], notebooks: Notebook[] }
+   * @param exportPath string
+   * @returns void
+   */
+  exportData: (data: string, exportPath: string) => void;
 }
 
 declare global {
   interface Window {
-    brigde?: Bridge;
+    bridge?: Bridge;
   }
 }
 

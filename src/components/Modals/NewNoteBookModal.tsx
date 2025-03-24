@@ -1,16 +1,19 @@
 import { X } from "lucide-react";
+import { observer } from "mobx-react-lite";
 import { FC, useState } from "react";
-import { Notebook } from "../../types";
+import { useStore } from "../../stores/StoreProvider";
+
+import './Modals.css';
+import './NewNoteBookModal.css';
 
 type NewNotebookModalProps = {
 	onClose: () => void;
-	notebooks: Notebook[];
-	createNewNotebook: (name: string, parentId: string | null) => void;
 };
 
-export const NewNotebookModal: FC<NewNotebookModalProps> = ({ onClose, notebooks, createNewNotebook }) => {
+export const NewNotebookModal: FC<NewNotebookModalProps> = observer(({ onClose }) => {
 	const [newNotebookName, setNewNotebookName] = useState('');
 	const [selectedNotebookId, setSelectedNotebookId] = useState('');
+	  const { notesStore } = useStore();
 
 	return (
 		<div className="modal-overlay">
@@ -40,7 +43,7 @@ export const NewNotebookModal: FC<NewNotebookModalProps> = ({ onClose, notebooks
 							className="notebook-select"
 						>
 							<option value="">None</option>
-							{notebooks.map(notebook => (
+							{notesStore.notebooks.map(notebook => (
 								<option key={notebook.id} value={notebook.id}>
 									{notebook.name}
 								</option>
@@ -50,7 +53,7 @@ export const NewNotebookModal: FC<NewNotebookModalProps> = ({ onClose, notebooks
 					<div className="modal-actions">
 						<button
 							onClick={() => {
-								createNewNotebook(newNotebookName, selectedNotebookId || null);
+								notesStore.createNotebook(newNotebookName, selectedNotebookId || null);
 								setNewNotebookName('');
 							}}
 							className="button-primary"
@@ -63,4 +66,4 @@ export const NewNotebookModal: FC<NewNotebookModalProps> = ({ onClose, notebooks
 			</div>
 		</div>
 	);
-};
+});

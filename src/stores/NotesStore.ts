@@ -33,8 +33,8 @@ export class NotesStore {
     try {
       let storedData: StoredData | null = null;
 
-      if (isPlugin && window.brigde) {
-        storedData = await window.brigde.loadFromStorage(STORAGE_KEY);
+      if (isPlugin && window.bridge) {
+        storedData = JSON.parse(await window.bridge.loadFromStorage(STORAGE_KEY) ?? '{ "notes": [], "notebooks": [] }');
       } else {
         const stored = localStorage.getItem(STORAGE_KEY);
         if (stored) {
@@ -67,8 +67,8 @@ export class NotesStore {
     };
 
     try {
-      if (isPlugin && window.brigde) {
-        await window.brigde.saveToStorage(STORAGE_KEY, data);
+      if (isPlugin && window.bridge) {
+        await window.bridge.saveToStorage(STORAGE_KEY, JSON.stringify(data));
       } else {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
       }

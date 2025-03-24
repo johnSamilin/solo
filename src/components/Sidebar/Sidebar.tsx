@@ -1,9 +1,11 @@
-import { Book, Plus, FolderPlus, MoreVertical, Settings } from "lucide-react";
+import { Plus, FolderPlus, MoreVertical, Settings } from "lucide-react";
 import { FC, useState, useEffect, useRef } from "react";
 import { observer } from "mobx-react-lite";
 import { NotebookItem } from "./NotebookItem";
-import { useStore } from "../stores/StoreProvider";
+import { useStore } from "../../stores/StoreProvider";
 import { Editor } from "@tiptap/react";
+
+import './Sidebar.css';
 
 type SidebarProps = {
 	editor: Editor | null;

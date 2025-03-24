@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { TagNode } from "../types";
+import { TagNode } from "../../types";
 
 export function TagTreeItem({ node, level = 0, onToggle, onCheck }: {
 	node: TagNode;

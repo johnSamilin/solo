@@ -2,13 +2,15 @@ import { FC } from 'react';
 import { X, Trash2, Lock, Unlock } from 'lucide-react';
 import { Notebook } from '../../types';
 
+import './Modals.css';
+
 type NoteSettingsModalProps = {
   onClose: () => void;
   notebooks: Notebook[];
   currentNotebookId: string;
   onMoveNote: (notebookId: string) => void;
   onDeleteNote: () => void;
-  isCensored: boolean;
+  isCensored: boolean | undefined;
   onToggleCensorship: () => void;
 };
 

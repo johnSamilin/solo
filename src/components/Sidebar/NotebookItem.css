@@ -1,0 +1,46 @@
+
+.notebook-item {
+    margin-bottom: 0.5rem;
+  }
+  
+  .notebook-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    cursor: pointer;
+    border-radius: 0.5rem;
+  }
+  
+  .notebook-header.focused {
+    /* font-weight: bold; */
+    text-decoration: underline;
+  }
+  
+  .notebook-header:hover {
+    background-color: var(--color-bg);
+  }
+  
+  .notebook-toggle {
+    padding: 0.25rem;
+    background: none;
+    border: none;
+    color: var(--color-text-light);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .notebook-name {
+    font-family: var(--sidebar-font-family), Georgia, serif;
+    font-size: var(--sidebar-font-size);
+    color: var(--color-text);
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+  }
+  
+  .notebook-name:hover {
+    background-color: var(--color-bg);
+  }

@@ -1,31 +1,49 @@
 import { X } from "lucide-react";
 import { FC, useState } from "react";
-import { Note, Tag, TagNode } from "../../types";
-import { TagTreeItem } from "../TagTreeItem";
+import { Tag, TagNode } from "../../types";
+import { TagTreeItem } from "../Sidebar/TagTreeItem";
 import { generateUniqueId, buildTagTree } from "../../utils";
+import { observer } from "mobx-react-lite";
+import { useStore } from "../../stores/StoreProvider";
+
+import './Modals.css';
 
 type TagModalProps = {
 	onClose: () => void;
-	tagTree: TagNode[];
-	setTagTree: (tags: TagNode[]) => void;
-	selectedNote: Note | null;
-	setSelectedNote: (note: Note | null) => void
-	setNotes: (notes: Note[]) => void
-	notes: Note[]
-	applySelectedTags: () => void
 };
 
-export const TagModal: FC<TagModalProps> = ({
+export const TagModal: FC<TagModalProps> = observer(({
 	onClose,
-	tagTree,
-	setTagTree,
-	selectedNote,
-	setSelectedNote,
-	setNotes,
-	notes,
-	applySelectedTags,
 }) => {
 	const [newTagPath, setNewTagPath] = useState('');
+	const { notesStore, settingsStore, tagsStore } = useStore();
+
+	const applySelectedTags = () => {
+		const getSelectedTags = (nodes: TagNode[], parentPath = '') => {
+			return nodes.flatMap(node => {
+				const currentPath = parentPath ? `${parentPath}/${node.name}` : node.name;
+				const tags = [];
+
+				if (node.isChecked) {
+					tags.push(tagsStore.createTag(currentPath));
+				}
+
+				if (node.children.length > 0) {
+					tags.push(...getSelectedTags(node.children, currentPath));
+				}
+
+				return tags;
+			});
+		};
+
+		if (notesStore.selectedNote) {
+			const selectedTags = getSelectedTags(tagsStore.tagTree);
+			notesStore.updateNote(notesStore.selectedNote.id, {
+				tags: selectedTags
+			});
+		}
+		settingsStore.setTagModalOpen(false);
+	}
 
 	const toggleTagNode = (nodeId: string) => {
 		const updateNodes = (nodes: TagNode[]): TagNode[] => {
@@ -40,7 +58,7 @@ export const TagModal: FC<TagModalProps> = ({
 			});
 		};
 
-		setTagTree(updateNodes(tagTree));
+		tagsStore.setTagTree(updateNodes(tagsStore.tagTree));
 	};
 
 	const toggleTagCheck = (nodeId: string) => {
@@ -56,12 +74,12 @@ export const TagModal: FC<TagModalProps> = ({
 			});
 		};
 
-		setTagTree(updateNodes(tagTree));
+		tagsStore.setTagTree(updateNodes(tagsStore.tagTree));
 	};
 
 	const handleNewTagSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
-		if (!newTagPath.trim() || !selectedNote) return;
+		if (!newTagPath.trim() || !notesStore.selectedNote) return;
 
 		const newTag: Tag = {
 			id: generateUniqueId(),
@@ -69,22 +87,22 @@ export const TagModal: FC<TagModalProps> = ({
 		};
 
 		const updatedNote = {
-			...selectedNote,
-			tags: [...selectedNote.tags, newTag]
+			...notesStore.selectedNote,
+			tags: [...notesStore.selectedNote.tags, newTag]
 		};
 
-		setSelectedNote(updatedNote);
-		setNotes(notes.map(note =>
+		notesStore.setSelectedNote(updatedNote);
+		notesStore.notes = notesStore.notes.map(note =>
 			note.id === updatedNote.id ? updatedNote : note
-		));
+		);
 
 		const allTags = Array.from(new Set([
-			...notes.flatMap(note => note.tags.map(tag => tag.path)),
+			...notesStore.notes.flatMap(note => note.tags.map(tag => tag.path)),
 			newTag.path
 		])).map(path => ({ id: generateUniqueId(), path }));
 
 		const tree = buildTagTree(allTags);
-		setTagTree(tree);
+		tagsStore.setTagTree(tree);
 		setNewTagPath('');
 	};
 
@@ -99,7 +117,7 @@ export const TagModal: FC<TagModalProps> = ({
 				</div>
 				<div className="modal-content">
 					<div className="tag-tree">
-						{tagTree.map(node => (
+						{tagsStore.tagTree.map(node => (
 							<TagTreeItem
 								key={node.id}
 								node={node}
@@ -132,4 +150,4 @@ export const TagModal: FC<TagModalProps> = ({
 			</div>
 		</div>
 	);
-};
+});

@@ -3,6 +3,8 @@ import { FC } from "react";
 import { observer } from "mobx-react-lite";
 import { useStore } from "../../stores/StoreProvider";
 
+import './TagsDisplay.css';
+
 export const TagsDisplay: FC = observer(() => {
 	const { notesStore, settingsStore } = useStore();
 

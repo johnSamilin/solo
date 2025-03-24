@@ -17,8 +17,8 @@ export class TagsStore {
     try {
       let storedData = null;
 
-      if (isPlugin && window.brigde) {
-        storedData = await window.brigde.loadFromStorage(STORAGE_KEY);
+      if (isPlugin && window.bridge) {
+        storedData = JSON.parse(await window.bridge.loadFromStorage(STORAGE_KEY) ?? '{ "tags": [] }');
       } else {
         const stored = localStorage.getItem(STORAGE_KEY);
         if (stored) {
@@ -40,8 +40,8 @@ export class TagsStore {
         tagTree: this.tagTree
       };
 
-      if (isPlugin && window.brigde) {
-        await window.brigde.saveToStorage(STORAGE_KEY, data);
+      if (isPlugin && window.bridge) {
+        await window.bridge.saveToStorage(STORAGE_KEY, JSON.stringify(data));
       } else {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
       }

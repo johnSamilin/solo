@@ -1,0 +1,48 @@
+.note-item {
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+}
+
+.note-item:hover {
+    background-color: var(--color-bg);
+}
+
+.note-item.selected .note-item-title {
+    /* font-weight: bold; */
+    text-decoration: underline;
+}
+
+.note-item-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.note-item-header .lucide-lock {
+    color: var(--color-text-light);
+}
+
+.note-item-title {
+    font-family: var(--sidebar-font-family), Georgia, serif;
+    font-size: var(--sidebar-font-size);
+    font-weight: normal;
+    margin: 0 0 0.25rem 0;
+    color: var(--color-text);
+}
+
+.note-item-date {
+    font-size: calc(var(--sidebar-font-size) * 0.75);
+    color: var(--color-text-light);
+}
+
+.censorship-status {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    background-color: var(--color-bg);
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    color: var(--color-text);
+    font-family: 'Inter', system-ui, sans-serif;
+}

@@ -1,8 +1,11 @@
 import { ChevronDown, ChevronRight, Lock } from "lucide-react";
 import { observer } from "mobx-react-lite";
-import { Notebook } from "../types";
-import { useStore } from "../stores/StoreProvider";
+import { Notebook } from "../../types";
+import { useStore } from "../../stores/StoreProvider";
 import { Editor } from "@tiptap/react";
+
+import './NotebookItem.css';
+import './NoteItem.css';
 
 type NotebookItemProps = {
   notebook: Notebook;

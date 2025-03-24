@@ -1,4 +1,4 @@
-export const MODE = process.env.MODE || 'standalone';
+export const VITE_BUILDMODE = import.meta.env.VITE_BUILDMODE || 'standalone';
 
-export const isStandalone = MODE === 'standalone';
-export const isPlugin = MODE === 'plugin';
+export const isStandalone = VITE_BUILDMODE === 'standalone';
+export const isPlugin = VITE_BUILDMODE === 'plugin';
