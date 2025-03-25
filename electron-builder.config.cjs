@@ -14,7 +14,7 @@ module.exports = {
     "electron/**/*"
   ],
   mac: {
-    target: ["dmg"],
+    target: ["dmg", "zip"],
     category: "public.app-category.productivity",
     icon: "assets/icons/mac/icon.icns"
   },

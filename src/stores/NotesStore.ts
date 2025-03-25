@@ -1,5 +1,5 @@
 import { makeAutoObservable } from 'mobx';
-import { Note, Tag, Notebook } from '../types';
+import { Note, Tag, Notebook, ImportMode } from '../types';
 import { generateUniqueId } from '../utils';
 import { isPlugin } from '../config';
 
@@ -33,7 +33,7 @@ export class NotesStore {
     try {
       let storedData: StoredData | null = null;
 
-      if (isPlugin && window.bridge) {
+      if (isPlugin) {
         storedData = JSON.parse(await window.bridge.loadFromStorage(STORAGE_KEY) ?? '{ "notes": [], "notebooks": [] }');
       } else {
         const stored = localStorage.getItem(STORAGE_KEY);
@@ -67,7 +67,7 @@ export class NotesStore {
     };
 
     try {
-      if (isPlugin && window.bridge) {
+      if (isPlugin) {
         await window.bridge.saveToStorage(STORAGE_KEY, JSON.stringify(data));
       } else {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -75,6 +75,68 @@ export class NotesStore {
     } catch (error) {
       console.error('Error saving data:', error);
     }
+  };
+
+  freshStart = () => {
+    this.notes = [];
+    this.notebooks = [{
+      id: 'default',
+      name: 'Main notebook',
+      parentId: null,
+      isExpanded: true
+    }];
+    this.selectedNote = null;
+    this.focusedNotebookId = null;
+    this.isEditing = false;
+    this.saveToStorage();
+  };
+
+  importData = (data: { notes: Note[], notebooks: Notebook[] }, mode: ImportMode) => {
+    if (mode === 'replace') {
+      this.notes = data.notes.map(note => ({
+        ...note,
+        createdAt: new Date(note.createdAt)
+      }));
+      this.notebooks = data.notebooks;
+      this.selectedNote = null;
+      this.focusedNotebookId = null;
+    } else {
+      // Create a map of existing notebooks by name for deduplication
+      const existingNotebooks = new Map(this.notebooks.map(n => [n.name, n]));
+      
+      // Import notebooks, reusing existing IDs where possible
+      data.notebooks.forEach(notebook => {
+        const existing = existingNotebooks.get(notebook.name);
+        if (!existing) {
+          this.notebooks.push({
+            ...notebook,
+            id: generateUniqueId()
+          });
+        }
+      });
+
+      // Create a map for notebook name to ID mapping
+      const notebookMap = new Map(this.notebooks.map(n => [n.name, n.id]));
+
+      // Import notes with new IDs and updated notebook references
+      const importedNotes = data.notes.map(note => {
+        const notebookName = data.notebooks.find(n => n.id === note.notebookId)?.name;
+        return {
+          ...note,
+          id: generateUniqueId(),
+          createdAt: new Date(note.createdAt),
+          notebookId: notebookName ? notebookMap.get(notebookName) || 'default' : 'default',
+          tags: note.tags.map(tag => ({
+            ...tag,
+            id: generateUniqueId()
+          }))
+        };
+      });
+
+      this.notes = [...this.notes, ...importedNotes];
+    }
+
+    this.saveToStorage();
   };
 
   createNote = (notebookId?: string) => {

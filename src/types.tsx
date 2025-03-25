@@ -2,6 +2,7 @@ export interface Tag {
   id: string;
   path: string;
 }
+
 export interface TagNode {
   id: string;
   name: string;
@@ -9,6 +10,7 @@ export interface TagNode {
   isChecked: boolean;
   isExpanded: boolean;
 }
+
 export interface Note {
   id: string;
   title: string;
@@ -18,12 +20,14 @@ export interface Note {
   notebookId: string;
   isCensored?: boolean;
 }
+
 export interface Notebook {
   id: string;
   name: string;
   parentId: string | null;
   isExpanded: boolean;
 }
+
 export interface TypographySettings {
   editorFontFamily: string;
   editorFontSize: string;
@@ -45,18 +49,15 @@ export interface CensorshipSettings {
   enabled: boolean;
 }
 
+export type ImportMode = 'merge' | 'replace';
+
 export interface Bridge {
   loadFromStorage: (key: string) => Promise<any>;
   saveToStorage: (key: string, data: any) => Promise<boolean>;
   pickExportFolder: () => Promise<string>;
   pickImportFolder: () => Promise<string>;
-  /**
-   * 
-   * @param data { notes: Note[], notebooks: Notebook[] }
-   * @param exportPath string
-   * @returns void
-   */
   exportData: (data: string, exportPath: string) => void;
+  importFromJoplin: () => Promise<{ notes: Note[], notebooks: Notebook[] } | null>;
 }
 
 declare global {
@@ -64,5 +65,3 @@ declare global {
     bridge?: Bridge;
   }
 }
-
-export type ThemeName = 'default' | 'air' | 'typewriter' | 'narrow';

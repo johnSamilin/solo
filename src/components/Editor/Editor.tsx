@@ -25,25 +25,35 @@ export const Editor: FC<EditorProps> = observer(({
   const { notesStore, settingsStore } = useStore();
   
   useEffect(() => {
-    try {
-      if (settingsStore.isZenMode) {
-        document.body.requestFullscreen();
-      } else {
-        document.exitFullscreen();
+    const handleFullscreen = async () => {
+      try {
+        if (settingsStore.isZenMode) {
+          if (document.documentElement.requestFullscreen) {
+            await document.documentElement.requestFullscreen();
+          }
+        } else if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        }
+      } catch (error) {
+        // Silently handle fullscreen errors
       }
-    } catch(er) {}
+    };
+
+    handleFullscreen();
 
     function onFSChange() {
       try {
         if (!document.fullscreenElement) {
           settingsStore.turnZenModeOff();
         }
-      } catch(er) {}
+      } catch (error) {
+        // Silently handle fullscreen errors
+      }
     }
 
-    document.body.addEventListener('fullscreenchange', onFSChange);
+    document.addEventListener('fullscreenchange', onFSChange);
     return () => {
-      document.body.removeEventListener('fullscreenchange', onFSChange);
+      document.removeEventListener('fullscreenchange', onFSChange);
     };
   }, [settingsStore.isZenMode]);
 

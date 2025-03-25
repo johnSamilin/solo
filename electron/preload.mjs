@@ -6,4 +6,5 @@ contextBridge.exposeInMainWorld('bridge', {
   pickExportFolder: () => ipcRenderer.invoke('pick-folder', 'export'),
   pickImportFolder: () => ipcRenderer.invoke('pick-folder', 'import'),
   exportData: (data, exportPath) => ipcRenderer.invoke('export-data', data, exportPath),
+  importFromJoplin: () => ipcRenderer.invoke('import-joplin')
 });
