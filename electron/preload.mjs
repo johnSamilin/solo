@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, shell } from 'electron';
 
 contextBridge.exposeInMainWorld('bridge', {
   loadFromStorage: (key) => ipcRenderer.invoke('loadFromStorage', key),
@@ -6,4 +6,6 @@ contextBridge.exposeInMainWorld('bridge', {
   pickExportFolder: () => ipcRenderer.invoke('pick-folder', 'export'),
   pickImportFolder: () => ipcRenderer.invoke('pick-folder', 'import'),
   exportData: (data, exportPath) => ipcRenderer.invoke('export-data', data, exportPath),
+  importFromJoplin: () => ipcRenderer.invoke('import-joplin'),
+  openExternal: (url) => shell.openExternal(url)
 });

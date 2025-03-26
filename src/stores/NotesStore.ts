@@ -1,5 +1,5 @@
-import { makeAutoObservable } from 'mobx';
-import { Note, Tag, Notebook } from '../types';
+import { makeObservable, observable } from 'mobx';
+import { Note, Tag, Notebook, ImportMode } from '../types';
 import { generateUniqueId } from '../utils';
 import { isPlugin } from '../config';
 
@@ -23,17 +23,47 @@ export class NotesStore {
   selectedNote: Note | null = null;
   focusedNotebookId: string | null = null;
   isEditing = false;
+  private notebooksByParentId = new Map<string | null, Notebook[]>();
+  private notesByNotebookId = new Map<string | null, Note[]>();
 
   constructor() {
-    makeAutoObservable(this);
+    makeObservable(this, {
+      notes: observable,
+      notebooks: observable,
+      selectedNote: observable,
+      focusedNotebookId: observable,
+      isEditing: observable,
+    });
     this.loadFromStorage();
+  }
+
+  private cacheNotebooks = () => {
+    this.notebooksByParentId = this.notebooks.reduce((agr, notebook) => {
+      if (!agr.has(notebook.parentId || null)) {
+        agr.set(notebook.parentId || null, []);
+      }
+      agr.get(notebook.parentId || null)!.push(notebook);
+      return agr;
+    }, new Map());
+  }
+
+  private cacheNotes = () => {
+    this.notesByNotebookId = this.notes.reduce((agr, note) => {
+      if (note.notebookId) {
+        if (!agr.has(note.notebookId)) {
+          agr.set(note.notebookId, []);
+        }
+        agr.get(note.notebookId)!.push(note);
+      }
+      return agr;
+    }, new Map());
   }
 
   private loadFromStorage = async () => {
     try {
       let storedData: StoredData | null = null;
 
-      if (isPlugin && window.bridge) {
+      if (isPlugin) {
         storedData = JSON.parse(await window.bridge.loadFromStorage(STORAGE_KEY) ?? '{ "notes": [], "notebooks": [] }');
       } else {
         const stored = localStorage.getItem(STORAGE_KEY);
@@ -48,6 +78,8 @@ export class NotesStore {
           createdAt: new Date(note.createdAt)
         }));
         this.notebooks = storedData.notebooks;
+        this.cacheNotebooks();
+        this.cacheNotes();
         if (storedData.selectedNoteId) {
           this.selectedNote = this.notes.find(note => note.id === storedData.selectedNoteId) || null;
         }
@@ -67,7 +99,7 @@ export class NotesStore {
     };
 
     try {
-      if (isPlugin && window.bridge) {
+      if (isPlugin) {
         await window.bridge.saveToStorage(STORAGE_KEY, JSON.stringify(data));
       } else {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -75,6 +107,69 @@ export class NotesStore {
     } catch (error) {
       console.error('Error saving data:', error);
     }
+  };
+
+  freshStart = () => {
+    this.notes = [];
+    this.notebooks = [{
+      id: 'default',
+      name: 'Main notebook',
+      parentId: null,
+      isExpanded: true
+    }];
+    this.cacheNotebooks();
+    this.cacheNotes();
+    this.selectedNote = null;
+    this.focusedNotebookId = null;
+    this.isEditing = false;
+    this.saveToStorage();
+  };
+
+  importData = (data: { notes: Note[], notebooks: Notebook[] }, mode: ImportMode) => {
+    if (mode === 'replace') {
+      this.notes = data.notes.map(note => ({
+        ...note,
+        createdAt: new Date(note.createdAt)
+      }));
+      this.notebooks = data.notebooks;
+      this.selectedNote = null;
+      this.focusedNotebookId = null;
+    } else {
+      // Create a map of existing notebooks by name for deduplication
+      const existingNotebooks = new Map(this.notebooks.map(n => [n.id, n]));
+      
+      // Import notebooks, reusing existing IDs where possible
+      data.notebooks.forEach(notebook => {
+        const existing = existingNotebooks.get(notebook.id);
+        if (!existing) {
+          this.notebooks.push(notebook);
+        }
+      });
+
+      // Create a map for notebook name to ID mapping
+      const notebookMap = new Map(this.notebooks.map(n => [n.name, n.id]));
+
+      // Import notes with new IDs and updated notebook references
+      const importedNotes = data.notes.map(note => {
+        const notebookName = data.notebooks.find(n => n.id === note.notebookId)?.name;
+        return {
+          ...note,
+          id: generateUniqueId(),
+          createdAt: new Date(note.createdAt),
+          notebookId: notebookName ? notebookMap.get(notebookName) || 'default' : 'default',
+          tags: note.tags.map(tag => ({
+            ...tag,
+            id: generateUniqueId()
+          }))
+        };
+      });
+
+      this.notes = [...this.notes, ...importedNotes];
+    }
+    this.cacheNotebooks();
+    this.cacheNotes();
+
+    this.saveToStorage();
   };
 
   createNote = (notebookId?: string) => {
@@ -99,6 +194,7 @@ export class NotesStore {
     }
 
     this.saveToStorage();
+    this.cacheNotes();
     return newNote;
   };
 
@@ -110,6 +206,7 @@ export class NotesStore {
         this.selectedNote = this.notes[noteIndex];
       }
       this.saveToStorage();
+      this.cacheNotes();
     }
   };
 
@@ -121,6 +218,7 @@ export class NotesStore {
         this.selectedNote = note;
       }
       this.saveToStorage();
+      this.cacheNotes();
     }
   };
 
@@ -131,6 +229,7 @@ export class NotesStore {
       this.isEditing = false;
     }
     this.saveToStorage();
+    this.cacheNotes();
   };
 
   setSelectedNote = (note: Note | null) => {
@@ -152,6 +251,7 @@ export class NotesStore {
     if (note) {
       note.tags.push(tag);
       this.saveToStorage();
+      this.cacheNotes();
     }
   };
 
@@ -160,6 +260,7 @@ export class NotesStore {
     if (note) {
       note.tags = note.tags.filter(tag => tag.id !== tagId);
       this.saveToStorage();
+      this.cacheNotes();
     }
   };
 
@@ -171,6 +272,8 @@ export class NotesStore {
       isExpanded: true
     };
     this.notebooks.push(newNotebook);
+    this.cacheNotebooks();
+    this.cacheNotes();
     this.saveToStorage();
     return newNotebook;
   };
@@ -184,10 +287,10 @@ export class NotesStore {
   };
 
   getNotebookNotes = (notebookId: string) => {
-    return this.notes.filter(note => note.notebookId === notebookId);
+    return this.notesByNotebookId.get(notebookId) ?? [];
   };
 
   getChildNotebooks = (parentId: string | null) => {
-    return this.notebooks.filter(notebook => notebook.parentId === parentId);
+    return this.notebooksByParentId.get(parentId) ?? [];
   };
 }

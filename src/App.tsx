@@ -18,6 +18,7 @@ import { Sidebar } from './components/Sidebar/Sidebar';
 import { Editor } from './components/Editor/Editor';
 import { generateUniqueId } from './utils';
 import { TagNode } from './types';
+import { isPlugin } from './config';
 
 const App = observer(() => {
   const { notesStore, settingsStore, tagsStore } = useStore();
@@ -43,7 +44,11 @@ const App = observer(() => {
         openOnClick: false,
         HTMLAttributes: {
           rel: 'noopener noreferrer',
-          class: 'text-blue-600 hover:text-blue-800 underline',
+          class: 'text-blue-600 hover:text-blue-800 underline cursor-pointer',
+        },
+        onModifyLink: (link) => {
+          const url = window.prompt('Edit link URL:', link);
+          return url;
         },
       }),
       Censored,
@@ -65,6 +70,77 @@ const App = observer(() => {
       }
     },
   });
+
+  useEffect(() => {
+    if (editor) {
+      // Handle Ctrl+click on links
+      const handleClick = (e: MouseEvent) => {
+        if (e.target instanceof HTMLAnchorElement) {
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            if (isPlugin) {
+              window.bridge?.openExternal(e.target.href);
+            } else {
+              window.open(e.target.href, '_blank');
+            }
+          }
+        }
+      };
+
+      // Handle right-click context menu for links
+      const handleContextMenu = (e: MouseEvent) => {
+        if (e.target instanceof HTMLAnchorElement) {
+          e.preventDefault();
+          const link = e.target;
+          const menu = document.createElement('div');
+          menu.className = 'link-context-menu';
+          menu.innerHTML = `
+            <button class="menu-item" data-action="open">Open link</button>
+            <button class="menu-item" data-action="edit">Edit link</button>
+          `;
+          menu.style.position = 'fixed';
+          menu.style.left = `${e.clientX}px`;
+          menu.style.top = `${e.clientY}px`;
+          document.body.appendChild(menu);
+
+          const handleMenuClick = (e: MouseEvent) => {
+            const target = e.target as HTMLElement;
+            if (target.classList.contains('menu-item')) {
+              const action = target.dataset.action;
+              if (action === 'open') {
+                if (isPlugin) {
+                  window.bridge?.openExternal(link.href);
+                } else {
+                  window.open(link.href, '_blank');
+                }
+              } else if (action === 'edit') {
+                const url = window.prompt('Edit link URL:', link.href);
+                if (url) {
+                  editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+                }
+              }
+            }
+            menu.remove();
+            document.removeEventListener('click', handleMenuClick);
+          };
+
+          // Remove menu on any click
+          setTimeout(() => {
+            document.addEventListener('click', handleMenuClick, { once: true });
+          }, 0);
+        }
+      };
+
+      const editorElement = editor.view.dom;
+      editorElement.addEventListener('click', handleClick);
+      editorElement.addEventListener('contextmenu', handleContextMenu);
+
+      return () => {
+        editorElement.removeEventListener('click', handleClick);
+        editorElement.removeEventListener('contextmenu', handleContextMenu);
+      };
+    }
+  }, [editor]);
 
   // Update editor content when note changes or censorship state changes
   useEffect(() => {

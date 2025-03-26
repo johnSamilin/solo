@@ -19,12 +19,22 @@ export class SettingsStore {
   isTagModalOpen = false;
   isNoteSettingsOpen = false;
   exportPath = '';
+  importStatus: 'idle' | 'success' | 'error' = 'idle';
 
   constructor() {
     makeAutoObservable(this);
     this.loadFromStorage();
     this.setupKeyboardShortcuts();
   }
+
+  setImportStatus = (status: 'idle' | 'success' | 'error') => {
+    this.importStatus = status;
+    if (status !== 'idle') {
+      setTimeout(() => {
+        this.importStatus = 'idle';
+      }, 3000);
+    }
+  };
 
   private setupKeyboardShortcuts = () => {
     document.addEventListener('keydown', (e) => {
@@ -39,7 +49,7 @@ export class SettingsStore {
     try {
       let storedSettings = null;
       
-      if (isPlugin && window.bridge) {
+      if (isPlugin) {
         storedSettings = JSON.parse(await window.bridge.loadFromStorage(STORAGE_KEY) ?? '{ "settings": {} }');
       } else {
         const stored = localStorage.getItem(STORAGE_KEY);
@@ -69,7 +79,7 @@ export class SettingsStore {
         isToolbarExpanded: this.isToolbarExpanded
       };
 
-      if (isPlugin && window.bridge) {
+      if (isPlugin) {
         await window.bridge.saveToStorage(STORAGE_KEY, JSON.stringify(data));
       } else {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));

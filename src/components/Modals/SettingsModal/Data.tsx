@@ -1,10 +1,13 @@
-import { FC } from "react";
+import { FC, useRef, useState } from "react";
 import { useStore } from "../../../stores/StoreProvider";
 import { isPlugin } from "../../../config";
 import { observer } from "mobx-react-lite";
+import { ImportMode } from "../../../types";
 
 export const Data: FC = observer(() => {
   const { notesStore, settingsStore } = useStore();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importMode, setImportMode] = useState<ImportMode>('merge');
 
   const handleExport = async () => {
     const data = {
@@ -17,10 +20,8 @@ export const Data: FC = observer(() => {
       if (folder !== '')  {
         window.bridge?.exportData(JSON.stringify(data), folder);
       }
-
       return;
     }
-
 
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -34,6 +35,55 @@ export const Data: FC = observer(() => {
     URL.revokeObjectURL(url);
   };
 
+  const handleImport = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleJoplinImport = async () => {
+    try {
+      const data = await window.bridge?.importFromJoplin();
+      if (data) {
+        notesStore.importData(data, importMode);
+        settingsStore.setImportStatus('success');
+      }
+    } catch (error) {
+      console.error('Error importing Joplin data:', error);
+      settingsStore.setImportStatus('error');
+    }
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      
+      if (!data.notes || !data.notebooks) {
+        throw new Error('Invalid file format');
+      }
+
+      notesStore.importData(data, importMode);
+      settingsStore.setImportStatus('success');
+    } catch (error) {
+      console.error('Error importing data:', error);
+      settingsStore.setImportStatus('error');
+    }
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleFreshStart = () => {
+    if (confirm('Are you sure you want to erase all data? This action cannot be undone!')) {
+      notesStore.freshStart();
+      settingsStore.setSettingsOpen(false);
+    }
+  };
+
   return (
     <div className="settings-group">
       <h3>Data Management</h3>
@@ -43,6 +93,50 @@ export const Data: FC = observer(() => {
           Export
         </button>
       </div>
+      <div className="setting-item">
+        <label>Import Mode</label>
+        <select 
+          value={importMode} 
+          onChange={(e) => setImportMode(e.target.value as ImportMode)}
+          className="import-mode-select"
+        >
+          <option value="merge">Merge with existing data</option>
+          <option value="replace">Replace existing data</option>
+        </select>
+      </div>
+      <div className="setting-item">
+        <label>Import Solo Data</label>
+        <button onClick={handleImport} className="button-primary">
+          Import Solo File
+        </button>
+      </div>
+      {isPlugin && (
+        <div className="setting-item">
+          <label>Import from Joplin</label>
+          <button onClick={handleJoplinImport} className="button-primary">
+            Import Joplin Database
+          </button>
+        </div>
+      )}
+      <div className="setting-item">
+        <label>Fresh Start</label>
+        <button onClick={handleFreshStart} className="button-danger">
+          Erase All Data
+        </button>
+      </div>
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileSelect}
+        accept=".json"
+        style={{ display: 'none' }}
+      />
+      {settingsStore.importStatus === 'success' && (
+        <div className="import-status success">Data imported successfully!</div>
+      )}
+      {settingsStore.importStatus === 'error' && (
+        <div className="import-status error">Error importing data. Please check the file format.</div>
+      )}
       <div>
         {settingsStore.exportPath !== ''
           ? `Exported ${notesStore.notes.length} notes in ${notesStore.notebooks.length} notebooks to ${settingsStore.exportPath}`
