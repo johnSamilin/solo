@@ -58,6 +58,7 @@ export interface Bridge {
   pickImportFolder: () => Promise<string>;
   exportData: (data: string, exportPath: string) => void;
   importFromJoplin: () => Promise<{ notes: Note[], notebooks: Notebook[] } | null>;
+  openExternal: (url: string) => Promise<void>;
 }
 
 declare global {

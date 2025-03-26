@@ -1,4 +1,4 @@
-import { makeAutoObservable } from 'mobx';
+import { makeObservable, observable } from 'mobx';
 import { Note, Tag, Notebook, ImportMode } from '../types';
 import { generateUniqueId } from '../utils';
 import { isPlugin } from '../config';
@@ -23,10 +23,40 @@ export class NotesStore {
   selectedNote: Note | null = null;
   focusedNotebookId: string | null = null;
   isEditing = false;
+  private notebooksByParentId = new Map<string | null, Notebook[]>();
+  private notesByNotebookId = new Map<string | null, Note[]>();
 
   constructor() {
-    makeAutoObservable(this);
+    makeObservable(this, {
+      notes: observable,
+      notebooks: observable,
+      selectedNote: observable,
+      focusedNotebookId: observable,
+      isEditing: observable,
+    });
     this.loadFromStorage();
+  }
+
+  private cacheNotebooks = () => {
+    this.notebooksByParentId = this.notebooks.reduce((agr, notebook) => {
+      if (!agr.has(notebook.parentId || null)) {
+        agr.set(notebook.parentId || null, []);
+      }
+      agr.get(notebook.parentId || null)!.push(notebook);
+      return agr;
+    }, new Map());
+  }
+
+  private cacheNotes = () => {
+    this.notesByNotebookId = this.notes.reduce((agr, note) => {
+      if (note.notebookId) {
+        if (!agr.has(note.notebookId)) {
+          agr.set(note.notebookId, []);
+        }
+        agr.get(note.notebookId)!.push(note);
+      }
+      return agr;
+    }, new Map());
   }
 
   private loadFromStorage = async () => {
@@ -48,6 +78,8 @@ export class NotesStore {
           createdAt: new Date(note.createdAt)
         }));
         this.notebooks = storedData.notebooks;
+        this.cacheNotebooks();
+        this.cacheNotes();
         if (storedData.selectedNoteId) {
           this.selectedNote = this.notes.find(note => note.id === storedData.selectedNoteId) || null;
         }
@@ -85,6 +117,8 @@ export class NotesStore {
       parentId: null,
       isExpanded: true
     }];
+    this.cacheNotebooks();
+    this.cacheNotes();
     this.selectedNote = null;
     this.focusedNotebookId = null;
     this.isEditing = false;
@@ -102,16 +136,13 @@ export class NotesStore {
       this.focusedNotebookId = null;
     } else {
       // Create a map of existing notebooks by name for deduplication
-      const existingNotebooks = new Map(this.notebooks.map(n => [n.name, n]));
+      const existingNotebooks = new Map(this.notebooks.map(n => [n.id, n]));
       
       // Import notebooks, reusing existing IDs where possible
       data.notebooks.forEach(notebook => {
-        const existing = existingNotebooks.get(notebook.name);
+        const existing = existingNotebooks.get(notebook.id);
         if (!existing) {
-          this.notebooks.push({
-            ...notebook,
-            id: generateUniqueId()
-          });
+          this.notebooks.push(notebook);
         }
       });
 
@@ -135,6 +166,8 @@ export class NotesStore {
 
       this.notes = [...this.notes, ...importedNotes];
     }
+    this.cacheNotebooks();
+    this.cacheNotes();
 
     this.saveToStorage();
   };
@@ -161,6 +194,7 @@ export class NotesStore {
     }
 
     this.saveToStorage();
+    this.cacheNotes();
     return newNote;
   };
 
@@ -172,6 +206,7 @@ export class NotesStore {
         this.selectedNote = this.notes[noteIndex];
       }
       this.saveToStorage();
+      this.cacheNotes();
     }
   };
 
@@ -183,6 +218,7 @@ export class NotesStore {
         this.selectedNote = note;
       }
       this.saveToStorage();
+      this.cacheNotes();
     }
   };
 
@@ -193,6 +229,7 @@ export class NotesStore {
       this.isEditing = false;
     }
     this.saveToStorage();
+    this.cacheNotes();
   };
 
   setSelectedNote = (note: Note | null) => {
@@ -214,6 +251,7 @@ export class NotesStore {
     if (note) {
       note.tags.push(tag);
       this.saveToStorage();
+      this.cacheNotes();
     }
   };
 
@@ -222,6 +260,7 @@ export class NotesStore {
     if (note) {
       note.tags = note.tags.filter(tag => tag.id !== tagId);
       this.saveToStorage();
+      this.cacheNotes();
     }
   };
 
@@ -233,6 +272,8 @@ export class NotesStore {
       isExpanded: true
     };
     this.notebooks.push(newNotebook);
+    this.cacheNotebooks();
+    this.cacheNotes();
     this.saveToStorage();
     return newNotebook;
   };
@@ -246,10 +287,10 @@ export class NotesStore {
   };
 
   getNotebookNotes = (notebookId: string) => {
-    return this.notes.filter(note => note.notebookId === notebookId);
+    return this.notesByNotebookId.get(notebookId) ?? [];
   };
 
   getChildNotebooks = (parentId: string | null) => {
-    return this.notebooks.filter(notebook => notebook.parentId === parentId);
+    return this.notebooksByParentId.get(parentId) ?? [];
   };
 }
