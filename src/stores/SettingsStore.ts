@@ -1,5 +1,5 @@
 import { makeAutoObservable } from 'mobx';
-import { TypographySettings, CensorshipSettings } from '../types';
+import { TypographySettings, CensorshipSettings, WebDAVSettings, Toast } from '../types';
 import { defaultSettings } from '../constants';
 import { isPlugin } from '../config';
 
@@ -11,6 +11,12 @@ export class SettingsStore {
     pin: null,
     enabled: true
   };
+  webDAV: WebDAVSettings = {
+    url: '',
+    username: '',
+    password: '',
+    enabled: false
+  };
   fakeCensorshipDisabled = false;
   isZenMode = false;
   isToolbarExpanded = false;
@@ -20,12 +26,21 @@ export class SettingsStore {
   isNoteSettingsOpen = false;
   exportPath = '';
   importStatus: 'idle' | 'success' | 'error' = 'idle';
+  toast: Toast | null = null;
 
   constructor() {
     makeAutoObservable(this);
     this.loadFromStorage();
     this.setupKeyboardShortcuts();
   }
+
+  setToast = (message: string, type: 'success' | 'error') => {
+    this.toast = { message, type };
+  };
+
+  clearToast = () => {
+    this.toast = null;
+  };
 
   setImportStatus = (status: 'idle' | 'success' | 'error') => {
     this.importStatus = status;
@@ -62,6 +77,7 @@ export class SettingsStore {
         const data = storedSettings;
         this.settings = data.settings;
         this.censorship = data.censorship ? { ...data.censorship, enabled: true } : { pin: null, enabled: true };
+        this.webDAV = data.webDAV || this.webDAV;
         this.isZenMode = data.isZenMode;
         this.isToolbarExpanded = data.isToolbarExpanded;
       }
@@ -75,6 +91,7 @@ export class SettingsStore {
       const data = {
         settings: this.settings,
         censorship: this.censorship,
+        webDAV: this.webDAV,
         isZenMode: this.isZenMode,
         isToolbarExpanded: this.isToolbarExpanded
       };
@@ -91,6 +108,11 @@ export class SettingsStore {
 
   updateSettings = (newSettings: Partial<TypographySettings>) => {
     this.settings = { ...this.settings, ...newSettings };
+    this.saveToStorage();
+  };
+
+  updateWebDAV = (newSettings: Partial<WebDAVSettings>) => {
+    this.webDAV = { ...this.webDAV, ...newSettings };
     this.saveToStorage();
   };
 

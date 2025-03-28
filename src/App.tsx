@@ -16,6 +16,7 @@ import { NewNotebookModal } from './components/Modals/NewNoteBookModal';
 import { TagModal } from './components/Modals/TagModal';
 import { Sidebar } from './components/Sidebar/Sidebar';
 import { Editor } from './components/Editor/Editor';
+import { Toast } from './components/Toast/Toast';
 import { generateUniqueId } from './utils';
 import { TagNode } from './types';
 import { isPlugin } from './config';
@@ -241,6 +242,9 @@ const App = observer(() => {
           onClose={() => settingsStore.setTagModalOpen(false)}
         />
       )}
+
+      {/* Toast */}
+      <Toast />
 
       {/* Sidebar */}
       <Sidebar editor={editor} />

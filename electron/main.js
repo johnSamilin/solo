@@ -5,6 +5,7 @@ import Store from 'electron-store';
 import fs from 'fs';
 import sqlite3 from 'sqlite3';
 import TurndownService from 'turndown';
+import { createClient } from 'webdav';
 import { generateUniqueId } from './utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -52,6 +53,117 @@ ipcMain.handle('loadFromStorage', (event, key) => {
 ipcMain.handle('saveToStorage', (event, key, data) => {
   store.set(key, data);
   return true;
+});
+
+ipcMain.handle('testWebDAV', async (event, settingsJson) => {
+  try {
+    const settings = JSON.parse(settingsJson);
+    if (!settings?.url || !settings?.username || !settings?.password) {
+      return false;
+    }
+
+    const client = createClient(settings.url, {
+      username: settings.username,
+      password: settings.password,
+      maxBodyLength: Infinity,
+      maxContentLength: Infinity
+    });
+    
+    // Test both read and write permissions
+    const exists = await client.exists('/');
+    if (!exists) {
+      return false;
+    }
+
+    // Try to create and remove a test directory
+    const testDir = `/test-${Date.now()}`;
+    await client.createDirectory(testDir);
+    await client.deleteFile(testDir);
+
+    return true;
+  } catch (error) {
+    console.error('WebDAV test failed:', error);
+    return false;
+  }
+});
+
+ipcMain.handle('syncWebDAV', async (event, settingsJson) => {
+  try {
+    const settings = JSON.parse(settingsJson);
+    if (!settings.enabled) return false;
+
+    const client = createClient(settings.url, {
+      username: settings.username,
+      password: settings.password,
+      maxBodyLength: Infinity,
+      maxContentLength: Infinity
+    });
+
+    // Ensure the Solo directory exists
+    const soloDir = '/Solo';
+    if (!await client.exists(soloDir)) {
+      await client.createDirectory(soloDir);
+    }
+
+    // Upload current data
+    const data = store.get('solo-notes-data');
+    if (data) {
+      const filename = `solo-backup-${new Date().toISOString().split('T')[0]}.json`;
+      await client.putFileContents(`${soloDir}/${filename}`, JSON.stringify(data));
+    }
+
+    return true;
+  } catch (error) {
+    console.error('WebDAV sync failed:', error);
+    return false;
+  }
+});
+
+ipcMain.handle('restoreWebDAV', async (event, settingsJson) => {
+  try {
+    const settings = JSON.parse(settingsJson);
+    if (!settings.enabled) return false;
+
+    const client = createClient(settings.url, {
+      username: settings.username,
+      password: settings.password,
+      maxBodyLength: Infinity,
+      maxContentLength: Infinity
+    });
+
+    // Get list of backups
+    const soloDir = '/Solo';
+    if (!await client.exists(soloDir)) {
+      return false;
+    }
+
+    const files = await client.getDirectoryContents(soloDir);
+    const backupFiles = files
+      .filter(file => file.filename.endsWith('.json'))
+      .sort((a, b) => new Date(b.lastmod).getTime() - new Date(a.lastmod).getTime());
+
+    if (backupFiles.length === 0) {
+      return false;
+    }
+
+    // Get the latest backup
+    const latestBackup = backupFiles[0];
+    const backupContent = await client.getFileContents(`${soloDir}/${latestBackup.basename}`, { format: 'text' });
+    
+    // Parse and validate backup data
+    const content = JSON.parse(backupContent.toString());
+    const backupData = JSON.parse(content);
+    if (!backupData.notes || !backupData.notebooks) {
+      return false;
+    }
+
+    // Store the backup data
+    store.set('solo-notes-data', backupData);
+    return true;
+  } catch (error) {
+    console.error('WebDAV restore failed:', error);
+    return false;
+  }
 });
 
 ipcMain.handle('pick-folder', async (event, operation) => {

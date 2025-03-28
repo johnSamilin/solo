@@ -4,29 +4,35 @@ import { Typography } from "./Typography";
 import { Layout } from "./Layout";
 import { Censorship } from "./Censorship";
 import { Data } from "./Data";
+import { WebDAV } from "./WebDAV";
 import { observer } from "mobx-react-lite";
 import { useStore } from "../../../stores/StoreProvider";
+import { isPlugin } from "../../../config";
 
 type SettingsModalProps = {
   onClose: () => void;
 };
 
+type TabType = 'typography' | 'layout' | 'censorship' | 'data' | 'webdav';
+
 export const SettingsModal: FC<SettingsModalProps> = observer(({ onClose}) => {
-  const [activeTab, setActiveTab] = useState<'typography' | 'layout' | 'censorship' | 'data'>('typography');
+  const [activeTab, setActiveTab] = useState<TabType>('typography');
   const { settingsStore } = useStore();
 
   const renderActiveTab = useCallback(() => {
-    if (activeTab === 'typography') {
-      return <Typography settings={settingsStore.settings} setSettings={settingsStore.updateSettings} />;
-    }
-    if (activeTab === 'layout') {
-      return <Layout settings={settingsStore.settings} setSettings={settingsStore.updateSettings} />;
-    }
-    if (activeTab === 'censorship') {
-      return <Censorship />;
-    }
-    if (activeTab === 'data') {
-      return <Data />;
+    switch (activeTab) {
+      case 'typography':
+        return <Typography settings={settingsStore.settings} setSettings={settingsStore.updateSettings} />;
+      case 'layout':
+        return <Layout settings={settingsStore.settings} setSettings={settingsStore.updateSettings} />;
+      case 'censorship':
+        return <Censorship />;
+      case 'data':
+        return <Data />;
+      case 'webdav':
+        return <WebDAV />;
+      default:
+        return null;
     }
   }, [activeTab, settingsStore.settings]);
 
@@ -64,6 +70,14 @@ export const SettingsModal: FC<SettingsModalProps> = observer(({ onClose}) => {
           >
             Data
           </button>
+          {isPlugin && (
+            <button
+              className={`modal-tab ${activeTab === 'webdav' ? 'active' : ''}`}
+              onClick={() => setActiveTab('webdav')}
+            >
+              WebDAV
+            </button>
+          )}
         </div>
         <div className="modal-content">
           {renderActiveTab()}

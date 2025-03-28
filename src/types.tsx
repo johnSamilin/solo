@@ -1,3 +1,5 @@
+import { createClient } from 'webdav';
+
 export interface Tag {
   id: string;
   path: string;
@@ -49,6 +51,18 @@ export interface CensorshipSettings {
   enabled: boolean;
 }
 
+export interface WebDAVSettings {
+  url: string;
+  username: string;
+  password: string;
+  enabled: boolean;
+}
+
+export interface Toast {
+  message: string;
+  type: 'success' | 'error';
+}
+
 export type ImportMode = 'merge' | 'replace';
 
 export interface Bridge {
@@ -59,6 +73,9 @@ export interface Bridge {
   exportData: (data: string, exportPath: string) => void;
   importFromJoplin: () => Promise<{ notes: Note[], notebooks: Notebook[] } | null>;
   openExternal: (url: string) => Promise<void>;
+  testWebDAV?: (settings: string) => Promise<boolean>;
+  syncWebDAV?: (settings: string) => Promise<boolean>;
+  restoreWebDAV?: (settings: string) => Promise<boolean>;
 }
 
 declare global {

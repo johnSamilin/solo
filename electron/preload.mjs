@@ -7,5 +7,8 @@ contextBridge.exposeInMainWorld('bridge', {
   pickImportFolder: () => ipcRenderer.invoke('pick-folder', 'import'),
   exportData: (data, exportPath) => ipcRenderer.invoke('export-data', data, exportPath),
   importFromJoplin: () => ipcRenderer.invoke('import-joplin'),
-  openExternal: (url) => shell.openExternal(url)
+  openExternal: (url) => shell.openExternal(url),
+  testWebDAV: (settings) => ipcRenderer.invoke('testWebDAV', settings),
+  syncWebDAV: () => ipcRenderer.invoke('syncWebDAV'),
+  restoreWebDAV: (settings) => ipcRenderer.invoke('restoreWebDAV', settings),
 });
