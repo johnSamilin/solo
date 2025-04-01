@@ -4,7 +4,7 @@ import { useStore } from "../../../stores/StoreProvider";
 import { isPlugin } from "../../../config";
 
 export const WebDAV: FC = observer(() => {
-  const { settingsStore } = useStore();
+  const { settingsStore, notesStore } = useStore();
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
 
   if (!isPlugin) {

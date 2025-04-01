@@ -9,6 +9,6 @@ contextBridge.exposeInMainWorld('bridge', {
   importFromJoplin: () => ipcRenderer.invoke('import-joplin'),
   openExternal: (url) => shell.openExternal(url),
   testWebDAV: (settings) => ipcRenderer.invoke('testWebDAV', settings),
-  syncWebDAV: () => ipcRenderer.invoke('syncWebDAV'),
+  syncWebDAV: (settings) => ipcRenderer.invoke('syncWebDAV', settings),
   restoreWebDAV: (settings) => ipcRenderer.invoke('restoreWebDAV', settings),
 });

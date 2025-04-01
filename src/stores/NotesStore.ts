@@ -59,7 +59,7 @@ export class NotesStore {
     }, new Map());
   }
 
-  private loadFromStorage = async () => {
+  loadFromStorage = async () => {
     try {
       let storedData: StoredData | null = null;
 
@@ -87,7 +87,7 @@ export class NotesStore {
         this.focusedNotebookId = storedData.focusedNotebookId;
       }
     } catch (error) {
-      console.error('Error loading data:', error);
+      alert('Error loading data: ' + error);
     }
   };
 
@@ -106,7 +106,7 @@ export class NotesStore {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
       }
     } catch (error) {
-      console.error('Error saving data:', error);
+      alert('Error saving data: ' + error);
     }
   };
 

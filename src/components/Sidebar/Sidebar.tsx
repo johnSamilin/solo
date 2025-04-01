@@ -77,13 +77,12 @@ export const Sidebar: FC<SidebarProps> = observer(({ editor }) => {
       const success = await window.bridge.restoreWebDAV(JSON.stringify(settingsStore.webDAV));
       if (success) {
         settingsStore.setToast('WebDAV restore completed successfully', 'success');
-        // Reload the page to refresh all data
-        window.location.reload();
+        notesStore.loadFromStorage();
       } else {
         settingsStore.setToast('WebDAV restore failed - no backups found', 'error');
       }
     } catch (error) {
-      console.error('Restore failed:', error);
+      alert('Restore failed: ' + error);
       settingsStore.setToast('WebDAV restore failed', 'error');
     }
     setIsMenuOpen(false);

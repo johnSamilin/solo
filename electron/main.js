@@ -149,10 +149,10 @@ ipcMain.handle('restoreWebDAV', async (event, settingsJson) => {
     // Get the latest backup
     const latestBackup = backupFiles[0];
     const backupContent = await client.getFileContents(`${soloDir}/${latestBackup.basename}`, { format: 'text' });
-    
+    console.log(backupFiles, backupContent.toString())
     // Parse and validate backup data
     const content = JSON.parse(backupContent.toString());
-    const backupData = JSON.parse(content);
+    const backupData = content;
     if (!backupData.notes || !backupData.notebooks) {
       return false;
     }

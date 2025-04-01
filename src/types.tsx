@@ -1,5 +1,3 @@
-import { createClient } from 'webdav';
-
 export interface Tag {
   id: string;
   path: string;
