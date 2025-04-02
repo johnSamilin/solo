@@ -8,9 +8,9 @@
   "description": "Minimalistic private note-taking app with focus on typography",
   "scripts": {
     "dev": "vite",
-    "dev:plugin": "vite",
-    "dev:standalone": "vite",
-    "build": "vite build",
+    "dev:plugin": "VITE_BUILDMODE=plugin vite",
+    "dev:standalone": "VITE_BUILDMODE=standalone vite",
+    "build": "VITE_BUILDMODE=standalone vite build",
     "build:plugin": "VITE_BUILDMODE=plugin vite build",
     "build:standalone": "VITE_BUILDMODE=standalone vite build",
     "build:mobile": "VITE_BUILDMODE=plugin vite build && node scripts/copy-to-mobile.js",

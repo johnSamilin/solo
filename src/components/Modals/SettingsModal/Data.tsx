@@ -41,7 +41,7 @@ export const Data: FC = observer(() => {
 
   const handleJoplinImport = async () => {
     try {
-      const data = await window.bridge?.importFromJoplin();
+      const data = await window.bridge?.importFromJoplin(JSON.stringify(settingsStore.webDAV));
       if (data) {
         notesStore.importData(data, importMode);
         settingsStore.setImportStatus('success');

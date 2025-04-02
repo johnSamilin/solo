@@ -69,7 +69,7 @@ export interface Bridge {
   pickExportFolder: () => Promise<string>;
   pickImportFolder: () => Promise<string>;
   exportData: (data: string, exportPath: string) => void;
-  importFromJoplin: () => Promise<{ notes: Note[], notebooks: Notebook[] } | null>;
+  importFromJoplin: (settings: string) => Promise<{ notes: Note[], notebooks: Notebook[] } | null>;
   openExternal: (url: string) => Promise<void>;
   testWebDAV?: (settings: string) => Promise<boolean>;
   syncWebDAV?: (settings: string) => Promise<boolean>;

@@ -60,12 +60,11 @@ export class NotesStore {
   }
 
   loadFromStorage = async () => {
+    let storedData: StoredData | null = null;
     try {
-      let storedData: StoredData | null = null;
 
       if (isPlugin) {
-        storedData = await window.bridge.loadFromStorage(STORAGE_KEY) ?? { "notes": [], "notebooks": [] };
-        // storedData = JSON.parse(await window.bridge.loadFromStorage(STORAGE_KEY) ?? '{ "notes": [], "notebooks": [] }');
+        storedData = JSON.parse(await window.bridge.loadFromStorage(STORAGE_KEY) ?? '{ "notes": [], "notebooks": [], "tags": [] }');
       } else {
         const stored = localStorage.getItem(STORAGE_KEY);
         if (stored) {

@@ -36,7 +36,6 @@ function createWindow() {
       ? path.join(__dirname, '../assets/icons/png/512x512.png')
       : path.join(__dirname, '../assets/icons/png/512x512.png')
   });
-
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
@@ -149,10 +148,9 @@ ipcMain.handle('restoreWebDAV', async (event, settingsJson) => {
     // Get the latest backup
     const latestBackup = backupFiles[0];
     const backupContent = await client.getFileContents(`${soloDir}/${latestBackup.basename}`, { format: 'text' });
-    console.log(backupFiles, backupContent.toString())
+    
     // Parse and validate backup data
-    const content = JSON.parse(backupContent.toString());
-    const backupData = content;
+    const backupData = JSON.parse(backupContent.toString());
     if (!backupData.notes || !backupData.notebooks) {
       return false;
     }
@@ -329,7 +327,31 @@ const markdownToHtml = (markdown) => {
   return html;
 };
 
-ipcMain.handle('import-joplin', async () => {
+async function uploadResourceToWebDAV(client, resourcePath, resourceData) {
+  try {
+    // Ensure resources directory exists
+    const resourcesDir = '/Solo/resources';
+    if (!await client.exists(resourcesDir)) {
+      await client.createDirectory(resourcesDir);
+    }
+
+    // Generate unique filename
+    const ext = path.extname(resourcePath);
+    const filename = `${generateUniqueId()}${ext}`;
+    const remotePath = `${resourcesDir}/${filename}`;
+
+    // Upload the file
+    await client.putFileContents(remotePath, resourceData);
+
+    // Return the URL for the resource
+    return `${client.getFileDownloadLink(remotePath)}`;
+  } catch (error) {
+    console.error('Failed to upload resource:', error);
+    return null;
+  }
+}
+
+ipcMain.handle('import-joplin', async (event, settingsJson) => {
   try {
     // Get default Joplin database path based on platform
     let defaultPath = '';
@@ -364,6 +386,20 @@ ipcMain.handle('import-joplin', async () => {
     dbPath = result.filePaths[0];
     const resourcesDir = path.join(path.dirname(dbPath), 'resources');
 
+    // Parse WebDAV settings if provided
+    let webDAVClient = null;
+    if (settingsJson) {
+      const settings = JSON.parse(settingsJson);
+      if (settings?.enabled && settings?.url && settings?.username && settings?.password) {
+        webDAVClient = createClient(settings.url, {
+          username: settings.username,
+          password: settings.password,
+          maxBodyLength: Infinity,
+          maxContentLength: Infinity
+        });
+      }
+    }
+
     return new Promise((resolve, reject) => {
       const db = new sqlite3.Database(dbPath, (err) => {
         if (err) {
@@ -379,23 +415,38 @@ ipcMain.handle('import-joplin', async () => {
       const resources = new Map();
 
       // First, get all resources
-      db.all('SELECT id, mime, filename, title FROM resources', [], (err, joplinResources) => {
+      db.all('SELECT id, mime, filename, title FROM resources', [], async (err, joplinResources) => {
         if (err) {
           reject(new Error(`Failed to read resources: ${err.message}`));
           return;
         }
 
-        joplinResources.forEach(resource => {
-          const resourcePath = path.join(resourcesDir, `${resource.id}.${resource.mime.split('/')[1]}`);
+        for (const resource of joplinResources) {
+          const rName = `${resource.id}.${resource.mime.split('/')[1]}`;
+          const resourcePath = path.join(resourcesDir, rName);
           if (fs.existsSync(resourcePath)) {
             const data = fs.readFileSync(resourcePath);
-            resources.set(resource.id, {
-              mime: resource.mime,
-              filename: resource.filename || resource.title,
-              data: data.toString('base64')
-            });
+            
+            if (webDAVClient) {
+              // Upload to WebDAV and get URL
+              const url = await uploadResourceToWebDAV(webDAVClient, rName, data);
+              if (url) {
+                resources.set(resource.id, {
+                  mime: resource.mime,
+                  filename: rName,
+                  url
+                });
+              }
+            } else {
+              // Store as base64 if no WebDAV
+              resources.set(resource.id, {
+                mime: resource.mime,
+                filename: rName,
+                data: data.toString('base64')
+              });
+            }
           }
-        });
+        }
 
         // Get all folders (notebooks)
         db.all('SELECT id, parent_id, title FROM folders', [], (err, folders) => {
@@ -461,14 +512,19 @@ ipcMain.handle('import-joplin', async () => {
                       return tag || { id: generateUniqueId(), path: 'imported' };
                     });
 
-                    // Process note content and replace resource links with base64 images
+                    // Process note content and replace resource links
                     let content = note.body;
                     const resourceRegex = /!\[([^\]]*)\]\(:\/([^)]+)\)/g;
-                    // ![a0de4510b43692ac5e0841e036a6d29a.png](:/73e541515dd74d42aa34a4cba48ad679)
                     content = content.replace(resourceRegex, (match, alt, resourceId) => {
                       const resource = resources.get(resourceId);
                       if (resource && resource.mime.startsWith('image/')) {
-                        return `<img src="data:${resource.mime};base64,${resource.data}" />`;
+                        if (resource.url) {
+                          // Use WebDAV URL
+                          return `<img src="${resource.url}" alt="${alt}" />`;
+                        } else if (resource.data) {
+                          // Use base64 data
+                          return `<img src="data:${resource.mime};base64,${resource.data}" alt="${alt}" />`;
+                        }
                       }
                       return match;
                     });
