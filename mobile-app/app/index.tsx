@@ -11,23 +11,22 @@ import { createClient } from 'webdav';
 
 // Use the app-specific directory instead of document directory
 const STORAGE_DIR = FileSystem.documentDirectory + 'solo/';
-const STORAGE_KEY = 'solo-data';
-const storeData = async (value: any) => {
+const storeData = async (key: string, value: any) => {
   try {
     const jsonValue = JSON.stringify(value);
-    await AsyncStorage.setItem(STORAGE_KEY, jsonValue);
+    await AsyncStorage.setItem(key, jsonValue);
   } catch (e) {
     alert('Cannot save data ' + e);
   }
 };
-const getData = async () => {
+const getData = async (key: string) => {
   try {
-    const value = await AsyncStorage.getItem(STORAGE_KEY);
+    const value = await AsyncStorage.getItem(key);
     if (value !== null) {
-      return JSON.parse(value);
+      return value;
     }
 
-    return { notes: [], notebooks: [] };
+    return "";
   } catch (e) {
     alert('Cannot load data ' + e);
   }
@@ -56,7 +55,7 @@ export default function Index() {
       window.addEventListener('bridge-response', (e) => {
         const callbacks = listeners.get(e.detail.messageType) ?? [];
         for (const c of callbacks) {
-          c(e.detail.data);
+          c(e.detail);
         }
         listeners.set(e.detail.messageType, []);
       });
@@ -76,7 +75,11 @@ export default function Index() {
                 type: 'loadFromStorage',
                 key
               }));
-              addListener('loadFromStorage', resolve);
+              addListener('loadFromStorage', (detail) => {
+                if (detail.key === key) {
+                  resolve(detail.data);
+                }
+              });
             } catch (error) {
               alert('Load from storage error: ' + error);
             }
@@ -91,7 +94,11 @@ export default function Index() {
                 key,
                 data
               }));
-              addListener('saveToStorage', resolve);
+              addListener('saveToStorage', (detail) => {
+                if (detail.key === key) {
+                  resolve(detail.data);
+                }
+              });
             } catch (error) {
               alert('Save to storage error: ' + error);
             }
@@ -152,7 +159,9 @@ export default function Index() {
                 type: 'testWebDAV',
                 settingsJson
               }));
-              addListener('testWebDAV', resolve);
+              addListener('testWebDAV', (detail) => {
+                  resolve(detail.data);
+              });
             } catch (error) {
               console.error('Test WebDAV error:', error);
               return false;
@@ -167,7 +176,9 @@ export default function Index() {
                 type: 'syncWebDAV',
                 settingsJson
               }));
-              addListener('syncWebDAV', resolve);
+              addListener('syncWebDAV', (detail) => {
+                  resolve(detail.data);
+              });
             } catch (error) {
               console.error('Sync WebDAV error:', error);
               return false;
@@ -182,7 +193,9 @@ export default function Index() {
                 type: 'restoreWebDAV',
                 settingsJson
               }));
-              addListener('restoreWebDAV', resolve);
+              addListener('restoreWebDAV', (detail) => {
+                  resolve(detail.data);
+              });
             } catch (error) {
               console.error('Restore WebDAV error:', error);
               return false;
@@ -202,7 +215,7 @@ export default function Index() {
         }
 
       } catch (error) {
-        console.error('Failed to load web app:', error);
+        alert('Failed to load web app: ' + error);
         setWebAppContent('https://comforting-starlight-b74676.netlify.app');
       }
     }
@@ -217,21 +230,24 @@ export default function Index() {
       switch (type) {
         case 'loadFromStorage': {
           try {
+            const data = await getData(key);
               webViewRef.current?.injectJavaScript(`
                 window.dispatchEvent(new CustomEvent('bridge-response', {
                   detail: {
                     messageType: 'loadFromStorage',
-                    data: ${await getData()}
+                    data: ${data},
+                    key: '${key}',
                   }
                 }));
               `);
           } catch (error) {
-            console.error('Load from storage error:', error);
+            alert('Load from storage error: ' + error);
             webViewRef.current?.injectJavaScript(`
               window.dispatchEvent(new CustomEvent('bridge-response', {
                 detail: {
                   messageType: 'loadFromStorage',
                   data: null,
+                  key: '${key}'
                 }
               }));
             `);
@@ -241,7 +257,7 @@ export default function Index() {
 
         case 'saveToStorage': {
           try {
-            storeData(data);
+            storeData(key, data);
             webViewRef.current?.injectJavaScript(`
               window.dispatchEvent(new CustomEvent('bridge-response', {
                 detail: {
@@ -418,7 +434,7 @@ export default function Index() {
 
             // Upload current data
             const filename = `solo-backup-${new Date().toISOString().split('T')[0]}.json`;
-            await client.putFileContents(`${soloDir}/${filename}`, await getData());
+            await client.putFileContents(`${soloDir}/${filename}`, await getData('solo-notes-data') ?? "");
 
             webViewRef.current?.injectJavaScript(`
               window.dispatchEvent(new CustomEvent('bridge-response', {
@@ -519,7 +535,7 @@ export default function Index() {
             }
 
             // Store the backup data
-            await storeData(backupContent.toString());
+            await storeData('solo-notes-data', backupContent.toString());
             
             webViewRef.current?.injectJavaScript(`
               window.dispatchEvent(new CustomEvent('bridge-response', {

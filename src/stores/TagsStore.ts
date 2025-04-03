@@ -30,7 +30,7 @@ export class TagsStore {
         this.tagTree = storedData.tagTree;
       }
     } catch (error) {
-      console.error('Error loading tags:', error);
+      console.error('Error loading tags: ' + error);
     }
   };
 

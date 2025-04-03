@@ -64,7 +64,8 @@ export class NotesStore {
     try {
 
       if (isPlugin) {
-        storedData = JSON.parse(await window.bridge.loadFromStorage(STORAGE_KEY) ?? '{ "notes": [], "notebooks": [], "tags": [] }');
+        const data = await window.bridge.loadFromStorage(STORAGE_KEY);
+        storedData = JSON.parse(data ?? '{ "notes": [], "notebooks": [], "tags": [] }');
       } else {
         const stored = localStorage.getItem(STORAGE_KEY);
         if (stored) {

@@ -138,7 +138,7 @@ ipcMain.handle('restoreWebDAV', async (event, settingsJson) => {
 
     const files = await client.getDirectoryContents(soloDir);
     const backupFiles = files
-      .filter(file => file.filename.endsWith('.json'))
+      .filter(file => file.basename.endsWith('.json'))
       .sort((a, b) => new Date(b.lastmod).getTime() - new Date(a.lastmod).getTime());
 
     if (backupFiles.length === 0) {
@@ -150,10 +150,7 @@ ipcMain.handle('restoreWebDAV', async (event, settingsJson) => {
     const backupContent = await client.getFileContents(`${soloDir}/${latestBackup.basename}`, { format: 'text' });
     
     // Parse and validate backup data
-    const backupData = JSON.parse(backupContent.toString());
-    if (!backupData.notes || !backupData.notebooks) {
-      return false;
-    }
+    let backupData = JSON.parse(backupContent.toString());
 
     // Store the backup data
     store.set('solo-notes-data', backupData);
