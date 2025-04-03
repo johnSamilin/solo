@@ -10,7 +10,7 @@
     "dev": "vite",
     "dev:plugin": "VITE_BUILDMODE=plugin vite",
     "dev:standalone": "VITE_BUILDMODE=standalone vite",
-    "build": "VITE_BUILDMODE=standalone vite build",
+    "build": "vite build",
     "build:plugin": "VITE_BUILDMODE=plugin vite build",
     "build:standalone": "VITE_BUILDMODE=standalone vite build",
     "build:mobile": "VITE_BUILDMODE=plugin vite build && node scripts/copy-to-mobile.js",
@@ -38,6 +38,7 @@
     "mobx-react-lite": "^4.0.5",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "rotating-file-stream": "^3.2.1",
     "sqlite3": "^5.1.7",
     "turndown": "^7.1.2",
     "webdav": "^5.8.0"

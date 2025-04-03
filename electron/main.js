@@ -7,6 +7,7 @@ import sqlite3 from 'sqlite3';
 import TurndownService from 'turndown';
 import { createClient } from 'webdav';
 import { generateUniqueId } from './utils.js';
+import { logger } from './logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -24,34 +25,53 @@ const turndown = new TurndownService({
 });
 
 function createWindow() {
-  const mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: true,
-      preload: path.join(__dirname, 'preload.mjs')
-    },
-    icon: isDev 
-      ? path.join(__dirname, '../assets/icons/png/512x512.png')
-      : path.join(__dirname, '../assets/icons/png/512x512.png')
-  });
-  if (isDev) {
-    mainWindow.loadURL('http://localhost:5173');
-    mainWindow.webContents.openDevTools();
-  } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+  try {
+    const mainWindow = new BrowserWindow({
+      width: 1200,
+      height: 800,
+      webPreferences: {
+        nodeIntegration: true,
+        contextIsolation: true,
+        preload: path.join(__dirname, 'preload.mjs')
+      },
+      icon: isDev 
+        ? path.join(__dirname, '../assets/icons/png/512x512.png')
+        : path.join(__dirname, '../assets/icons/png/512x512.png')
+    });
+
+    if (isDev) {
+      mainWindow.loadURL('http://localhost:5173');
+      mainWindow.webContents.openDevTools();
+    } else {
+      mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+    }
+    logger.info('Main window created successfully');
+  } catch (error) {
+    logger.error('Failed to create main window', error);
   }
 }
 
 // Handle IPC messages
-ipcMain.handle('loadFromStorage', (event, key) => {
-  return store.get(key);
+ipcMain.handle('loadFromStorage', async (event, key) => {
+  try {
+    const data = store.get(key);
+    logger.info(`Data loaded from storage for key: ${key}`);
+    return data;
+  } catch (error) {
+    logger.error(`Failed to load data from storage for key: ${key}`, error);
+    return null;
+  }
 });
 
-ipcMain.handle('saveToStorage', (event, key, data) => {
-  store.set(key, data);
-  return true;
+ipcMain.handle('saveToStorage', async (event, key, data) => {
+  try {
+    store.set(key, data);
+    logger.info(`Data saved to storage for key: ${key}`);
+    return true;
+  } catch (error) {
+    logger.error(`Failed to save data to storage for key: ${key}`, error);
+    return false;
+  }
 });
 
 ipcMain.handle('testWebDAV', async (event, settingsJson) => {
@@ -553,13 +573,18 @@ ipcMain.handle('import-joplin', async (event, settingsJson) => {
 });
 
 app.whenReady().then(() => {
-  createWindow();
+  try {
+    createWindow();
+    logger.info('Application started successfully');
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
-    }
-  });
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        createWindow();
+      }
+    });
+  } catch (error) {
+    logger.error('Failed to initialize application', error);
+  }
 });
 
 app.on('window-all-closed', () => {

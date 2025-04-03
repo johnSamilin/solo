@@ -3,32 +3,38 @@ import { WebView } from 'react-native-webview';
 import { Asset } from 'expo-asset';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-// import * as DocumentPicker from 'expo-document-picker';
 import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useState, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from 'webdav';
+import { logger } from '../logger';
 
 // Use the app-specific directory instead of document directory
 const STORAGE_DIR = FileSystem.documentDirectory + 'solo/';
+
 const storeData = async (key: string, value: any) => {
   try {
     const jsonValue = JSON.stringify(value);
     await AsyncStorage.setItem(key, jsonValue);
-  } catch (e) {
-    alert('Cannot save data ' + e);
+    await logger.info(`Data stored successfully for key: ${key}`);
+  } catch (error) {
+    await logger.error(`Failed to store data for key: ${key}`, error);
+    alert('Cannot save data: ' + error);
   }
 };
+
 const getData = async (key: string) => {
   try {
     const value = await AsyncStorage.getItem(key);
     if (value !== null) {
+      await logger.info(`Data retrieved successfully for key: ${key}`);
       return value;
     }
-
     return "";
-  } catch (e) {
-    alert('Cannot load data ' + e);
+  } catch (error) {
+    await logger.error(`Failed to retrieve data for key: ${key}`, error);
+    alert('Cannot load data: ' + error);
+    return "";
   }
 };
 
@@ -37,20 +43,8 @@ export default function Index() {
   const webViewRef = useRef<WebView>(null);
 
   useEffect(() => {
-    // async function setupStorage() {
-    //   try {
-    //     const dirInfo = await FileSystem.getInfoAsync(STORAGE_DIR);
-    //     if (!dirInfo.exists) {
-    //       await FileSystem.makeDirectoryAsync(STORAGE_DIR, { intermediates: true });
-    //     }
-    //   } catch (error) {
-    //     console.error('Failed to setup storage:', error);
-    //   }
-    // }
-
     async function loadWebApp() {
-
-    const injectBridge = `
+      const injectBridge = `
       const listeners = new Map();
       window.addEventListener('bridge-response', (e) => {
         const callbacks = listeners.get(e.detail.messageType) ?? [];
@@ -112,7 +106,7 @@ export default function Index() {
             }));
             return response;
           } catch (error) {
-            console.error('Pick export folder error:', error);
+            logger.error('Pick export folder error:', error);
             return '';
           }
         },
@@ -124,7 +118,7 @@ export default function Index() {
             }));
             return response;
           } catch (error) {
-            console.error('Pick import folder error:', error);
+            logger.error('Pick import folder error:', error);
             return '';
           }
         },
@@ -137,7 +131,7 @@ export default function Index() {
               exportPath
             }));
           } catch (error) {
-            console.error('Export data error:', error);
+            logger.error('Export data error:', error);
           }
         },
 
@@ -148,7 +142,7 @@ export default function Index() {
               url
             }));
           } catch (error) {
-            console.error('Open external error:', error);
+            logger.error('Open external error:', error);
           }
         },
 
@@ -163,7 +157,7 @@ export default function Index() {
                   resolve(detail.data);
               });
             } catch (error) {
-              console.error('Test WebDAV error:', error);
+              logger.error('Test WebDAV error:', error);
               return false;
             }
           });
@@ -180,7 +174,7 @@ export default function Index() {
                   resolve(detail.data);
               });
             } catch (error) {
-              console.error('Sync WebDAV error:', error);
+              logger.error('Sync WebDAV error:', error);
               return false;
             }
           });
@@ -197,13 +191,14 @@ export default function Index() {
                   resolve(detail.data);
               });
             } catch (error) {
-              console.error('Restore WebDAV error:', error);
+              logger.error('Restore WebDAV error:', error);
               return false;
             }
           });
         }
       };
     `;
+
       try {
         const htmlAsset = Asset.fromModule(require('../assets/webapp/index.html'));
         await htmlAsset.downloadAsync();
@@ -213,9 +208,8 @@ export default function Index() {
           content = content.replace('<head>', `<head><script type='text/javascript'>${injectBridge}</script>`);
           setWebAppContent(content);
         }
-
       } catch (error) {
-        alert('Failed to load web app: ' + error);
+        await logger.error('Failed to load web app', error);
         setWebAppContent('https://comforting-starlight-b74676.netlify.app');
       }
     }
@@ -226,6 +220,7 @@ export default function Index() {
   const handleMessage = async (event: any) => {
     try {
       const { type, key, data, url, exportPath, settingsJson } = JSON.parse(event.nativeEvent.data);
+      await logger.info(`Handling message of type: ${type}`);
 
       switch (type) {
         case 'loadFromStorage': {
@@ -267,7 +262,7 @@ export default function Index() {
               }));
             `);
           } catch (error) {
-            console.error('Save to storage error:', error);
+            logger.error('Save to storage error:', error);
             webViewRef.current?.injectJavaScript(`
               window.dispatchEvent(new CustomEvent('bridge-response', {
                 detail: {
@@ -300,23 +295,6 @@ export default function Index() {
         }
 
         case 'pickImportFolder': {
-          // try {
-          //   const result = await DocumentPicker.getDocumentAsync({
-          //     type: 'application/json'
-          //   });
-          //   if (result.assets && result.assets[0]) {
-          //     webViewRef.current?.injectJavaScript(`
-          //       window.dispatchEvent(new CustomEvent('bridge-response', {
-          //         detail: {
-          //           messageType: 'pickImportFolder',
-          //           data: "${result.assets[0].uri}"
-          //         }
-          //       }));
-          //     `);
-          //   }
-          // } catch (error) {
-          //   console.error('Document picker error:', error);
-          // }
           break;
         }
 
@@ -331,7 +309,7 @@ export default function Index() {
             await FileSystem.writeAsStringAsync(filePath, data);
             await Sharing.shareAsync(filePath);
           } catch (error) {
-            console.error('Export data error:', error);
+            logger.error('Export data error:', error);
           }
           break;
         }
@@ -391,7 +369,7 @@ export default function Index() {
               }));
             `);
           } catch (error) {
-            console.error('WebDAV test failed:', error);
+            logger.error('WebDAV test failed:', error);
             webViewRef.current?.injectJavaScript(`
               window.dispatchEvent(new CustomEvent('bridge-response', {
                 detail: {
@@ -445,7 +423,7 @@ export default function Index() {
               }));
             `);
           } catch (error) {
-            console.error('WebDAV sync failed:', error);
+            logger.error('WebDAV sync failed:', error);
             webViewRef.current?.injectJavaScript(`
               window.dispatchEvent(new CustomEvent('bridge-response', {
                 detail: {
@@ -521,7 +499,7 @@ export default function Index() {
               // inconsistent file formats between desktop & android
               backupData = JSON.parse(backupData);
             }
-            console.log(typeof backupData)
+            logger.info(typeof backupData)
             if (!backupData.notes || !backupData.notebooks) {
               webViewRef.current?.injectJavaScript(`
                 window.dispatchEvent(new CustomEvent('bridge-response', {
@@ -535,7 +513,7 @@ export default function Index() {
             }
 
             // Store the backup data
-            await storeData('solo-notes-data', backupContent.toString());
+            await storeData('solo-notes-data', JSON.stringify(backupData));
             
             webViewRef.current?.injectJavaScript(`
               window.dispatchEvent(new CustomEvent('bridge-response', {
@@ -546,7 +524,7 @@ export default function Index() {
               }));
             `);
           } catch (error) {
-            console.error('WebDAV restore failed:', error);
+            logger.error('WebDAV restore failed:', error);
             webViewRef.current?.injectJavaScript(`
               window.dispatchEvent(new CustomEvent('bridge-response', {
                 detail: {
@@ -560,7 +538,7 @@ export default function Index() {
         }
       }
     } catch (error) {
-      console.error('Message handler error:', error);
+      await logger.error('Message handler error', error);
     }
   };
 
@@ -580,7 +558,6 @@ export default function Index() {
         startInLoadingState={true}
         scalesPageToFit={true}
         bounces={false}
-        // injectedJavaScript={injectBridge}
         onMessage={handleMessage}
       />
     </SafeAreaView>
