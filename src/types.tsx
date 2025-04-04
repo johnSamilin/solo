@@ -43,6 +43,7 @@ export interface TypographySettings {
   dropCapSize: string;
   dropCapLineHeight: string;
   maxEditorWidth: string;
+  sidebarPinned: boolean;
 }
 
 export interface CensorshipSettings {

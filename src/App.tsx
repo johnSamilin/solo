@@ -67,6 +67,12 @@ const App = observer(() => {
           notesStore.updateNote(notesStore.selectedNote.id, {
             content: content,
           });
+
+          // Check word count and enable zen mode if > 5 words
+          const wordCount = editor.state.doc.textContent.trim().split(/\s+/).filter(word => word.length > 0).length;
+          if (wordCount > 5 && !settingsStore.isZenMode) {
+            settingsStore.toggleZenMode();
+          }
         }
       }
     },

@@ -45,6 +45,14 @@ export const Layout: FC<LayoutProps> = ({ settings, setSettings }) => {
 				</select>
 			</div>
 			<div className="setting-item">
+				<label>Pin Sidebar</label>
+				<input
+					type="checkbox"
+					checked={settings.sidebarPinned}
+					onChange={(e) => setSettings({ ...settings, sidebarPinned: e.target.checked })}
+				/>
+			</div>
+			<div className="setting-item">
 				<label>Enable Drop Caps</label>
 				<input
 					type="checkbox"

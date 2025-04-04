@@ -115,3 +115,28 @@ This file contains all the prompts and feature requests made during the developm
     ```
     Add context menu to notebookItem component. It should contain "Edit" button, which opens notebook edit modal. Move notebook-level censorship setting there
     ```
+
+15. **Notebook Context Menu Behavior**
+    ```
+    notebook context menu should only appear by right-clicking the title
+    ```
+
+16. **Remove Note-level Censorship Setting**
+    ```
+    remove Notebook Censorship from note settings modal
+    ```
+
+17. **Censored Notebooks Visibility**
+    ```
+    censored notebooks with all the notes in them should not be rendered in censorship mode, like notes do
+    ```
+
+18. **Sidebar Pinning**
+    ```
+    Add setting to layout settings modal: pin sidebar. When pinned, it should be shown as it is now. When unpinned, it should be hidden like in zen mode and there should be absolute positioned subtle button in left top corner, that shows and hides sidebar.
+    ```
+
+19. **Auto Zen Mode**
+    ```
+    When I edit the note, and write down more that 5 words, turn zen mode on
+    ```
