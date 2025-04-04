@@ -1,46 +1,82 @@
-
 .notebook-item {
-    margin-bottom: 0.5rem;
-  }
-  
-  .notebook-header {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem;
-    cursor: pointer;
-    border-radius: 0.5rem;
-  }
-  
-  .notebook-header.focused {
-    /* font-weight: bold; */
-    text-decoration: underline;
-  }
-  
-  .notebook-header:hover {
-    background-color: var(--color-bg);
-  }
-  
-  .notebook-toggle {
-    padding: 0.25rem;
-    background: none;
-    border: none;
-    color: var(--color-text-light);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  
-  .notebook-name {
-    font-family: var(--sidebar-font-family), Georgia, serif;
-    font-size: var(--sidebar-font-size);
-    color: var(--color-text);
-    cursor: pointer;
-    padding: 0.25rem 0.5rem;
-    border-radius: 0.25rem;
-  }
-  
-  .notebook-name:hover {
-    background-color: var(--color-bg);
-  }
+  margin-bottom: 0.5rem;
+}
+
+.notebook-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  cursor: pointer;
+  border-radius: 0.5rem;
+}
+
+.notebook-header.focused {
+  text-decoration: underline;
+}
+
+.notebook-header:hover {
+  background-color: var(--color-bg);
+}
+
+.notebook-toggle {
+  padding: 0.25rem;
+  background: none;
+  border: none;
+  color: var(--color-text-light);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notebook-name {
+  font-family: var(--sidebar-font-family), Georgia, serif;
+  font-size: var(--sidebar-font-size);
+  color: var(--color-text);
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.notebook-name:hover {
+  background-color: var(--color-bg);
+}
+
+.notebook-context-menu {
+  background: var(--color-white);
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+  z-index: 50;
+  animation: dropdownFade 0.2s ease;
+  min-width: 160px;
+}
+
+.notebook-context-menu-item {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border: none;
+  background: none;
+  color: var(--color-text);
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.notebook-context-menu-item:hover {
+  background-color: var(--color-bg);
+}
+
+.notebook-context-menu-item:active {
+  background-color: var(--color-border);
+}

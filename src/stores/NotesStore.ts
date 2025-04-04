@@ -18,7 +18,8 @@ export class NotesStore {
     id: 'default',
     name: 'Main notebook',
     parentId: null,
-    isExpanded: true
+    isExpanded: true,
+    isCensored: false
   }];
   selectedNote: Note | null = null;
   focusedNotebookId: string | null = null;
@@ -62,7 +63,6 @@ export class NotesStore {
   loadFromStorage = async () => {
     let storedData: StoredData | null = null;
     try {
-
       if (isPlugin) {
         const data = await window.bridge.loadFromStorage(STORAGE_KEY);
         storedData = JSON.parse(data ?? '{ "notes": [], "notebooks": [], "tags": [] }');
@@ -116,7 +116,8 @@ export class NotesStore {
       id: 'default',
       name: 'Main notebook',
       parentId: null,
-      isExpanded: true
+      isExpanded: true,
+      isCensored: false
     }];
     this.cacheNotebooks();
     this.cacheNotes();
@@ -169,7 +170,6 @@ export class NotesStore {
     }
     this.cacheNotebooks();
     this.cacheNotes();
-
     this.saveToStorage();
   };
 
@@ -211,6 +211,15 @@ export class NotesStore {
     }
   };
 
+  updateNotebook = (notebookId: string, updates: Partial<Notebook>) => {
+    const notebookIndex = this.notebooks.findIndex(notebook => notebook.id === notebookId);
+    if (notebookIndex !== -1) {
+      this.notebooks[notebookIndex] = { ...this.notebooks[notebookIndex], ...updates };
+      this.saveToStorage();
+      this.cacheNotebooks();
+    }
+  };
+
   toggleNoteCensorship = (noteId: string) => {
     const note = this.notes.find(n => n.id === noteId);
     if (note) {
@@ -220,6 +229,15 @@ export class NotesStore {
       }
       this.saveToStorage();
       this.cacheNotes();
+    }
+  };
+
+  toggleNotebookCensorship = (notebookId: string) => {
+    const notebook = this.notebooks.find(n => n.id === notebookId);
+    if (notebook) {
+      notebook.isCensored = !notebook.isCensored;
+      this.saveToStorage();
+      this.cacheNotebooks();
     }
   };
 
@@ -270,7 +288,8 @@ export class NotesStore {
       id: generateUniqueId(),
       name,
       parentId,
-      isExpanded: true
+      isExpanded: true,
+      isCensored: false
     };
     this.notebooks.push(newNotebook);
     this.cacheNotebooks();
@@ -293,5 +312,17 @@ export class NotesStore {
 
   getChildNotebooks = (parentId: string | null) => {
     return this.notebooksByParentId.get(parentId) ?? [];
+  };
+
+  isNotebookCensored = (notebookId: string): boolean => {
+    const notebook = this.notebooks.find(n => n.id === notebookId);
+    if (!notebook) return false;
+
+    // Check if any parent notebook is censored
+    if (notebook.parentId) {
+      return this.isNotebookCensored(notebook.parentId);
+    }
+
+    return notebook.isCensored || false;
   };
 }

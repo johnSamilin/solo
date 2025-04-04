@@ -48,7 +48,7 @@ export const NoteSettingsModal: FC<NoteSettingsModalProps> = ({
             </select>
           </div>
           <div className="setting-item">
-            <label>Censorship</label>
+            <label>Note Censorship</label>
             <button
               onClick={onToggleCensorship}
               className={`button-icon ${isCensored ? 'active' : ''}`}

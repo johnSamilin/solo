@@ -26,6 +26,7 @@ export interface Notebook {
   name: string;
   parentId: string | null;
   isExpanded: boolean;
+  isCensored?: boolean;
 }
 
 export interface TypographySettings {

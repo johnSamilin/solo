@@ -95,3 +95,23 @@ This file contains all the prompts and feature requests made during the developm
     ```
     From now on, keep prompts history in PROMPTS.md
     ```
+
+11. **Font Inlining**
+    ```
+    when building webapp in plugin mode, inline local fonts
+    ```
+
+12. **Add Logging System**
+    ```
+    for electron and mobile app, store errors and logs in a file (max size 5MB, rotate)
+    ```
+
+13. **Add Notebook-level Censorship**
+    ```
+    Add possibility to mark whole notebooks censored
+    ```
+
+14. **Add Notebook Context Menu**
+    ```
+    Add context menu to notebookItem component. It should contain "Edit" button, which opens notebook edit modal. Move notebook-level censorship setting there
+    ```
