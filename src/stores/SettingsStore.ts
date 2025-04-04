@@ -60,21 +60,11 @@ export class SettingsStore {
     });
   };
 
-  private loadFromStorage = async () => {
+  private loadFromStorage = () => {
     try {
-      let storedSettings = null;
-      
-      if (isPlugin) {
-        storedSettings = JSON.parse(await window.bridge.loadFromStorage(STORAGE_KEY) ?? '{ "settings": {} }');
-      } else {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-          storedSettings = JSON.parse(stored);
-        }
-      }
-
-      if (storedSettings) {
-        const data = storedSettings;
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const data = JSON.parse(stored);
         this.settings = data.settings;
         this.censorship = data.censorship ? { ...data.censorship, enabled: true } : { pin: null, enabled: true };
         this.webDAV = data.webDAV || this.webDAV;
@@ -86,7 +76,7 @@ export class SettingsStore {
     }
   };
 
-  private saveToStorage = async () => {
+  private saveToStorage = () => {
     try {
       const data = {
         settings: this.settings,
@@ -95,12 +85,7 @@ export class SettingsStore {
         isZenMode: this.isZenMode,
         isToolbarExpanded: this.isToolbarExpanded
       };
-
-      if (isPlugin) {
-        await window.bridge.saveToStorage(STORAGE_KEY, JSON.stringify(data));
-      } else {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch (error) {
       console.error('Error saving settings:', error);
     }
