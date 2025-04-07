@@ -1,13 +1,23 @@
 import { EditorContent } from "@tiptap/react";
-import { FC, useEffect } from "react";
+import { FC, useEffect, useRef } from "react";
 import { observer } from "mobx-react-lite";
 import { Editor as TEditor } from "@tiptap/react";
+import { Howl } from 'howler';
 import { useStore } from "../../stores/StoreProvider";
 import { FAB } from "./FAB";
 import { TagsDisplay } from "./TagsDisplay";
 import { NoteSettingsModal } from "../Modals/NoteSettingsModal";
 
 import './Editor.css';
+
+// Keys that should not trigger the typewriter sound
+const nonCharacterKeys = new Set([
+  'Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'Tab',
+  'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+  'Home', 'End', 'PageUp', 'PageDown',
+  'Insert', 'Delete', 'Backspace', 'Escape',
+  'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12'
+]);
 
 type EditorProps = {
   editor: TEditor | null;
@@ -23,7 +33,16 @@ export const Editor: FC<EditorProps> = observer(({
   insertTaskList,
 }) => {
   const { notesStore, settingsStore } = useStore();
+  const soundRef = useRef<Howl>();
   
+  useEffect(() => {
+    soundRef.current = new Howl({
+      src: [`/${settingsStore.settings.typewriterSound}.mp3`],
+      volume: 1,
+      rate: 2.0
+    });
+  }, [settingsStore.settings.typewriterSound]);
+
   useEffect(() => {
     const handleFullscreen = async () => {
       try {
@@ -56,6 +75,39 @@ export const Editor: FC<EditorProps> = observer(({
       document.removeEventListener('fullscreenchange', onFSChange);
     };
   }, [settingsStore.isZenMode]);
+
+  useEffect(() => {
+    if (!editor) return;
+
+    let lastLength = editor.state.doc.textContent.length;
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (settingsStore.settings.editorFontFamily === 'GNU Typewriter') {
+        const currentLength = editor.state.doc.textContent.length;
+        
+        // Only play sound if:
+        // 1. Not a special key
+        // 2. Content length has increased (character was added)
+        // 3. Not a combination with modifier keys
+        if (!nonCharacterKeys.has(event.key) && 
+            currentLength > lastLength &&
+            !event.ctrlKey && 
+            !event.altKey && 
+            !event.metaKey) {
+          soundRef.current?.play();
+        }
+        
+        lastLength = currentLength;
+      }
+    };
+
+    const element = editor.view.dom;
+    element.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      element.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [editor, settingsStore.settings.editorFontFamily]);
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (notesStore.selectedNote) {
@@ -104,9 +156,9 @@ export const Editor: FC<EditorProps> = observer(({
           </p>}
           <EditorContent editor={editor} className="editor-body" />
           <TagsDisplay />
-          <div className="word-count">
+          {!settingsStore.isZenMode && <div className="word-count">
             {wordCount}/{paragraphCount}
-          </div>
+          </div>}
         </div>
         <FAB
           editor={editor}

@@ -140,3 +140,13 @@ This file contains all the prompts and feature requests made during the developm
     ```
     When I edit the note, and write down more that 5 words, turn zen mode on
     ```
+
+20. **Hide Censored Notebooks in Selection**
+    ```
+    in censorship mode, censored notebooks also should not present in "Parent notebook" select in notebook creation modal
+    ```
+
+21. **Secure Settings Storage**
+    ```
+    in plugin mode, store settings on react-native and electron side locally and secure. do not send them to webdav
+    ```

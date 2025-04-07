@@ -27,6 +27,15 @@ Added a new "Censorship" tab to settings modal with:
 - Added lock icon indicator for censored notes in the sidebar
 - Integrated with existing censorship system
 
+## Feature: Notebook-level Censorship
+- Added ability to mark entire notebooks as censored
+- Censored notebooks are completely hidden when censorship is enabled
+- Added lock icon indicator for censored notebooks
+- Recursive censorship for nested notebooks (parent censorship affects children)
+- Added notebook censorship toggle to notebook context menu
+- Added notebook edit modal for managing notebook settings
+- Improved notebook context menu to only appear on right-click
+
 ## Feature: Enhanced Typography
 - Added customizable page margins (narrow, medium, wide)
 - Added adjustable paragraph spacing (tight, normal, relaxed)
@@ -38,6 +47,32 @@ Added a new "Censorship" tab to settings modal with:
   - Air: Spacious layout with drop caps
   - Typewriter: Monospace font with classic spacing
   - Narrow: Compact layout with minimal margins
+
+## Feature: Sidebar Enhancements
+- Added option to pin/unpin sidebar
+- When unpinned, sidebar is hidden with a toggle button
+- Added subtle button in top-left corner for unpinned sidebar
+- Smooth transitions for sidebar visibility
+
+## Feature: Auto Zen Mode
+- Added automatic zen mode trigger when typing more than 5 words
+- Seamless transition to focused writing environment
+
+## Feature: Logging System
+- Added comprehensive logging system for both Electron and mobile apps
+- Implemented log rotation with 5MB file size limit
+- Added daily log rotation for Electron app
+- Added compressed log archives for Electron app
+- Added maximum 5 log files limit for mobile app
+- Implemented JSON-formatted log entries with timestamps
+- Added error stack traces and context preservation
+- Logs stored in app-specific directories
+
+## Feature: Secure Settings Storage
+- Implemented secure local storage for sensitive settings
+- Separated regular and secure settings storage
+- Prevented sensitive data from being synced to WebDAV
+- Enhanced security for censorship and WebDAV credentials
 
 ## Bug Fixes
 ### Editor Improvements
@@ -57,15 +92,22 @@ Added a new "Censorship" tab to settings modal with:
 - NoteSettingsModal
 - Enhanced SettingsModal with Censorship tab
 - Updated FAB with settings button
-- Added lock icons for censored notes
+- Added lock icons for censored notes and notebooks
+- Added EditNotebookModal for notebook management
+- Added notebook context menu
+- Added sidebar toggle button for unpinned state
 
 ### State Management
 - Added censorship settings to SettingsStore
 - Implemented PIN verification logic
 - Added fake disabled state for security
 - Added note-level censorship state
+- Added notebook-level censorship state
 - Added typography customization settings
 - Added theme management system
+- Added notebook editing functionality
+- Added sidebar pinning state
+- Added secure settings storage
 
 ### Security Features
 - Censorship enabled by default
@@ -73,14 +115,28 @@ Added a new "Censorship" tab to settings modal with:
 - Quick enable shortcut
 - Fake disabled state for enhanced security
 - Note-level censorship support
+- Notebook-level censorship support
+- Recursive notebook censorship
+- Secure local storage for sensitive settings
 
 ### UI/UX Improvements
 - Red styling for dangerous actions
 - Modal system for settings
 - Intuitive PIN management
 - Keyboard shortcuts for quick actions
-- Visual indicators for censored notes
+- Visual indicators for censored notes and notebooks
 - Improved editor responsiveness and reliability
 - Enhanced typography controls for better readability
 - Customizable page layout options
 - Theme presets for quick style changes
+- Context menu for notebook management
+- Automatic zen mode for focused writing
+- Pinnable sidebar with smooth transitions
+
+### Logging System
+- Implemented rotating log files
+- Added size-based log rotation
+- Added timestamp and context to log entries
+- Separated info and error level logging
+- Added stack trace preservation
+- Implemented platform-specific storage locations

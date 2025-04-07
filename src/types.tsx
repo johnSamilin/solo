@@ -44,6 +44,7 @@ export interface TypographySettings {
   dropCapLineHeight: string;
   maxEditorWidth: string;
   sidebarPinned: boolean;
+  typewriterSound: string;
 }
 
 export interface CensorshipSettings {

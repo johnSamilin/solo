@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -23,6 +23,8 @@ import { isPlugin } from './config';
 
 const App = observer(() => {
   const { notesStore, settingsStore, tagsStore } = useStore();
+  const [initialContent, setInitialContent] = useState('');
+  const [autoZenDisabled, setAutoZenDisabled] = useState(false);
 
   const editor = useEditor({
     extensions: [
@@ -68,9 +70,13 @@ const App = observer(() => {
             content: content,
           });
 
-          // Check word count and enable zen mode if > 5 words
-          const wordCount = editor.state.doc.textContent.trim().split(/\s+/).filter(word => word.length > 0).length;
-          if (wordCount > 5 && !settingsStore.isZenMode) {
+          // Check word count since note was opened
+          const currentContent = editor.state.doc.textContent.trim();
+          const initialWords = initialContent.trim().split(/\s+/).filter(word => word.length > 0).length;
+          const currentWords = currentContent.split(/\s+/).filter(word => word.length > 0).length;
+          const newWords = currentWords - initialWords;
+
+          if (newWords > 5 && !settingsStore.isZenMode && !autoZenDisabled) {
             settingsStore.toggleZenMode();
           }
         }
@@ -79,81 +85,10 @@ const App = observer(() => {
   });
 
   useEffect(() => {
-    if (editor) {
-      // Handle Ctrl+click on links
-      const handleClick = (e: MouseEvent) => {
-        if (e.target instanceof HTMLAnchorElement) {
-          if (e.ctrlKey || e.metaKey) {
-            e.preventDefault();
-            if (isPlugin) {
-              window.bridge?.openExternal(e.target.href);
-            } else {
-              window.open(e.target.href, '_blank');
-            }
-          }
-        }
-      };
-
-      // Handle right-click context menu for links
-      const handleContextMenu = (e: MouseEvent) => {
-        if (e.target instanceof HTMLAnchorElement) {
-          e.preventDefault();
-          const link = e.target;
-          const menu = document.createElement('div');
-          menu.className = 'link-context-menu';
-          menu.innerHTML = `
-            <button class="menu-item" data-action="open">Open link</button>
-            <button class="menu-item" data-action="edit">Edit link</button>
-          `;
-          menu.style.position = 'fixed';
-          menu.style.left = `${e.clientX}px`;
-          menu.style.top = `${e.clientY}px`;
-          document.body.appendChild(menu);
-
-          const handleMenuClick = (e: MouseEvent) => {
-            const target = e.target as HTMLElement;
-            if (target.classList.contains('menu-item')) {
-              const action = target.dataset.action;
-              if (action === 'open') {
-                if (isPlugin) {
-                  window.bridge?.openExternal(link.href);
-                } else {
-                  window.open(link.href, '_blank');
-                }
-              } else if (action === 'edit') {
-                const url = window.prompt('Edit link URL:', link.href);
-                if (url) {
-                  editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
-                }
-              }
-            }
-            menu.remove();
-            document.removeEventListener('click', handleMenuClick);
-          };
-
-          // Remove menu on any click
-          setTimeout(() => {
-            document.addEventListener('click', handleMenuClick, { once: true });
-          }, 0);
-        }
-      };
-
-      const editorElement = editor.view.dom;
-      editorElement.addEventListener('click', handleClick);
-      editorElement.addEventListener('contextmenu', handleContextMenu);
-
-      return () => {
-        editorElement.removeEventListener('click', handleClick);
-        editorElement.removeEventListener('contextmenu', handleContextMenu);
-      };
-    }
-  }, [editor]);
-
-  // Update editor content when note changes or censorship state changes
-  useEffect(() => {
     if (editor && notesStore.selectedNote) {
       if (notesStore.selectedNote.isCensored && settingsStore.isCensorshipEnabled()) {
         editor.commands.setContent('');
+        setInitialContent('');
         return;
       }
 
@@ -168,15 +103,26 @@ const App = observer(() => {
         // Only update if content has changed
         if (tempDiv.innerHTML !== editor.getHTML()) {
           editor.commands.setContent(tempDiv.innerHTML);
+          setInitialContent(tempDiv.textContent || '');
         }
       } else {
         // Only update if content has changed
         if (content !== editor.getHTML()) {
           editor.commands.setContent(content);
+          setInitialContent(editor.state.doc.textContent);
         }
       }
+      // Reset auto zen mode when switching notes
+      setAutoZenDisabled(false);
     }
   }, [editor, notesStore.selectedNote, settingsStore.isCensorshipEnabled()]);
+
+  // Watch for zen mode changes
+  useEffect(() => {
+    if (!settingsStore.isZenMode) {
+      setAutoZenDisabled(true);
+    }
+  }, [settingsStore.isZenMode]);
 
   useEffect(() => {
     if (settingsStore.isTagModalOpen) {

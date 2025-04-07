@@ -18,9 +18,12 @@ export const Sidebar: FC<SidebarProps> = observer(({ editor }) => {
   const [isSidebarVisible, setIsSidebarVisible] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+  const toggleButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      // Handle menu clicks
       if (
         menuRef.current &&
         buttonRef.current &&
@@ -29,11 +32,23 @@ export const Sidebar: FC<SidebarProps> = observer(({ editor }) => {
       ) {
         setIsMenuOpen(false);
       }
+
+      // Handle sidebar clicks when unpinned
+      if (
+        !settingsStore.settings.sidebarPinned &&
+        isSidebarVisible &&
+        sidebarRef.current &&
+        toggleButtonRef.current &&
+        !sidebarRef.current.contains(event.target as Node) &&
+        !toggleButtonRef.current.contains(event.target as Node)
+      ) {
+        setIsSidebarVisible(false);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [isSidebarVisible, settingsStore.settings.sidebarPinned]);
 
   const handleCreateNote = () => {
     notesStore.createNote();
@@ -103,11 +118,15 @@ export const Sidebar: FC<SidebarProps> = observer(({ editor }) => {
   return (
     <>
       {!settingsStore.settings.sidebarPinned && !settingsStore.isZenMode && (
-        <button className="sidebar-toggle" onClick={toggleSidebar}>
+        <button 
+          ref={toggleButtonRef}
+          className="sidebar-toggle" 
+          onClick={toggleSidebar}
+        >
           <Menu className="h-4 w-4" />
         </button>
       )}
-      <div className={sidebarClasses}>
+      <div ref={sidebarRef} className={sidebarClasses}>
         <div className="sidebar-header">
           <div className="relative">
             <button
