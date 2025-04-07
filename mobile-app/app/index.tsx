@@ -51,7 +51,7 @@ export default function Index() {
         for (const c of callbacks) {
           c(e.detail);
         }
-        listeners.set(e.detail.messageType, []);
+        // listeners.set(e.detail.messageType, []);
       });
 
       function addListener(messageType, callback) {
@@ -75,7 +75,7 @@ export default function Index() {
                 }
               });
             } catch (error) {
-              alert('Load from storage error: ' + error);
+              alert('Load from storage error (bridge): ' + error);
             }
           });
         },
@@ -236,7 +236,7 @@ export default function Index() {
                 }));
               `);
           } catch (error) {
-            alert('Load from storage error: ' + error);
+            alert('Load from storage error (' + key + '): ' + error);
             webViewRef.current?.injectJavaScript(`
               window.dispatchEvent(new CustomEvent('bridge-response', {
                 detail: {
@@ -258,6 +258,7 @@ export default function Index() {
                 detail: {
                   messageType: 'saveToStorage',
                   data: true,
+                  key: '${key}',
                 }
               }));
             `);
@@ -268,6 +269,7 @@ export default function Index() {
                 detail: {
                   messageType: 'saveToStorage',
                   data: false
+                  key: '${key}',
                 }
               }));
             `);
@@ -513,7 +515,7 @@ export default function Index() {
             }
 
             // Store the backup data
-            await storeData('solo-notes-data', JSON.stringify(backupData));
+            await storeData('solo-notes-data', backupData);
             
             webViewRef.current?.injectJavaScript(`
               window.dispatchEvent(new CustomEvent('bridge-response', {

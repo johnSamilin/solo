@@ -4,6 +4,7 @@ import { defaultSettings } from '../constants';
 import { isPlugin } from '../config';
 
 const STORAGE_KEY = 'solo-settings';
+const SECURE_STORAGE_KEY = 'solo-secure-settings';
 
 export class SettingsStore {
   settings: TypographySettings = defaultSettings;
@@ -60,32 +61,71 @@ export class SettingsStore {
     });
   };
 
-  private loadFromStorage = () => {
+  private loadFromStorage = async () => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const data = JSON.parse(stored);
-        this.settings = data.settings;
-        this.censorship = data.censorship ? { ...data.censorship, enabled: true } : { pin: null, enabled: true };
-        this.webDAV = data.webDAV || this.webDAV;
-        this.isZenMode = data.isZenMode;
-        this.isToolbarExpanded = data.isToolbarExpanded;
+      // Load regular settings
+      if (isPlugin) {
+        const data = await window.bridge.loadFromStorage(STORAGE_KEY);
+        if (data) {
+          this.settings = data.settings;
+          this.isZenMode = data.isZenMode;
+          this.isToolbarExpanded = data.isToolbarExpanded;
+        }
+
+        // Load secure settings
+        const secureData = await window.bridge.loadFromStorage(SECURE_STORAGE_KEY);
+        if (secureData) {
+          this.censorship = secureData.censorship ? 
+            { ...secureData.censorship, enabled: true } : 
+            { pin: null, enabled: true };
+          this.webDAV = secureData.webDAV || this.webDAV;
+        }
+      } else {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        const secureStored = localStorage.getItem(SECURE_STORAGE_KEY);
+        
+        if (stored) {
+          const data = JSON.parse(stored);
+          this.settings = data.settings;
+          this.isZenMode = data.isZenMode;
+          this.isToolbarExpanded = data.isToolbarExpanded;
+        }
+
+        if (secureStored) {
+          const secureData = JSON.parse(secureStored);
+          this.censorship = secureData.censorship ? 
+            { ...secureData.censorship, enabled: true } : 
+            { pin: null, enabled: true };
+          this.webDAV = secureData.webDAV || this.webDAV;
+        }
       }
     } catch (error) {
       console.error('Error loading settings:', error);
     }
   };
 
-  private saveToStorage = () => {
+  private saveToStorage = async () => {
     try {
+      // Save regular settings
       const data = {
         settings: this.settings,
-        censorship: this.censorship,
-        webDAV: this.webDAV,
         isZenMode: this.isZenMode,
         isToolbarExpanded: this.isToolbarExpanded
       };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+
+      // Save secure settings separately
+      const secureData = {
+        censorship: this.censorship,
+        webDAV: this.webDAV
+      };
+
+      if (isPlugin) {
+        await window.bridge.saveToStorage(STORAGE_KEY, data);
+        await window.bridge.saveToStorage(SECURE_STORAGE_KEY, secureData);
+      } else {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        localStorage.setItem(SECURE_STORAGE_KEY, JSON.stringify(secureData));
+      }
     } catch (error) {
       console.error('Error saving settings:', error);
     }
