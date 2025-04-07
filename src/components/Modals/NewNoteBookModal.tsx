@@ -13,7 +13,12 @@ type NewNotebookModalProps = {
 export const NewNotebookModal: FC<NewNotebookModalProps> = observer(({ onClose }) => {
 	const [newNotebookName, setNewNotebookName] = useState('');
 	const [selectedNotebookId, setSelectedNotebookId] = useState('');
-	  const { notesStore } = useStore();
+	const { notesStore, settingsStore } = useStore();
+
+	// Filter out censored notebooks when censorship is enabled
+	const availableNotebooks = notesStore.notebooks.filter(notebook => 
+		!settingsStore.isCensorshipEnabled() || !notesStore.isNotebookCensored(notebook.id)
+	);
 
 	return (
 		<div className="modal-overlay">
@@ -43,7 +48,7 @@ export const NewNotebookModal: FC<NewNotebookModalProps> = observer(({ onClose }
 							className="notebook-select"
 						>
 							<option value="">None</option>
-							{notesStore.notebooks.map(notebook => (
+							{availableNotebooks.map(notebook => (
 								<option key={notebook.id} value={notebook.id}>
 									{notebook.name}
 								</option>
@@ -55,6 +60,7 @@ export const NewNotebookModal: FC<NewNotebookModalProps> = observer(({ onClose }
 							onClick={() => {
 								notesStore.createNotebook(newNotebookName, selectedNotebookId || null);
 								setNewNotebookName('');
+								onClose();
 							}}
 							className="button-primary"
 							disabled={!newNotebookName.trim()}
