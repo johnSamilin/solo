@@ -68,38 +68,86 @@ export const Sidebar: FC<SidebarProps> = observer(({ editor }) => {
     setIsMenuOpen(false);
   };
 
-  const handleBackup = async () => {
-    if (!window.bridge?.syncWebDAV) return;
-    try {
-      const success = await window.bridge.syncWebDAV(JSON.stringify(settingsStore.webDAV));
-      settingsStore.setToast(
-        success ? 'WebDAV backup completed successfully' : 'WebDAV backup failed',
-        success ? 'success' : 'error'
-      );
-    } catch (error) {
-      console.error('Backup failed:', error);
-      settingsStore.setToast('WebDAV backup failed', 'error');
+  const handleSync = async () => {
+    if (settingsStore.syncMode === 'webdav' && window.bridge?.syncWebDAV) {
+      try {
+        const success = await window.bridge.syncWebDAV(JSON.stringify(settingsStore.webDAV));
+        settingsStore.setToast(
+          success ? 'WebDAV sync completed successfully' : 'WebDAV sync failed',
+          success ? 'success' : 'error'
+        );
+      } catch (error) {
+        console.error('Sync failed:', error);
+        settingsStore.setToast('WebDAV sync failed', 'error');
+      }
+    } else if (settingsStore.syncMode === 'server' && settingsStore.server.token) {
+      try {
+        const response = await fetch(`${settingsStore.server.url}/api/data`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${settingsStore.server.token}`,
+          },
+          body: JSON.stringify({
+            notes: notesStore.notes,
+            notebooks: notesStore.notebooks,
+          }),
+        });
+
+        if (response.ok) {
+          settingsStore.setToast('Server sync completed successfully', 'success');
+        } else {
+          settingsStore.setToast('Server sync failed', 'error');
+        }
+      } catch (error) {
+        console.error('Server sync failed:', error);
+        settingsStore.setToast('Server sync failed', 'error');
+      }
     }
     setIsMenuOpen(false);
   };
 
   const handleRestore = async () => {
-    if (!window.bridge?.restoreWebDAV) return;
-    try {
-      if (!confirm('This will replace all your current data with the latest backup. Are you sure?')) {
-        return;
-      }
+    if (settingsStore.syncMode === 'webdav' && window.bridge?.restoreWebDAV) {
+      try {
+        if (!confirm('This will replace all your current data with the latest backup. Are you sure?')) {
+          return;
+        }
 
-      const success = await window.bridge.restoreWebDAV(JSON.stringify(settingsStore.webDAV));
-      if (success) {
-        settingsStore.setToast('WebDAV restore completed successfully', 'success');
-        notesStore.loadFromStorage();
-      } else {
-        settingsStore.setToast('WebDAV restore failed - no backups found', 'error');
+        const success = await window.bridge.restoreWebDAV(JSON.stringify(settingsStore.webDAV));
+        if (success) {
+          settingsStore.setToast('WebDAV restore completed successfully', 'success');
+          notesStore.loadFromStorage();
+        } else {
+          settingsStore.setToast('WebDAV restore failed - no backups found', 'error');
+        }
+      } catch (error) {
+        alert('Restore failed: ' + error);
+        settingsStore.setToast('WebDAV restore failed', 'error');
       }
-    } catch (error) {
-      alert('Restore failed: ' + error);
-      settingsStore.setToast('WebDAV restore failed', 'error');
+    } else if (settingsStore.syncMode === 'server' && settingsStore.server.token) {
+      try {
+        if (!confirm('This will replace all your current data with the server data. Are you sure?')) {
+          return;
+        }
+
+        const response = await fetch(`${settingsStore.server.url}/api/data`, {
+          headers: {
+            'Authorization': `Bearer ${settingsStore.server.token}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          notesStore.importData(data, 'replace');
+          settingsStore.setToast('Server restore completed successfully', 'success');
+        } else {
+          settingsStore.setToast('Server restore failed', 'error');
+        }
+      } catch (error) {
+        console.error('Server restore failed:', error);
+        settingsStore.setToast('Server restore failed', 'error');
+      }
     }
     setIsMenuOpen(false);
   };
@@ -114,6 +162,9 @@ export const Sidebar: FC<SidebarProps> = observer(({ editor }) => {
     !settingsStore.settings.sidebarPinned ? 'unpinned' : '',
     isSidebarVisible ? 'visible' : ''
   ].filter(Boolean).join(' ');
+
+  const showSyncButtons = settingsStore.syncMode !== 'none' && 
+    ((settingsStore.syncMode === 'webdav' && isPlugin) || settingsStore.syncMode === 'server');
 
   return (
     <>
@@ -160,15 +211,15 @@ export const Sidebar: FC<SidebarProps> = observer(({ editor }) => {
                   <FolderPlus className="h-4 w-4" />
                   New Notebook
                 </button>
-                {isPlugin && settingsStore.webDAV.enabled && (
+                {showSyncButtons && (
                   <>
                     <button
                       className="sidebar-dropdown-item"
-                      onClick={handleBackup}
+                      onClick={handleSync}
                       role="menuitem"
                     >
                       <Upload className="h-4 w-4" />
-                      Backup to WebDAV
+                      Sync to {settingsStore.syncMode === 'webdav' ? 'WebDAV' : 'Server'}
                     </button>
                     <button
                       className="sidebar-dropdown-item"
@@ -176,7 +227,7 @@ export const Sidebar: FC<SidebarProps> = observer(({ editor }) => {
                       role="menuitem"
                     >
                       <Download className="h-4 w-4" />
-                      Restore from WebDAV
+                      Restore from {settingsStore.syncMode === 'webdav' ? 'WebDAV' : 'Server'}
                     </button>
                   </>
                 )}

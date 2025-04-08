@@ -15,10 +15,15 @@ export class TagsStore {
 
   private loadFromStorage = async () => {
     try {
-      let storedData = null;
+      let storedData = { tagTree: [] };
 
       if (isPlugin) {
-        storedData = await window.bridge.loadFromStorage(STORAGE_KEY) ?? { "tagTree": [] };
+        if (window.bridge?.loadFromStorage) {
+          storedData = await window.bridge.loadFromStorage(STORAGE_KEY) ?? { tagTree: [] };
+          if (typeof storedData === 'string') {
+            storedData = JSON.parse(storedData);
+          }
+        }
       } else {
         const stored = localStorage.getItem(STORAGE_KEY);
         if (stored) {
@@ -41,7 +46,13 @@ export class TagsStore {
       };
 
       if (isPlugin) {
-        await window.bridge.saveToStorage(STORAGE_KEY, data);
+        if (window.bridge?.saveToStorage) {
+          try {
+            await window.bridge.saveToStorage(STORAGE_KEY, data);
+          } catch (er) {
+            await window.bridge.saveToStorage(STORAGE_KEY, JSON.stringify(data));
+          }
+        }
       } else {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
       }

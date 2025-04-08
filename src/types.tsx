@@ -59,12 +59,21 @@ export interface WebDAVSettings {
   enabled: boolean;
 }
 
+export interface ServerSettings {
+  url: string;
+  username: string;
+  password: string;
+  enabled: boolean;
+  token?: string;
+}
+
 export interface Toast {
   message: string;
   type: 'success' | 'error';
 }
 
 export type ImportMode = 'merge' | 'replace';
+export type SyncMode = 'webdav' | 'server' | 'none';
 
 export interface Bridge {
   loadFromStorage: (key: string) => Promise<any>;

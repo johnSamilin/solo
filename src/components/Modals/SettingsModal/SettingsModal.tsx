@@ -4,16 +4,15 @@ import { Typography } from "./Typography";
 import { Layout } from "./Layout";
 import { Censorship } from "./Censorship";
 import { Data } from "./Data";
-import { WebDAV } from "./WebDAV";
+import { Sync } from "./Sync";
 import { observer } from "mobx-react-lite";
 import { useStore } from "../../../stores/StoreProvider";
-import { isPlugin } from "../../../config";
 
 type SettingsModalProps = {
   onClose: () => void;
 };
 
-type TabType = 'typography' | 'layout' | 'censorship' | 'data' | 'webdav';
+type TabType = 'typography' | 'layout' | 'censorship' | 'data' | 'sync';
 
 export const SettingsModal: FC<SettingsModalProps> = observer(({ onClose}) => {
   const [activeTab, setActiveTab] = useState<TabType>('typography');
@@ -29,8 +28,8 @@ export const SettingsModal: FC<SettingsModalProps> = observer(({ onClose}) => {
         return <Censorship />;
       case 'data':
         return <Data />;
-      case 'webdav':
-        return <WebDAV />;
+      case 'sync':
+        return <Sync />;
       default:
         return null;
     }
@@ -70,14 +69,12 @@ export const SettingsModal: FC<SettingsModalProps> = observer(({ onClose}) => {
           >
             Data
           </button>
-          {isPlugin && (
-            <button
-              className={`modal-tab ${activeTab === 'webdav' ? 'active' : ''}`}
-              onClick={() => setActiveTab('webdav')}
-            >
-              WebDAV
-            </button>
-          )}
+          <button
+            className={`modal-tab ${activeTab === 'sync' ? 'active' : ''}`}
+            onClick={() => setActiveTab('sync')}
+          >
+            Sync
+          </button>
         </div>
         <div className="modal-content">
           {renderActiveTab()}

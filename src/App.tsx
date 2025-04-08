@@ -19,7 +19,6 @@ import { Editor } from './components/Editor/Editor';
 import { Toast } from './components/Toast/Toast';
 import { generateUniqueId } from './utils';
 import { TagNode } from './types';
-import { isPlugin } from './config';
 
 const App = observer(() => {
   const { notesStore, settingsStore, tagsStore } = useStore();
@@ -62,7 +61,7 @@ const App = observer(() => {
     ],
     content: '',
     onUpdate: ({ editor }) => {
-      if (notesStore.selectedNote && !notesStore.selectedNote.isCensored) {
+      if (notesStore.selectedNote) {
         const content = editor.getHTML();
         // Only update if content has actually changed
         if (content !== notesStore.selectedNote.content) {
@@ -172,6 +171,44 @@ const App = observer(() => {
     }
   }, [settingsStore.settings]);
 
+  const handleImageUpload = async (file: File) => {
+    if (settingsStore.syncMode === 'server' && settingsStore.server.token) {
+      try {
+        const formData = new FormData();
+        formData.append('image', file);
+
+        const response = await fetch(`${settingsStore.server.url}/api/upload`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${settingsStore.server.token}`,
+          },
+          body: formData
+        });
+
+        if (response.ok) {
+          const { url } = await response.json();
+          editor?.chain().focus().setImage({ 
+            src: `${settingsStore.server.url}${url}` 
+          }).run();
+        } else {
+          settingsStore.setToast('Failed to upload image', 'error');
+        }
+      } catch (error) {
+        console.error('Image upload failed:', error);
+        settingsStore.setToast('Failed to upload image', 'error');
+      }
+    } else {
+      // Fallback to base64 if no server sync
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          editor?.chain().focus().setImage({ src: reader.result }).run();
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   return (
     <div className={`app ${settingsStore.isZenMode ? 'zen-mode' : ''}`}>
       {/* Settings Modal */}
@@ -206,19 +243,7 @@ const App = observer(() => {
         {notesStore.selectedNote ? (
           <Editor
             editor={editor}
-            handleImageUpload={() => {
-              const input = document.createElement('input');
-              input.type = 'file';
-              input.accept = 'image/*';
-              input.onchange = async (e) => {
-                const file = (e.target as HTMLInputElement).files?.[0];
-                if (file) {
-                  const url = window.URL.createObjectURL(file);
-                  editor?.chain().focus().setImage({ src: url }).run();
-                }
-              };
-              input.click();
-            }}
+            handleImageUpload={handleImageUpload}
             handleLinkInsert={() => {
               const url = window.prompt('Enter the URL:');
               if (url) {

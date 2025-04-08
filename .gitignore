@@ -27,3 +27,4 @@ dist-ssr
 release
 package-lock.json
 yarn-lock.json
+server/data

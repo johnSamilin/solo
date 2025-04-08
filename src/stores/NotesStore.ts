@@ -64,7 +64,10 @@ export class NotesStore {
     let storedData: StoredData | null = null;
     try {
       if (isPlugin) {
-        const data = await window.bridge.loadFromStorage(STORAGE_KEY);
+        let data = await window.bridge.loadFromStorage(STORAGE_KEY);
+        if ((typeof data) === 'string') {
+          data = JSON.parse(data);
+        }
         storedData = data ?? { "notes": [], "notebooks": [], "tags": [] };
       } else {
         const stored = localStorage.getItem(STORAGE_KEY);
@@ -72,7 +75,6 @@ export class NotesStore {
           storedData = JSON.parse(stored);
         }
       }
-
       if (storedData) {
         this.notes = storedData.notes.map(note => ({
           ...note,
@@ -101,7 +103,11 @@ export class NotesStore {
 
     try {
       if (isPlugin) {
-        await window.bridge.saveToStorage(STORAGE_KEY, data);
+        try {
+          await window.bridge.saveToStorage(STORAGE_KEY, data);
+        } catch (er) {
+          await window.bridge?.saveToStorage(STORAGE_KEY, JSON.stringify(data));
+        }
       } else {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
       }

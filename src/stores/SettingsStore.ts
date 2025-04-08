@@ -1,5 +1,5 @@
 import { makeAutoObservable } from 'mobx';
-import { TypographySettings, CensorshipSettings, WebDAVSettings, Toast } from '../types';
+import { TypographySettings, CensorshipSettings, WebDAVSettings, ServerSettings, Toast, SyncMode } from '../types';
 import { defaultSettings } from '../constants';
 import { isPlugin } from '../config';
 
@@ -18,6 +18,14 @@ export class SettingsStore {
     password: '',
     enabled: false
   };
+  server: ServerSettings = {
+    url: '',
+    username: '',
+    password: '',
+    enabled: false,
+    token: undefined
+  };
+  syncMode: SyncMode = 'none';
   fakeCensorshipDisabled = false;
   isZenMode = false;
   isToolbarExpanded = false;
@@ -65,20 +73,28 @@ export class SettingsStore {
     try {
       // Load regular settings
       if (isPlugin) {
-        const data = await window.bridge.loadFromStorage(STORAGE_KEY);
+        let data = await window.bridge.loadFromStorage(STORAGE_KEY);
+        if (typeof data === 'string') {
+          data = JSON.parse(data);
+        }
         if (data) {
           this.settings = data.settings;
           this.isZenMode = data.isZenMode;
           this.isToolbarExpanded = data.isToolbarExpanded;
+          this.syncMode = data.syncMode || 'none';
         }
 
         // Load secure settings
-        const secureData = await window.bridge.loadFromStorage(SECURE_STORAGE_KEY);
+        let secureData = await window.bridge.loadFromStorage(SECURE_STORAGE_KEY);
+        if (typeof secureData === 'string') {
+          secureData = JSON.parse(secureData);
+        }
         if (secureData) {
           this.censorship = secureData.censorship ? 
             { ...secureData.censorship, enabled: true } : 
             { pin: null, enabled: true };
           this.webDAV = secureData.webDAV || this.webDAV;
+          this.server = secureData.server || this.server;
         }
       } else {
         const stored = localStorage.getItem(STORAGE_KEY);
@@ -89,6 +105,7 @@ export class SettingsStore {
           this.settings = data.settings;
           this.isZenMode = data.isZenMode;
           this.isToolbarExpanded = data.isToolbarExpanded;
+          this.syncMode = data.syncMode || 'none';
         }
 
         if (secureStored) {
@@ -97,6 +114,7 @@ export class SettingsStore {
             { ...secureData.censorship, enabled: true } : 
             { pin: null, enabled: true };
           this.webDAV = secureData.webDAV || this.webDAV;
+          this.server = secureData.server || this.server;
         }
       }
     } catch (error) {
@@ -110,18 +128,25 @@ export class SettingsStore {
       const data = {
         settings: this.settings,
         isZenMode: this.isZenMode,
-        isToolbarExpanded: this.isToolbarExpanded
+        isToolbarExpanded: this.isToolbarExpanded,
+        syncMode: this.syncMode
       };
 
       // Save secure settings separately
       const secureData = {
         censorship: this.censorship,
-        webDAV: this.webDAV
+        webDAV: this.webDAV,
+        server: this.server
       };
 
       if (isPlugin) {
-        await window.bridge.saveToStorage(STORAGE_KEY, data);
-        await window.bridge.saveToStorage(SECURE_STORAGE_KEY, secureData);
+        try {
+          await window.bridge.saveToStorage(STORAGE_KEY, data);
+          await window.bridge.saveToStorage(SECURE_STORAGE_KEY, secureData);
+        } catch (er) {
+          await window.bridge?.saveToStorage(STORAGE_KEY, JSON.stringify(data));
+          await window.bridge?.saveToStorage(SECURE_STORAGE_KEY, JSON.stringify(secureData));
+        }
       } else {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
         localStorage.setItem(SECURE_STORAGE_KEY, JSON.stringify(secureData));
@@ -138,6 +163,31 @@ export class SettingsStore {
 
   updateWebDAV = (newSettings: Partial<WebDAVSettings>) => {
     this.webDAV = { ...this.webDAV, ...newSettings };
+    this.saveToStorage();
+  };
+
+  updateServer = (newSettings: Partial<ServerSettings>) => {
+    this.server = { ...this.server, ...newSettings };
+    this.saveToStorage();
+  };
+
+  setSyncMode = (mode: SyncMode) => {
+    this.syncMode = mode;
+    if (mode === 'webdav') {
+      this.webDAV.enabled = true;
+      this.server.enabled = false;
+    } else if (mode === 'server') {
+      this.server.enabled = true;
+      this.webDAV.enabled = false;
+    } else {
+      this.webDAV.enabled = false;
+      this.server.enabled = false;
+    }
+    this.saveToStorage();
+  };
+
+  setServerToken = (token: string) => {
+    this.server.token = token;
     this.saveToStorage();
   };
 

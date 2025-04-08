@@ -1,13 +1,13 @@
 import { Editor } from "@tiptap/react";
 import { Undo2, Redo2, ImageIcon, LinkIcon, EyeOff, ListChecks, Minimize2, Maximize2, Leaf, Settings } from "lucide-react";
-import { FC } from "react";
+import { FC, useRef } from "react";
 
 type FABProps = {
   editor: Editor | null;
   isZenMode: boolean;
   toggleZenMode: () => void;
   isToolbarExpanded: boolean;
-  handleImageUpload: () => void;
+  handleImageUpload: (file: File) => void;
   handleLinkInsert: () => void;
   insertTaskList: () => void;
   setIsToolbarExpanded: (val: boolean) => void;
@@ -25,6 +25,23 @@ export const FAB: FC<FABProps> = ({
   setIsToolbarExpanded,
   openNoteSettings,
 }) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleImageUpload(file);
+    }
+    // Reset input value to allow selecting the same file again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   return (
     <div className={`editor-toolbar ${isToolbarExpanded ? 'expanded' : ''}`}>
       <div className="toolbar-actions" onClick={() => setIsToolbarExpanded(false)}>
@@ -48,12 +65,19 @@ export const FAB: FC<FABProps> = ({
         </div>
         <div className="editor-toolbar-group">
           <button
-            onClick={handleImageUpload}
+            onClick={handleImageClick}
             className="button-icon"
             title="Insert Image"
           >
             <ImageIcon className="h-4 w-4" />
           </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            style={{ display: 'none' }}
+          />
           <button
             onClick={handleLinkInsert}
             className="button-icon"
