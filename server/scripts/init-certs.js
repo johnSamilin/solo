@@ -2,6 +2,7 @@ import acme from 'acme-client';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { setAcmeChallenge, removeAcmeChallenge } from '../index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -28,11 +29,12 @@ async function createCertificate() {
     }
 
     // Create a new ACME client
+    const ak = await acme.forge.createPrivateKey();
     const client = new acme.Client({
       directoryUrl: PRODUCTION
         ? acme.directory.letsencrypt.production
         : acme.directory.letsencrypt.staging,
-      accountKey: await acme.forge.createPrivateKey()
+      accountKey: ak,
     });
 
     // Create an account
@@ -42,7 +44,7 @@ async function createCertificate() {
     });
 
     // Save account key
-    fs.writeFileSync(accountKeyPath, client.accountKey);
+    fs.writeFileSync(accountKeyPath, ak);
 
     // Create domain key pair
     const domainKey = await acme.forge.createPrivateKey();
@@ -61,17 +63,20 @@ async function createCertificate() {
       termsOfServiceAgreed: true,
       challengePriority: ['http-01'],
       challengeCreateFn: async (authz, challenge, keyAuthorization) => {
-        // This is where you need to implement HTTP challenge
-        // You should make keyAuthorization available at:
-        // http://<DOMAIN>/.well-known/acme-challenge/<challenge.token>
-        console.log('Challenge created:', {
-          token: challenge.token,
-          keyAuthorization
-        });
+        // Store the challenge response
+        setAcmeChallenge(challenge.token, keyAuthorization);
+        
+        // Wait for DNS propagation
+        console.log('Waiting for challenge verification...');
+        console.log('Challenge URL:', `http://${DOMAIN}/.well-known/acme-challenge/${challenge.token}`);
+        console.log('Expected response:', keyAuthorization);
+        
+        // Wait a bit to ensure the challenge is accessible
+        await new Promise(resolve => setTimeout(resolve, 5000));
       },
       challengeRemoveFn: async (authz, challenge) => {
-        // Clean up challenge files
-        console.log('Challenge removed:', challenge.token);
+        // Clean up challenge response
+        removeAcmeChallenge(challenge.token);
       },
     });
 

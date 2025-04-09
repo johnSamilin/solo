@@ -24,11 +24,14 @@ const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 const STATIC_DIR = _path.join(__dirname, '../dist');
 
+// ACME challenge storage
+const ACME_CHALLENGES = new Map();
+
 // Load SSL certificates
 const serverOptions = {
   key: fs.readFileSync(_path.join(__dirname, 'certs/server.key')),
   cert: fs.readFileSync(_path.join(__dirname, 'certs/server.crt')),
-  allowHTTP1: true // Fallback to HTTP/1 if client doesn't support HTTP/2
+  allowHTTP1: true
 };
 
 // Create HTTP/2 server
@@ -102,6 +105,26 @@ server.on('stream', async (stream, headers) => {
     'access-control-allow-methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'access-control-allow-headers': 'Content-Type, Authorization'
   };
+
+  // Handle ACME challenge requests
+  if (path.startsWith('/.well-known/acme-challenge/')) {
+    const token = path.split('/').pop();
+    const keyAuthorization = ACME_CHALLENGES.get(token);
+
+    if (keyAuthorization) {
+      stream.respond({
+        ':status': 200,
+        'content-type': 'text/plain',
+        ...responseHeaders
+      });
+      stream.end(keyAuthorization);
+      return;
+    }
+
+    stream.respond({ ':status': 404, ...responseHeaders });
+    stream.end('Challenge not found');
+    return;
+  }
 
   // Handle OPTIONS requests
   if (method === 'OPTIONS') {
@@ -362,6 +385,15 @@ function getContentType(filePath) {
     '.wasm': 'application/wasm'
   };
   return types[ext] || 'application/octet-stream';
+}
+
+// Export functions for ACME challenge management
+export function setAcmeChallenge(token, keyAuthorization) {
+  ACME_CHALLENGES.set(token, keyAuthorization);
+}
+
+export function removeAcmeChallenge(token) {
+  ACME_CHALLENGES.delete(token);
 }
 
 // Start server
