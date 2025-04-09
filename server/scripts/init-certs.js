@@ -1,4 +1,4 @@
-import { Client } from 'acme-client';
+import acme from 'acme-client';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -27,23 +27,29 @@ async function createCertificate() {
       fs.mkdirSync(certsDir, { recursive: true });
     }
 
-    // Create ACME client
-    const client = new Client({
+    // Create a new ACME client
+    const client = new acme.Client({
       directoryUrl: PRODUCTION
-        ? Client.directory.letsencrypt.production
-        : Client.directory.letsencrypt.staging,
-      accountKey: await Client.createPrivateKey()
+        ? acme.directory.letsencrypt.production
+        : acme.directory.letsencrypt.staging,
+      accountKey: await acme.forge.createPrivateKey()
+    });
+
+    // Create an account
+    await client.createAccount({
+      termsOfServiceAgreed: true,
+      contact: [`mailto:${EMAIL}`]
     });
 
     // Save account key
-    fs.writeFileSync(accountKeyPath, client.getAccountKey());
+    fs.writeFileSync(accountKeyPath, client.accountKey);
 
-    // Create domain key
-    const domainKey = await Client.createPrivateKey();
+    // Create domain key pair
+    const domainKey = await acme.forge.createPrivateKey();
     fs.writeFileSync(domainKeyPath, domainKey);
 
     // Create CSR
-    const [key, csr] = await Client.createCsr({
+    const [key, csr] = await acme.forge.createCsr({
       commonName: DOMAIN,
       altNames: [`www.${DOMAIN}`]
     });
