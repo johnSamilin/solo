@@ -2,6 +2,7 @@ import fs from 'fs';
 import _path from 'path';
 import { fileURLToPath } from 'url';
 import http2 from 'http2';
+import http from 'http';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
@@ -20,7 +21,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = _path.dirname(__filename);
 
 // Configuration
-const PORT = process.env.PORT || 3000;
+const HTTP_PORT = process.env.HTTP_PORT || 80;
+const HTTPS_PORT = process.env.HTTPS_PORT || 443;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 const STATIC_DIR = _path.join(__dirname, '../dist');
 
@@ -34,8 +36,45 @@ const serverOptions = {
   allowHTTP1: true
 };
 
+// Create HTTP server for ACME challenges
+const httpServer = http.createServer((req, res) => {
+  // CORS headers
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+  };
+
+  // Handle ACME challenge requests
+  if (req.url?.startsWith('/.well-known/acme-challenge/')) {
+    const token = req.url.split('/').pop();
+    const keyAuthorization = ACME_CHALLENGES.get(token);
+
+    if (keyAuthorization) {
+      res.writeHead(200, {
+        'Content-Type': 'text/plain',
+        ...corsHeaders
+      });
+      res.end(keyAuthorization);
+      return;
+    }
+
+    res.writeHead(404, corsHeaders);
+    res.end('Challenge not found');
+    return;
+  }
+
+  // Redirect all other HTTP traffic to HTTPS
+  const host = req.headers.host?.split(':')[0] || 'localhost';
+  res.writeHead(301, {
+    'Location': `https://${host}${req.url}`,
+    ...corsHeaders
+  });
+  res.end();
+});
+
 // Create HTTP/2 server
-const server = http2.createSecureServer(serverOptions);
+const http2Server = http2.createSecureServer(serverOptions);
 
 // Middleware to verify JWT token
 const verifyToken = (headers) => {
@@ -94,8 +133,8 @@ const parseMultipartFormData = (data) => {
   return null;
 };
 
-// Handle requests
-server.on('stream', async (stream, headers) => {
+// Handle HTTP/2 requests
+http2Server.on('stream', async (stream, headers) => {
   const method = headers[':method'];
   const path = headers[':path'];
 
@@ -106,7 +145,7 @@ server.on('stream', async (stream, headers) => {
     'access-control-allow-headers': 'Content-Type, Authorization'
   };
 
-  // Handle ACME challenge requests
+  // Handle ACME challenge requests (as backup)
   if (path.startsWith('/.well-known/acme-challenge/')) {
     const token = path.split('/').pop();
     const keyAuthorization = ACME_CHALLENGES.get(token);
@@ -396,12 +435,20 @@ export function removeAcmeChallenge(token) {
   ACME_CHALLENGES.delete(token);
 }
 
-// Start server
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+// Start servers
+httpServer.listen(HTTP_PORT, () => {
+  console.log(`HTTP server running on port ${HTTP_PORT}`);
+});
+
+http2Server.listen(HTTPS_PORT, () => {
+  console.log(`HTTPS server running on port ${HTTPS_PORT}`);
 });
 
 // Handle server errors
-server.on('error', (err) => {
-  console.error('Server error:', err);
+httpServer.on('error', (err) => {
+  console.error('HTTP server error:', err);
+});
+
+http2Server.on('error', (err) => {
+  console.error('HTTPS server error:', err);
 });
