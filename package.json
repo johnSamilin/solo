@@ -10,7 +10,7 @@
     "dev": "vite",
     "dev:plugin": "VITE_BUILDMODE=plugin vite",
     "dev:standalone": "VITE_BUILDMODE=standalone vite",
-    "build": "vite build",
+    "build": "vite build && npm run copy-assets",
     "build:plugin": "VITE_BUILDMODE=plugin vite build",
     "build:standalone": "VITE_BUILDMODE=standalone vite build",
     "build:mobile": "VITE_BUILDMODE=plugin vite build && node scripts/copy-to-mobile.js && cd ./mobile-app && npm run build:android-release && cd ..",
@@ -21,7 +21,8 @@
     "electron:build": "vite build",
     "electron:package:win": "yarn build:plugin && electron-builder --win --config electron-builder.config.cjs",
     "electron:package:mac": "yarn build:plugin && electron-builder --mac --config electron-builder.config.cjs",
-    "electron:package:all": "yarn build:plugin && electron-builder -mw --config electron-builder.config.cjs"
+    "electron:package:all": "yarn build:plugin && electron-builder -mw --config electron-builder.config.cjs",
+    "copy-assets": "cp -R assets dist/assets"
   },
   "dependencies": {
     "@tiptap/extension-heading": "^2.2.4",
