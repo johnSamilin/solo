@@ -1,7 +1,7 @@
 {
   "name": "solo",
   "private": false,
-  "version": "1.1.0",
+  "version": "1.2.0",
   "type": "module",
   "main": "electron/main.js",
   "author": "Alexander Saltykov <masteralex@inbox.ru>",
@@ -66,6 +66,7 @@
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.3.0",
     "vite": "^5.4.2",
+    "vite-plugin-pwa": "^0.19.8",
     "vite-plugin-singlefile": "^2.2.0",
     "workbox-window": "^7.3.0"
   }

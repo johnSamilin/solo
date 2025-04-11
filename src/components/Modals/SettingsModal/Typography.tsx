@@ -12,11 +12,13 @@ export const Typography: FC<TypographyProps> = ({ settings, setSettings }) => {
   const soundRef = useRef<Howl>();
 
   useEffect(() => {
-    soundRef.current = new Howl({
-      src: [`/${settings.typewriterSound}.mp3`],
-      volume: 1,
-      rate: 2.0
-    });
+    try {
+      soundRef.current = new Howl({
+        src: [`/${settings.typewriterSound}.mp3`],
+        volume: 1,
+        rate: 2.0
+      });
+    } catch(er) {}
   }, [settings.typewriterSound]);
 
   const handleThemeChange = (themeKey: string) => {
@@ -66,6 +68,8 @@ export const Typography: FC<TypographyProps> = ({ settings, setSettings }) => {
           >
             <option value="GNU Typewriter">GNU Typewriter</option>
             <option value="Crimson Pro">Crimson Pro</option>
+            <option value="PT Serif">PT Serif</option>
+            <option value="Martel">Martel</option>
             <option value="Georgia">Georgia</option>
             <option value="Times New Roman">Times New Roman</option>
           </select>
@@ -115,6 +119,8 @@ export const Typography: FC<TypographyProps> = ({ settings, setSettings }) => {
           >
             <option value="GNU Typewriter">GNU Typewriter</option>
             <option value="Crimson Pro">Crimson Pro</option>
+            <option value="PT Serif">PT Serif</option>
+            <option value="Martel">Martel</option>
             <option value="Georgia">Georgia</option>
           </select>
         </div>
@@ -140,6 +146,8 @@ export const Typography: FC<TypographyProps> = ({ settings, setSettings }) => {
           >
             <option value="GNU Typewriter">GNU Typewriter</option>
             <option value="Crimson Pro">Crimson Pro</option>
+            <option value="PT Serif">PT Serif</option>
+            <option value="Martel">Martel</option>
             <option value="Georgia">Georgia</option>
           </select>
         </div>

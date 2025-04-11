@@ -1,31 +1,29 @@
 {
-    "name": "solo-server",
-    "private": false,
-    "version": "1.1.0",
-    "type": "module",
-    "main": "index.js",
-    "author": "Alexander Saltykov <masteralex@inbox.ru>",
-    "description": "Server for Solo",
-    "scripts": {
-        "start": "node index.js",
-        "dev": "nodemon index.js",
-        "certs:dev": "node scripts/dev-certs.js",
-        "certs:init": "node scripts/init-certs.js",
-        "certs:renew": "node scripts/renew-certs.js",
-        "db:init": "node scripts/init-db.js",
-        "user:create": "node scripts/create-user.js"
-    },
-    "dependencies": {
-        "acme-client": "^5.3.0",
-        "bcryptjs": "^2.4.3",
-        "better-sqlite3": "^9.4.3",
-        "jsonwebtoken": "^9.0.2",
-        "mkdirp": "^3.0.1",
-        "uuid": "^9.0.1"
-    },
-    "devDependencies": {
-        "esbuild": "^0.25.2",
-        "nodemon": "^3.1.0",
-        "pkg": "^5.8.1"
-    }
+  "name": "solo-server",
+  "private": false,
+  "version": "1.2.0",
+  "type": "module",
+  "main": "index.js",
+  "author": "Alexander Saltykov <masteralex@inbox.ru>",
+  "description": "Server for Solo",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "certs:dev": "node scripts/dev-certs.js",
+    "certs:init": "node scripts/init-certs.js",
+    "certs:renew": "node scripts/renew-certs.js",
+    "db:init": "node scripts/init-db.js",
+    "user:create": "node scripts/create-user.js"
+  },
+  "dependencies": {
+    "acme-client": "^5.3.0",
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^9.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "mkdirp": "^3.0.1",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
 }

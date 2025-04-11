@@ -1,15 +1,15 @@
 import Database from 'better-sqlite3';
-import _path from 'path';
+import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import { mkdirp } from 'mkdirp';
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = _path.dirname(__filename);
+const __dirname = path.dirname(__filename);
 
-const DB_PATH = _path.join(__dirname, 'data/solo.db');
-export const DATA_DIR = _path.join(__dirname, 'data');
-export const USER_DATA_DIR = _path.join(DATA_DIR, 'users');
+const DB_PATH = path.join(__dirname, 'data/solo.db');
+const DATA_DIR = path.join(__dirname, 'data');
+const USER_DATA_DIR = path.join(DATA_DIR, 'users');
 
 // Ensure directories exist
 await mkdirp(DATA_DIR);
@@ -53,8 +53,8 @@ export function createNewUser(id, username, hashedPassword) {
   createUser.run(id, username, hashedPassword);
   
   // Create user data directory and images subdirectory
-  const userDir = _path.join(USER_DATA_DIR, id);
-  const imagesDir = _path.join(userDir, 'images');
+  const userDir = path.join(USER_DATA_DIR, id);
+  const imagesDir = path.join(userDir, 'images');
   fs.mkdirSync(imagesDir, { recursive: true });
 }
 
@@ -75,7 +75,7 @@ export function validateSession(token) {
 }
 
 export function getUserData(userId) {
-  const userDataPath = _path.join(USER_DATA_DIR, userId, 'data.json');
+  const userDataPath = path.join(USER_DATA_DIR, userId, 'data.json');
   try {
     if (fs.existsSync(userDataPath)) {
       const data = fs.readFileSync(userDataPath, 'utf8');
@@ -88,8 +88,8 @@ export function getUserData(userId) {
 }
 
 export function saveUserData(userId, data) {
-  const userDir = _path.join(USER_DATA_DIR, userId);
-  const userDataPath = _path.join(userDir, 'data.json');
+  const userDir = path.join(USER_DATA_DIR, userId);
+  const userDataPath = path.join(userDir, 'data.json');
   
   try {
     // Ensure user directory exists
@@ -105,8 +105,8 @@ export function saveUserData(userId, data) {
 }
 
 export async function saveUserImage(userId, imageId, imageData) {
-  const userImagesDir = _path.join(USER_DATA_DIR, userId, 'images');
-  const imagePath = _path.join(userImagesDir, imageId);
+  const userImagesDir = path.join(USER_DATA_DIR, userId, 'images');
+  const imagePath = path.join(userImagesDir, imageId);
   
   try {
     // Ensure images directory exists

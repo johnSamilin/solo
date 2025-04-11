@@ -29,12 +29,11 @@ async function createCertificate() {
     }
 
     // Create a new ACME client
-    const ak = await acme.forge.createPrivateKey();
     const client = new acme.Client({
       directoryUrl: PRODUCTION
         ? acme.directory.letsencrypt.production
         : acme.directory.letsencrypt.staging,
-      accountKey: ak,
+      accountKey: await acme.forge.createPrivateKey()
     });
 
     // Create an account
@@ -44,7 +43,7 @@ async function createCertificate() {
     });
 
     // Save account key
-    fs.writeFileSync(accountKeyPath, ak);
+    fs.writeFileSync(accountKeyPath, client.accountKey);
 
     // Create domain key pair
     const domainKey = await acme.forge.createPrivateKey();

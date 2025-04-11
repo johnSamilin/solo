@@ -25,6 +25,5 @@ dist-ssr
 
 .bolt
 release
-package-lock.json
-yarn-lock.json
+server/certs
 server/data

@@ -1,3 +1,5 @@
+import { Editor } from "@tiptap/react";
+
 export interface Tag {
   id: string;
   path: string;

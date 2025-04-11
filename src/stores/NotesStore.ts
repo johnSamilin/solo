@@ -320,15 +320,23 @@ export class NotesStore {
     return this.notebooksByParentId.get(parentId) ?? [];
   };
 
-  isNotebookCensored = (notebookId: string): boolean => {
+  private getNotebookParentChain = (notebookId: string | null): string[] => {
+    if (!notebookId) return [];
+    
     const notebook = this.notebooks.find(n => n.id === notebookId);
-    if (!notebook) return false;
+    if (!notebook) return [];
 
-    // Check if any parent notebook is censored
-    if (notebook.parentId) {
-      return this.isNotebookCensored(notebook.parentId);
-    }
+    return [...this.getNotebookParentChain(notebook.parentId), notebookId];
+  };
 
-    return notebook.isCensored || false;
+  isNotebookCensored = (notebookId: string): boolean => {
+    // Get the chain of parent notebooks
+    const parentChain = this.getNotebookParentChain(notebookId);
+    
+    // Check if any notebook in the chain is censored
+    return parentChain.some(id => {
+      const notebook = this.notebooks.find(n => n.id === id);
+      return notebook?.isCensored || false;
+    });
   };
 }
