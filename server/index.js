@@ -52,7 +52,7 @@ const httpServer = http.createServer((req, res) => {
 
     if (keyAuthorization) {
       res.writeHead(200, {
-        'Content-Type': 'text/plain',
+        'Content-Type': 'text/plain; charset=utf-8',
         ...corsHeaders
       });
       res.end(keyAuthorization);
@@ -142,7 +142,8 @@ http2Server.on('stream', async (stream, headers) => {
   const responseHeaders = {
     'access-control-allow-origin': '*',
     'access-control-allow-methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'access-control-allow-headers': 'Content-Type, Authorization'
+    'access-control-allow-headers': 'Content-Type, Authorization',
+    'content-type': 'application/json; charset=utf-8'
   };
 
   // Handle ACME challenge requests (as backup)
@@ -153,7 +154,7 @@ http2Server.on('stream', async (stream, headers) => {
     if (keyAuthorization) {
       stream.respond({
         ':status': 200,
-        'content-type': 'text/plain',
+        'content-type': 'text/plain; charset=utf-8',
         ...responseHeaders
       });
       stream.end(keyAuthorization);
@@ -178,6 +179,7 @@ http2Server.on('stream', async (stream, headers) => {
   // Authentication endpoints
   if (path === '/api/register' && method === 'POST') {
     let data = '';
+    stream.setEncoding('utf8');
     stream.on('data', chunk => data += chunk);
     stream.on('end', async () => {
       try {
@@ -209,6 +211,7 @@ http2Server.on('stream', async (stream, headers) => {
 
   if (path === '/api/login' && method === 'POST') {
     let data = '';
+    stream.setEncoding('utf8');
     stream.on('data', chunk => data += chunk);
     stream.on('end', async () => {
       try {
@@ -251,6 +254,7 @@ http2Server.on('stream', async (stream, headers) => {
     // Handle data synchronization
     if (method === 'POST') {
       let data = '';
+      stream.setEncoding('utf8');
       stream.on('data', chunk => data += chunk);
       stream.on('end', () => {
         try {
@@ -314,7 +318,6 @@ http2Server.on('stream', async (stream, headers) => {
           stream.respond({ 
             ':status': 200,
             ...responseHeaders,
-            'content-type': 'application/json'
           });
           stream.end(JSON.stringify({ 
             url: `/api/images/${session.user_id}/${imageId}` 
@@ -376,7 +379,7 @@ http2Server.on('stream', async (stream, headers) => {
       if (stat.isFile()) {
         const contentType = getContentType(filePath);
         stream.respondWithFile(filePath, {
-          'content-type': contentType,
+          'content-type': `${contentType}; charset=utf-8`,
           'content-length': stat.size,
           ...responseHeaders
         });

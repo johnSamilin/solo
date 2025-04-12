@@ -9,7 +9,8 @@ const __dirname = path.dirname(__filename);
 
 const DB_PATH = path.join(__dirname, 'data/solo.db');
 const DATA_DIR = path.join(__dirname, 'data');
-const USER_DATA_DIR = path.join(DATA_DIR, 'users');
+export const USER_DATA_DIR = path.join(DATA_DIR, 'users');
+const MAX_DATA_FILES = 10;
 
 // Ensure directories exist
 await mkdirp(DATA_DIR);
@@ -74,29 +75,64 @@ export function validateSession(token) {
   return getSession.get(token);
 }
 
+function getDataFiles(userId) {
+  const userDir = path.join(USER_DATA_DIR, userId);
+  if (!fs.existsSync(userDir)) return [];
+
+  return fs.readdirSync(userDir)
+    .filter(file => file.startsWith('data-') && file.endsWith('.json'))
+    .sort((a, b) => {
+      const timeA = new Date(a.slice(5, -5)).getTime();
+      const timeB = new Date(b.slice(5, -5)).getTime();
+      return timeB - timeA; // Sort in descending order (newest first)
+    });
+}
+
+function rotateDataFiles(userId) {
+  const files = getDataFiles(userId);
+  const userDir = path.join(USER_DATA_DIR, userId);
+
+  // Remove oldest files if we exceed MAX_DATA_FILES
+  if (files.length >= MAX_DATA_FILES) {
+    files.slice(MAX_DATA_FILES - 1).forEach(file => {
+      fs.unlinkSync(path.join(userDir, file));
+    });
+  }
+}
+
 export function getUserData(userId) {
-  const userDataPath = path.join(USER_DATA_DIR, userId, 'data.json');
+  const files = getDataFiles(userId);
+  if (files.length === 0) return null;
+
+  // Get the latest file
+  const latestFile = files[0];
+  const filePath = path.join(USER_DATA_DIR, userId, latestFile);
+
   try {
-    if (fs.existsSync(userDataPath)) {
-      const data = fs.readFileSync(userDataPath, 'utf8');
-      return JSON.parse(data);
-    }
+    const data = fs.readFileSync(filePath, 'utf8');
+    return JSON.parse(data);
   } catch (error) {
     console.error('Error reading user data:', error);
+    return null;
   }
-  return null;
 }
 
 export function saveUserData(userId, data) {
   const userDir = path.join(USER_DATA_DIR, userId);
-  const userDataPath = path.join(userDir, 'data.json');
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const filename = `data-${timestamp}.json`;
+  const filePath = path.join(userDir, filename);
   
   try {
     // Ensure user directory exists
     fs.mkdirSync(userDir, { recursive: true });
     
     // Save data
-    fs.writeFileSync(userDataPath, JSON.stringify(data, null, 2));
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+
+    // Rotate files if needed
+    rotateDataFiles(userId);
+    
     return true;
   } catch (error) {
     console.error('Error saving user data:', error);
