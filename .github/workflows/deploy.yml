@@ -10,9 +10,6 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Install sshpass
-        run: apt install sshpass
-
       - name: Install SSH key
         uses: shimataro/ssh-key-action@v2
         with:
@@ -20,18 +17,20 @@ jobs:
           known_hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
 
       - name: Deploy to server
-        env:
+        uses: matheusvanzan/sshpass-action@v2
+        with:
+          SSH_PASS: ${{ secrets.SSH_PASS }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
-        run: |
-          
-          # Execute deployment commands
-          sshpass -p "$SSH_PASS" ssh $SSH_USER@$SSH_HOST "cd $DEPLOY_PATH && \
-            git stash && \
-            git pull && \
-            git stash pop && \
-            npm run build && \
-            cd server && \
-            pm2 stop all && \
-            pm2 start \"JWT_SECRET=$JWT_SECRET npm run start\""
+          run: |
+            
+            # Execute deployment commands
+            sshpass -p "$SSH_PASS" ssh $SSH_USER@$SSH_HOST "cd $DEPLOY_PATH && \
+              git stash && \
+              git pull && \
+              git stash pop && \
+              npm run build && \
+              cd server && \
+              pm2 stop all && \
+              pm2 start \"JWT_SECRET=$JWT_SECRET npm run start\""
