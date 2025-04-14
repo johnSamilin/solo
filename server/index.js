@@ -378,11 +378,12 @@ http2Server.on('stream', async (stream, headers) => {
       const stat = await fs.promises.stat(filePath);
       if (stat.isFile()) {
         const contentType = getContentType(filePath);
-        stream.respondWithFile(filePath, {
-          'content-type': `${contentType}; charset=utf-8`,
+        const responseH = {
           'content-length': stat.size,
-          ...responseHeaders
-        });
+          ...responseHeaders,
+          'content-type': `${contentType}; charset=utf-8`,
+        };
+        stream.respondWithFile(filePath, responseH);
       } else {
         stream.respond({ ':status': 404, ...responseHeaders });
         stream.end('Not found');

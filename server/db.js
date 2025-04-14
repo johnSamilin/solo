@@ -64,7 +64,7 @@ export function createUserSession(sessionId, userId, token, expiresAt) {
   deleteExpiredSessions.run();
   
   // Create new session
-  createSession.run(sessionId, userId, token, expiresAt);
+  createSession.run(sessionId, userId, token, expiresAt.toString());
 }
 
 export function validateSession(token) {
@@ -103,9 +103,9 @@ function rotateDataFiles(userId) {
 export function getUserData(userId) {
   const files = getDataFiles(userId);
   if (files.length === 0) return null;
-
+  
   // Get the latest file
-  const latestFile = files[0];
+  const latestFile = files.pop();
   const filePath = path.join(USER_DATA_DIR, userId, latestFile);
 
   try {
