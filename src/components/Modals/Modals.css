@@ -42,7 +42,7 @@
   margin: 0;
   font-size: 1.25rem;
   font-weight: 600;
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'Outfit', system-ui, sans-serif;
   color: var(--color-text);
 }
 
@@ -71,7 +71,7 @@
   cursor: pointer;
   font-size: 0.875rem;
   position: relative;
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'Outfit', system-ui, sans-serif;
   font-weight: 500;
   transition: all 0.2s ease;
 }
@@ -115,7 +115,7 @@
   font-size: 1rem;
   font-weight: 600;
   color: var(--color-text);
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'Outfit', system-ui, sans-serif;
 }
 
 .setting-item {
@@ -133,7 +133,7 @@
 .setting-item label {
   font-size: 0.875rem;
   color: var(--color-text);
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'Outfit', system-ui, sans-serif;
   font-weight: 500;
 }
 
@@ -150,7 +150,7 @@
   font-size: 0.875rem;
   color: var(--color-text);
   min-width: 120px;
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'Outfit', system-ui, sans-serif;
   transition: all 0.2s ease;
 }
 
@@ -179,7 +179,7 @@
   border-radius: 0.5rem;
   font-size: 0.875rem;
   font-weight: 500;
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'Outfit', system-ui, sans-serif;
   transition: all 0.2s ease;
   display: inline-flex;
   align-items: center;
@@ -271,7 +271,7 @@
   border: 1px solid var(--color-border);
   font-size: 0.875rem;
   color: var(--color-text);
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'Outfit', system-ui, sans-serif;
   transition: all 0.2s ease;
 }
 
@@ -289,7 +289,7 @@
   border-radius: 0.5rem;
   font-size: 0.875rem;
   color: var(--color-text);
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'Outfit', system-ui, sans-serif;
   border: 1px solid var(--color-border);
 }
 

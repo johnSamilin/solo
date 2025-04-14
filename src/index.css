@@ -16,7 +16,7 @@
   --editor-font-family: 'Crimson Pro';
   --editor-font-size: 1.125rem;
   --editor-line-height: 1.75;
-  --title-font-family: 'Crimson Pro';
+  --title-font-family: 'Kaligrafica';
   --title-font-size: 2rem;
   --sidebar-font-family: 'Crimson Pro';
   --sidebar-font-size: 1rem;
@@ -34,9 +34,16 @@
   font-style: normal;
 }
 
+@font-face {
+  font-family: 'Kaligrafica';
+  src: url('./assets/fonts/kaligrafica.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
 body {
   margin: 0;
-  font-family: 'Crimson Pro', Georgia, serif;
+  font-family: 'Outfit', system-ui, sans-serif;
   background-color: var(--color-bg);
   color: var(--color-text);
 }
@@ -80,6 +87,7 @@ body {
   border-radius: 0.375rem;
   font-size: 0.875rem;
   cursor: pointer;
+  font-family: 'Outfit', system-ui, sans-serif;
 }
 
 .button-primary:hover:not(:disabled) {
@@ -103,6 +111,7 @@ body {
   align-items: center;
   gap: 0.5rem;
   transition: all 0.2s ease;
+  font-family: 'Outfit', system-ui, sans-serif;
 }
 
 .button-danger:hover {
@@ -158,6 +167,7 @@ body {
   border-radius: 0.375rem;
   font-size: 0.875rem;
   color: var(--color-text);
+  font-family: 'Outfit', system-ui, sans-serif;
 }
 
 .pin-input:focus {
@@ -169,6 +179,7 @@ body {
   color: var(--color-danger);
   font-size: 0.875rem;
   margin-top: 0.5rem;
+  font-family: 'Outfit', system-ui, sans-serif;
 }
 
 .import-controls {
@@ -185,6 +196,7 @@ body {
   font-size: 0.875rem;
   color: var(--color-text);
   min-width: 200px;
+  font-family: 'Outfit', system-ui, sans-serif;
 }
 
 .import-status {
@@ -192,6 +204,7 @@ body {
   padding: 0.5rem;
   border-radius: 0.375rem;
   font-size: 0.875rem;
+  font-family: 'Outfit', system-ui, sans-serif;
 }
 
 .import-status.success {
@@ -226,6 +239,7 @@ body {
   color: var(--color-text);
   cursor: pointer;
   border-radius: 0.25rem;
+  font-family: 'Outfit', system-ui, sans-serif;
 }
 
 .link-context-menu .menu-item:hover {

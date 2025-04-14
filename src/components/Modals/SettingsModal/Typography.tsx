@@ -70,6 +70,8 @@ export const Typography: FC<TypographyProps> = ({ settings, setSettings }) => {
             <option value="Crimson Pro">Crimson Pro</option>
             <option value="PT Serif">PT Serif</option>
             <option value="Martel">Martel</option>
+            <option value="Raleway">Raleway</option>
+            <option value="Arimo">Arimo</option>
             <option value="Georgia">Georgia</option>
             <option value="Times New Roman">Times New Roman</option>
           </select>
@@ -117,10 +119,13 @@ export const Typography: FC<TypographyProps> = ({ settings, setSettings }) => {
             value={settings.titleFontFamily}
             onChange={(e) => setSettings({ ...settings, titleFontFamily: e.target.value })}
           >
+            <option value="Kaligrafica">Kaligrafica</option>
             <option value="GNU Typewriter">GNU Typewriter</option>
             <option value="Crimson Pro">Crimson Pro</option>
             <option value="PT Serif">PT Serif</option>
             <option value="Martel">Martel</option>
+            <option value="Raleway">Raleway</option>
+            <option value="Arimo">Arimo</option>
             <option value="Georgia">Georgia</option>
           </select>
         </div>
@@ -148,6 +153,8 @@ export const Typography: FC<TypographyProps> = ({ settings, setSettings }) => {
             <option value="Crimson Pro">Crimson Pro</option>
             <option value="PT Serif">PT Serif</option>
             <option value="Martel">Martel</option>
+            <option value="Raleway">Raleway</option>
+            <option value="Arimo">Arimo</option>
             <option value="Georgia">Georgia</option>
           </select>
         </div>
