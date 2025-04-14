@@ -22,4 +22,4 @@ jobs:
           pass: ${{ secrets.SSH_PASS }}
           host: ${{ secrets.SSH_HOST }}
           user: ${{ secrets.SSH_USER }}
-          run: sshpass -p "$pass" ssh $user@$host "cd solo &&  git stash &&  git pull &&  git stash pop && npm run build && cd server && pm2 stop all && pm2 start \"JWT_SECRET=$JWT_SECRET npm run start\""
+          run: cd solo &&  git stash &&  git pull &&  git stash pop && npm run build && cd server && pm2 stop all && pm2 start \"JWT_SECRET=$JWT_SECRET npm run start\"
