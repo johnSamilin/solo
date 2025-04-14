@@ -55,7 +55,7 @@ export const Sync: FC = observer(() => {
         const response = await fetch(`${settingsStore.server.url}/api/data`, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/json; charset=utf-8',
             'Authorization': `Bearer ${settingsStore.server.token}`,
           },
           body: JSON.stringify({
