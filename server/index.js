@@ -254,9 +254,19 @@ http2Server.on('stream', async (stream, headers) => {
     // Handle data synchronization
     if (method === 'POST') {
       let data = '';
+      let hasEnded = false;
+      
       stream.setEncoding('utf8');
-      stream.on('data', chunk => data += chunk);
+      stream.on('data', chunk => {
+        if (!hasEnded) {
+          data += chunk;
+        }
+      });
+      
       stream.on('end', () => {
+        if (hasEnded) return;
+        hasEnded = true;
+        
         try {
           const syncData = JSON.parse(data);
           const success = saveUserData(session.user_id, syncData);
@@ -270,10 +280,22 @@ http2Server.on('stream', async (stream, headers) => {
           }
         } catch (error) {
           console.error('Sync error:', error);
-          stream.respond({ ':status': 500, ...responseHeaders });
-          stream.end(JSON.stringify({ error: 'Internal server error' }));
+          if (!hasEnded) {
+            stream.respond({ ':status': 500, ...responseHeaders });
+            stream.end(JSON.stringify({ error: 'Internal server error' }));
+          }
         }
       });
+
+      stream.on('error', (error) => {
+        console.error('Stream error:', error);
+        if (!hasEnded) {
+          hasEnded = true;
+          stream.respond({ ':status': 500, ...responseHeaders });
+          stream.end(JSON.stringify({ error: 'Stream error occurred' }));
+        }
+      });
+      
       return;
     }
 
@@ -295,11 +317,18 @@ http2Server.on('stream', async (stream, headers) => {
     }
 
     let data = Buffer.from([]);
+    let hasEnded = false;
+
     stream.on('data', chunk => {
-      data = Buffer.concat([data, chunk]);
+      if (!hasEnded) {
+        data = Buffer.concat([data, chunk]);
+      }
     });
 
     stream.on('end', async () => {
+      if (hasEnded) return;
+      hasEnded = true;
+
       try {
         const parsedData = parseMultipartFormData(data);
         if (!parsedData) {
@@ -328,10 +357,22 @@ http2Server.on('stream', async (stream, headers) => {
         }
       } catch (error) {
         console.error('Image upload error:', error);
-        stream.respond({ ':status': 500, ...responseHeaders });
-        stream.end(JSON.stringify({ error: 'Internal server error' }));
+        if (!hasEnded) {
+          stream.respond({ ':status': 500, ...responseHeaders });
+          stream.end(JSON.stringify({ error: 'Internal server error' }));
+        }
       }
     });
+
+    stream.on('error', (error) => {
+      console.error('Stream error:', error);
+      if (!hasEnded) {
+        hasEnded = true;
+        stream.respond({ ':status': 500, ...responseHeaders });
+        stream.end(JSON.stringify({ error: 'Stream error occurred' }));
+      }
+    });
+
     return;
   }
 
@@ -378,12 +419,11 @@ http2Server.on('stream', async (stream, headers) => {
       const stat = await fs.promises.stat(filePath);
       if (stat.isFile()) {
         const contentType = getContentType(filePath);
-        const responseH = {
-          'content-length': stat.size,
+        stream.respondWithFile(filePath, {
           ...responseHeaders,
+          'content-length': stat.size,
           'content-type': `${contentType}; charset=utf-8`,
-        };
-        stream.respondWithFile(filePath, responseH);
+        });
       } else {
         stream.respond({ ':status': 404, ...responseHeaders });
         stream.end('Not found');
