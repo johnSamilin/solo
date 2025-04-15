@@ -94,7 +94,7 @@ function rotateDataFiles(userId) {
 
   // Remove oldest files if we exceed MAX_DATA_FILES
   if (files.length >= MAX_DATA_FILES) {
-    files.slice(MAX_DATA_FILES - 1).forEach(file => {
+    files.slice(1, MAX_DATA_FILES + 1).forEach(file => {
       fs.unlinkSync(path.join(userDir, file));
     });
   }
