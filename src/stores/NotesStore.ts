@@ -316,6 +316,21 @@ export class NotesStore {
     return this.notesByNotebookId.get(notebookId) ?? [];
   };
 
+  getVisibleNotes = (isCensorshipEnabled: boolean) => {
+    return this.notes.filter(note => {
+      if (!isCensorshipEnabled) {
+        return true;
+      }
+      if (!this.isNotebookCensored(note.notebookId)) {
+        return !note.isCensored;
+      } else {
+        return false;
+      }
+
+      return true;
+    });
+  };
+
   getChildNotebooks = (parentId: string | null) => {
     return this.notebooksByParentId.get(parentId) ?? [];
   };

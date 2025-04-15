@@ -153,7 +153,6 @@
     color: var(--color-white);
 }
 
-/* Task list styles */
 .editor-body ul[data-type="taskList"] {
     list-style: none;
     padding: 0;
@@ -219,4 +218,17 @@
     color: var(--color-text-light);
     font-family: var(--editor-font-family), Georgia, serif;
     font-size: var(--editor-font-size);
+}
+
+.note-navigation {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin: 1rem 0;
+    padding: 0.5rem;
+    background: var(--color-white);
+    border-radius: 100%;
+    width: fit-content;
+    margin: 1rem auto;
 }

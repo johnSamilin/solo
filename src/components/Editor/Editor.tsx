@@ -7,6 +7,7 @@ import { useStore } from "../../stores/StoreProvider";
 import { FAB } from "./FAB";
 import { TagsDisplay } from "./TagsDisplay";
 import { NoteSettingsModal } from "../Modals/NoteSettingsModal";
+import { ArrowLeft, Plus, ArrowRight } from "lucide-react";
 
 import './Editor.css';
 
@@ -34,6 +35,7 @@ export const Editor: FC<EditorProps> = observer(({
 }) => {
   const { notesStore, settingsStore } = useStore();
   const soundRef = useRef<Howl>();
+  const editorContentRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
     soundRef.current = new Howl({
@@ -42,6 +44,13 @@ export const Editor: FC<EditorProps> = observer(({
       rate: 2.0
     });
   }, [settingsStore.settings.typewriterSound]);
+
+  // Scroll to top when note changes
+  useEffect(() => {
+    if (editorContentRef.current) {
+      editorContentRef.current.scrollTop = 0;
+    }
+  }, [notesStore.selectedNote?.id]);
 
   useEffect(() => {
     const handleFullscreen = async () => {
@@ -133,6 +142,30 @@ export const Editor: FC<EditorProps> = observer(({
     }
   };
 
+  const handlePrevNote = () => {
+    if (!notesStore.selectedNote) return;
+    const visibleNotes = notesStore.getVisibleNotes();
+    const currentIndex = visibleNotes.findIndex(note => note.id === notesStore.selectedNote?.id);
+    if (currentIndex > 0) {
+      notesStore.setSelectedNote(visibleNotes[currentIndex - 1]);
+    }
+  };
+
+  const handleNextNote = () => {
+    if (!notesStore.selectedNote) return;
+    const visibleNotes = notesStore.getVisibleNotes(settingsStore.censorship.enabled);
+    const currentIndex = visibleNotes.findIndex(note => note.id === notesStore.selectedNote?.id);
+    if (currentIndex < visibleNotes.length - 1) {
+      notesStore.setSelectedNote(visibleNotes[currentIndex + 1]);
+    }
+  };
+
+  const handleCreateNote = () => {
+    if (notesStore.selectedNote) {
+      notesStore.createNote(notesStore.selectedNote.notebookId);
+    }
+  };
+
   const wordCount = editor?.state.doc.textContent.trim().split(/\s+/).filter(word => word.length > 0).length || 0;
   const paragraphCount = editor?.state.doc.content.content.filter(
     node => node.type.name === 'paragraph' || node.type.name === 'heading'
@@ -140,10 +173,15 @@ export const Editor: FC<EditorProps> = observer(({
 
   if (!notesStore.selectedNote) return null;
 
+  const visibleNotes = notesStore.getVisibleNotes();
+  const currentIndex = visibleNotes.findIndex(note => note.id === notesStore.selectedNote?.id);
+  const hasPrev = currentIndex > 0;
+  const hasNext = currentIndex < visibleNotes.length - 1;
+
   return (
     <div className="editor">
       <div className="editor-container">
-        <div className="editor-content">
+        <div className="editor-content" ref={editorContentRef}>
           <input
             type="text"
             value={notesStore.selectedNote.title}
@@ -156,6 +194,31 @@ export const Editor: FC<EditorProps> = observer(({
           </p>}
           <EditorContent editor={editor} className="editor-body" />
           <TagsDisplay />
+          <div className="note-navigation">
+            <button
+              onClick={handlePrevNote}
+              className="button-icon"
+              disabled={!hasPrev}
+              title="Previous note"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </button>
+            <button
+              onClick={handleCreateNote}
+              className="button-icon"
+              title="Create new note"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+            <button
+              onClick={handleNextNote}
+              className="button-icon"
+              disabled={!hasNext}
+              title="Next note"
+            >
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          </div>
           {!settingsStore.isZenMode && <div className="word-count">
             {wordCount}/{paragraphCount}
           </div>}
