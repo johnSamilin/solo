@@ -5,6 +5,9 @@ Solo is a modern, privacy-focused note-taking application with an emphasis on ty
 # Try it
 [deploy](https://ros-plata.ru) - sorry for confusing domain. I use my old one for now, just too lazy to register new one.
 
+# Contact
+[Contact me](https://t.me/WatasheeBaka) if you have any questions.
+
 ## Key Features
 
 ### 📝 Rich Text Editing
