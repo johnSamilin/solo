@@ -1,7 +1,7 @@
 .sidebar {
     width: 256px;
     background-color: var(--color-white);
-    border-right: 1px solid var(--color-border);
+    border-left: 1px solid var(--color-border);
     display: flex;
     flex-direction: column;
     transition: transform 0.3s ease;
@@ -18,9 +18,9 @@
 .sidebar.unpinned {
     position: fixed;
     top: 0;
-    left: 0;
+    right: 0;
     z-index: 100;
-    transform: translateX(-100%);
+    transform: translateX(100%);
 }
 
 .sidebar.unpinned.visible {

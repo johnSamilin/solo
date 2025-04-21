@@ -195,7 +195,7 @@
 .word-count {
     position: fixed;
     bottom: 2rem;
-    left: calc(256px + 2rem);
+    left: 1rem;
     padding: 0.5rem 0.75rem;
     background: var(--color-white);
     border-radius: 9999px;
@@ -228,7 +228,7 @@
     margin: 1rem 0;
     padding: 0.5rem;
     background: var(--color-white);
-    border-radius: 100%;
+    border-radius: 2rem;
     width: fit-content;
     margin: 1rem auto;
 }

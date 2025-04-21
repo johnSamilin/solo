@@ -34,7 +34,7 @@ export const themes: Record<string, { name: string; settings: TypographySettings
       enableDropCaps: true,
       dropCapSize: '4.5em',
       dropCapLineHeight: '4.5',
-      maxEditorWidth: '80%',
+      maxEditorWidth: '90%',
       sidebarPinned: true,
       typewriterSound: 'typewriter-1'
     },
@@ -54,7 +54,7 @@ export const themes: Record<string, { name: string; settings: TypographySettings
       enableDropCaps: false,
       dropCapSize: '3.5em',
       dropCapLineHeight: '3.5',
-      maxEditorWidth: '75%',
+      maxEditorWidth: '85%',
       sidebarPinned: true,
       typewriterSound: 'typewriter-1'
     },
@@ -74,7 +74,7 @@ export const themes: Record<string, { name: string; settings: TypographySettings
       enableDropCaps: false,
       dropCapSize: '2.5em',
       dropCapLineHeight: '2.5',
-      maxEditorWidth: '60%',
+      maxEditorWidth: '70%',
       sidebarPinned: true,
       typewriterSound: 'typewriter-1'
     },
