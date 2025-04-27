@@ -30,8 +30,20 @@
     transition: all 0.3s ease;
 }
 
+@media (prefers-reduced-motion: reduce) {
+    .editor-toolbar {
+        transition: none;
+    }
+}
+
 .editor-toolbar:hover {
     transform: translateY(-2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .editor-toolbar:hover {
+        transform: none;
+    }
 }
 
 .editor-toolbar .toggle-button {
@@ -45,6 +57,12 @@
     width: 0;
     overflow: hidden;
     transition: all 0.3s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .editor-toolbar .toolbar-actions {
+        transition: none;
+    }
 }
 
 .editor-toolbar.expanded {
@@ -182,6 +200,12 @@
     transition: all 0.2s ease;
 }
 
+@media (prefers-reduced-motion: reduce) {
+    .editor-body ul[data-type="taskList"] li input[type="checkbox"] {
+        transition: none;
+    }
+}
+
 .editor-body ul[data-type="taskList"] li input[type="checkbox"]:checked {
     background-color: var(--color-checkbox);
     border-color: var(--color-checkbox);
@@ -195,7 +219,7 @@
 .word-count {
     position: fixed;
     bottom: 2rem;
-    left: 1rem;
+    left: calc(256px + 2rem);
     padding: 0.5rem 0.75rem;
     background: var(--color-white);
     border-radius: 9999px;
@@ -204,6 +228,12 @@
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     z-index: 50;
     transition: all 0.3s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .word-count {
+        transition: none;
+    }
 }
 
 .zen-mode .word-count {

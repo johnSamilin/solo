@@ -21,6 +21,7 @@ export interface Note {
   tags: Tag[];
   notebookId: string;
   isCensored?: boolean;
+  theme?: string;
 }
 
 export interface Notebook {

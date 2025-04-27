@@ -10,6 +10,12 @@
     position: relative;
 }
 
+@media (prefers-reduced-motion: reduce) {
+    .sidebar {
+        transition: none;
+    }
+}
+
 .sidebar.hidden {
     width: 0;
     padding: 0;
@@ -43,6 +49,12 @@
     z-index: 99;
     opacity: 0.5;
     transition: all 0.2s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sidebar-toggle {
+        transition: none;
+    }
 }
 
 .sidebar-toggle:hover {
@@ -83,6 +95,12 @@
     transition: all 0.2s ease;
 }
 
+@media (prefers-reduced-motion: reduce) {
+    .sidebar-menu-button {
+        transition: none;
+    }
+}
+
 .sidebar-menu-button:hover {
     opacity: 1;
     background-color: var(--color-bg);
@@ -116,6 +134,12 @@
     text-align: left;
     cursor: pointer;
     transition: all 0.2s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sidebar-dropdown-item {
+        transition: none;
+    }
 }
 
 .sidebar-dropdown-item:hover {

@@ -1,5 +1,5 @@
 import { EditorContent } from "@tiptap/react";
-import { FC, useEffect, useRef } from "react";
+import { FC, useEffect, useRef, useMemo } from "react";
 import { observer } from "mobx-react-lite";
 import { Editor as TEditor } from "@tiptap/react";
 import { Howl } from 'howler';
@@ -8,6 +8,7 @@ import { FAB } from "./FAB";
 import { TagsDisplay } from "./TagsDisplay";
 import { NoteSettingsModal } from "../Modals/NoteSettingsModal";
 import { ArrowLeft, Plus, ArrowRight } from "lucide-react";
+import { themes } from "../../constants";
 
 import './Editor.css';
 
@@ -38,12 +39,16 @@ export const Editor: FC<EditorProps> = observer(({
   const editorContentRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
+    const currentSettings = notesStore.selectedNote?.theme ? 
+      themes[notesStore.selectedNote.theme].settings : 
+      settingsStore.settings;
+
     soundRef.current = new Howl({
-      src: [`/${settingsStore.settings.typewriterSound}.mp3`],
+      src: [`/${currentSettings.typewriterSound}.mp3`],
       volume: 1,
       rate: 2.0
     });
-  }, [settingsStore.settings.typewriterSound]);
+  }, [settingsStore.settings.typewriterSound, notesStore.selectedNote?.theme]);
 
   // Scroll to top when note changes
   useEffect(() => {
@@ -91,7 +96,11 @@ export const Editor: FC<EditorProps> = observer(({
     let lastLength = editor.state.doc.textContent.length;
 
     const handleKeyUp = (event: KeyboardEvent) => {
-      if (settingsStore.settings.editorFontFamily === 'GNU Typewriter') {
+      const currentSettings = notesStore.selectedNote?.theme ? 
+        themes[notesStore.selectedNote.theme].settings : 
+        settingsStore.settings;
+
+      if (currentSettings.editorFontFamily === 'GNU Typewriter') {
         const currentLength = editor.state.doc.textContent.length;
         
         // Only play sound if:
@@ -116,7 +125,7 @@ export const Editor: FC<EditorProps> = observer(({
     return () => {
       element.removeEventListener('keyup', handleKeyUp);
     };
-  }, [editor, settingsStore.settings.editorFontFamily]);
+  }, [editor, settingsStore.settings.editorFontFamily, notesStore.selectedNote?.theme]);
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (notesStore.selectedNote) {
@@ -142,9 +151,17 @@ export const Editor: FC<EditorProps> = observer(({
     }
   };
 
+  const handleThemeChange = (theme: string) => {
+    if (notesStore.selectedNote) {
+      notesStore.updateNote(notesStore.selectedNote.id, {
+        theme: theme || undefined
+      });
+    }
+  };
+
   const handlePrevNote = () => {
     if (!notesStore.selectedNote) return;
-    const visibleNotes = notesStore.getVisibleNotes();
+    const visibleNotes = notesStore.getVisibleNotes(settingsStore.censorship.enabled);
     const currentIndex = visibleNotes.findIndex(note => note.id === notesStore.selectedNote?.id);
     if (currentIndex > 0) {
       notesStore.setSelectedNote(visibleNotes[currentIndex - 1]);
@@ -173,7 +190,7 @@ export const Editor: FC<EditorProps> = observer(({
 
   if (!notesStore.selectedNote) return null;
 
-  const visibleNotes = notesStore.getVisibleNotes();
+  const visibleNotes = notesStore.getVisibleNotes(settingsStore.censorship.enabled);
   const currentIndex = visibleNotes.findIndex(note => note.id === notesStore.selectedNote?.id);
   const hasPrev = currentIndex > 0;
   const hasNext = currentIndex < visibleNotes.length - 1;
@@ -245,6 +262,8 @@ export const Editor: FC<EditorProps> = observer(({
           onDeleteNote={handleDeleteNote}
           onToggleCensorship={() => notesStore.toggleNoteCensorship(notesStore?.selectedNote?.id ?? '')}
           isCensored={notesStore.selectedNote.isCensored}
+          currentTheme={notesStore.selectedNote.theme || ''}
+          onThemeChange={handleThemeChange}
         />
       )}
     </div>

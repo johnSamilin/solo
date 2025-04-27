@@ -63,14 +63,27 @@ body {
   position: relative;
 }
 
-@keyframes dropdownFade {
-  from {
-    opacity: 0;
-    transform: translateY(-0.5rem);
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes dropdownFade {
+    from {
+      opacity: 0;
+      transform: translateY(-0.5rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes dropdownFade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
 }
 
@@ -115,6 +128,12 @@ body {
   font-family: 'Outfit', system-ui, sans-serif;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .button-danger {
+    transition: none;
+  }
+}
+
 .button-danger:hover {
   background-color: var(--color-danger);
   filter: brightness(90%);
@@ -125,6 +144,12 @@ body {
   padding: var(--page-margins);
   overflow: hidden;
   transition: background-color 0.3s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .main-content {
+    transition: none;
+  }
 }
 
 .button-icon {

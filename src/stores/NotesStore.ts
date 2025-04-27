@@ -316,8 +316,8 @@ export class NotesStore {
     return this.notesByNotebookId.get(notebookId) ?? [];
   };
 
-  getVisibleNotes = (isCensorshipEnabled: boolean) => {
-    return this.notes.filter(note => {
+  filterCensoredNotes = (notes: Note[], isCensorshipEnabled: boolean) => {
+    return notes.filter(note => {
       if (!isCensorshipEnabled) {
         return true;
       }
@@ -329,6 +329,10 @@ export class NotesStore {
 
       return true;
     });
+  }
+
+  getVisibleNotes = (isCensorshipEnabled: boolean) => {
+    return this.filterCensoredNotes(this.notes, isCensorshipEnabled);
   };
 
   getChildNotebooks = (parentId: string | null) => {
@@ -354,4 +358,19 @@ export class NotesStore {
       return notebook?.isCensored || false;
     });
   };
+
+  getSiblingNotes(noteId: string, isCensorshipEnabled: boolean): { prev: Note; next: Note } {
+    const notesList = this.notebooks.reduce((agr, notebook) => {
+      const notes = this.filterCensoredNotes(this.getNotebookNotes(notebook.id), isCensorshipEnabled);
+      //@ts-ignore
+      return agr.concat(notes);
+    }, []);
+
+    //@ts-ignore
+    const noteIndex = notesList.findIndex((note) => note.id === noteId);
+    return {
+      next: notesList[noteIndex + 1],
+      prev: notesList[noteIndex - 1]
+    };
+  }
 }

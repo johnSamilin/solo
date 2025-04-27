@@ -6,9 +6,11 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem;
+  padding: 0.5rem 0.25rem;
   cursor: pointer;
   border-radius: 0.5rem;
+  flex-direction: row-reverse;
+  justify-content: flex-end;
 }
 
 .notebook-header.focused {
@@ -32,7 +34,7 @@
 
 .notebook-name {
   font-family: var(--sidebar-font-family), Georgia, serif;
-  font-size: var(--sidebar-font-size);
+  font-size: calc(var(--sidebar-font-size) * 1.15);
   color: var(--color-text);
   cursor: pointer;
   padding: 0.25rem 0.5rem;
@@ -40,7 +42,8 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  flex: 1;
+  flex: 0.7;
+  max-width: 75%;
 }
 
 .notebook-name:hover {

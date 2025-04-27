@@ -19,6 +19,7 @@ import { Editor } from './components/Editor/Editor';
 import { Toast } from './components/Toast/Toast';
 import { generateUniqueId } from './utils';
 import { TagNode } from './types';
+import { themes } from './constants';
 
 const App = observer(() => {
   const { notesStore, settingsStore, tagsStore } = useStore();
@@ -147,29 +148,38 @@ const App = observer(() => {
 
   useEffect(() => {
     const root = document.documentElement;
-    root.style.setProperty('--editor-font-family', settingsStore.settings.editorFontFamily);
-    root.style.setProperty('--editor-font-size', settingsStore.settings.editorFontSize);
-    root.style.setProperty('--editor-line-height', settingsStore.settings.editorLineHeight);
-    root.style.setProperty('--title-font-family', settingsStore.settings.titleFontFamily);
-    root.style.setProperty('--title-font-size', settingsStore.settings.titleFontSize);
-    root.style.setProperty('--sidebar-font-family', settingsStore.settings.sidebarFontFamily);
-    root.style.setProperty('--sidebar-font-size', settingsStore.settings.sidebarFontSize);
-    root.style.setProperty('--page-margins', settingsStore.settings.pageMargins);
-    root.style.setProperty('--paragraph-spacing', settingsStore.settings.paragraphSpacing);
-    root.style.setProperty('--drop-cap-size', settingsStore.settings.dropCapSize);
-    root.style.setProperty('--drop-cap-line-height', settingsStore.settings.dropCapLineHeight);
-    root.style.setProperty('--editor-width', settingsStore.settings.maxEditorWidth);
+    const globalSettings = settingsStore.settings;
+
+    // Always apply global settings to sidebar
+    root.style.setProperty('--sidebar-font-family', globalSettings.sidebarFontFamily);
+    root.style.setProperty('--sidebar-font-size', globalSettings.sidebarFontSize);
+
+    // Apply note-specific or global settings for editor
+    const currentSettings = notesStore.selectedNote?.theme ? 
+      themes[notesStore.selectedNote.theme].settings : 
+      globalSettings;
+
+    root.style.setProperty('--editor-font-family', currentSettings.editorFontFamily);
+    root.style.setProperty('--editor-font-size', currentSettings.editorFontSize);
+    root.style.setProperty('--editor-line-height', currentSettings.editorLineHeight);
+    root.style.setProperty('--title-font-family', currentSettings.titleFontFamily);
+    root.style.setProperty('--title-font-size', currentSettings.titleFontSize);
+    root.style.setProperty('--page-margins', currentSettings.pageMargins);
+    root.style.setProperty('--paragraph-spacing', currentSettings.paragraphSpacing);
+    root.style.setProperty('--drop-cap-size', currentSettings.dropCapSize);
+    root.style.setProperty('--drop-cap-line-height', currentSettings.dropCapLineHeight);
+    root.style.setProperty('--editor-width', currentSettings.maxEditorWidth);
 
     // Toggle drop caps
     const editorContent = document.querySelector('.editor-body');
     if (editorContent) {
-      if (settingsStore.settings.enableDropCaps) {
+      if (currentSettings.enableDropCaps) {
         editorContent.classList.add('drop-caps');
       } else {
         editorContent.classList.remove('drop-caps');
       }
     }
-  }, [settingsStore.settings]);
+  }, [settingsStore.settings, notesStore.selectedNote?.theme]);
 
   const handleImageUpload = async (file: File) => {
     if (settingsStore.syncMode === 'server' && settingsStore.server.token) {
