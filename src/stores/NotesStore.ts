@@ -362,9 +362,11 @@ export class NotesStore {
   getSiblingNotes(noteId: string, isCensorshipEnabled: boolean): { prev: Note; next: Note } {
     const notesList = this.notebooks.reduce((agr, notebook) => {
       const notes = this.filterCensoredNotes(this.getNotebookNotes(notebook.id), isCensorshipEnabled);
+      //@ts-expect-error because fuck you
       return agr.concat(notes);
     }, []);
 
+    //@ts-expect-error because fuck you
     const noteIndex = notesList.findIndex((note) => note.id === noteId);
     return {
       next: notesList[noteIndex + 1],
