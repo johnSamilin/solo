@@ -1,5 +1,5 @@
 import { Editor } from "@tiptap/react";
-import { Undo2, Redo2, ImageIcon, LinkIcon, EyeOff, ListChecks, Minimize2, Maximize2, Leaf, Settings } from "lucide-react";
+import { Undo2, Redo2, ImageIcon, LinkIcon, EyeOff, ListChecks, Minimize2, Maximize2, Leaf, Settings, Tag } from "lucide-react";
 import { FC, useRef } from "react";
 
 type FABProps = {
@@ -10,6 +10,7 @@ type FABProps = {
   handleImageUpload: (file: File) => void;
   handleLinkInsert: () => void;
   insertTaskList: () => void;
+  handleParagraphTagging: () => void;
   setIsToolbarExpanded: (val: boolean) => void;
   openNoteSettings: () => void;
 };
@@ -22,6 +23,7 @@ export const FAB: FC<FABProps> = ({
   handleImageUpload,
   handleLinkInsert,
   insertTaskList,
+  handleParagraphTagging,
   setIsToolbarExpanded,
   openNoteSettings,
 }) => {
@@ -98,6 +100,13 @@ export const FAB: FC<FABProps> = ({
             title="Insert Task List"
           >
             <ListChecks className="h-4 w-4" />
+          </button>
+          <button
+            onClick={handleParagraphTagging}
+            className="button-icon"
+            title="Add Tags to Paragraph"
+          >
+            <Tag className="h-4 w-4" />
           </button>
         </div>
         <div className="editor-toolbar-group">

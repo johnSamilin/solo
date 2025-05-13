@@ -35,6 +35,48 @@
 }
 
 @font-face {
+  font-family: 'CMTypewriter';
+  src: url('./assets/fonts/CMTypewriter/cmunvt.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'CMTypewriter';
+  src: url('./assets/fonts/CMTypewriter/cmunvi.ttf') format('truetype');
+  font-weight: normal;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: 'UMTypewriter';
+  src: url('./assets/fonts/UMTypewriter/UMTypewriter-Regular.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'UMTypewriter';
+  src: url('./assets/fonts/UMTypewriter/UMTypewriter-Italic.otf') format('opentype');
+  font-weight: normal;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: 'UMTypewriter';
+  src: url('./assets/fonts/UMTypewriter/UMTypewriter-Bold.otf') format('opentype');
+  font-weight: bold;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'UMTypewriter';
+  src: url('./assets/fonts/UMTypewriter/UMTypewriter-BoldItalic.otf') format('opentype');
+  font-weight: bold;
+  font-style: italic;
+}
+
+@font-face {
   font-family: 'Kaligrafica';
   src: url('./assets/fonts/kaligrafica.ttf') format('truetype');
   font-weight: normal;
@@ -63,14 +105,27 @@ body {
   position: relative;
 }
 
-@keyframes dropdownFade {
-  from {
-    opacity: 0;
-    transform: translateY(-0.5rem);
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes dropdownFade {
+    from {
+      opacity: 0;
+      transform: translateY(-0.5rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes dropdownFade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
 }
 
@@ -115,6 +170,12 @@ body {
   font-family: 'Outfit', system-ui, sans-serif;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .button-danger {
+    transition: none;
+  }
+}
+
 .button-danger:hover {
   background-color: var(--color-danger);
   filter: brightness(90%);
@@ -125,6 +186,12 @@ body {
   padding: var(--page-margins);
   overflow: hidden;
   transition: background-color 0.3s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .main-content {
+    transition: none;
+  }
 }
 
 .button-icon {

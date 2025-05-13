@@ -39,6 +39,10 @@ export const Typography: FC<TypographyProps> = ({ settings, setSettings }) => {
     newSound.play();
   };
 
+  const isTypewriterFont = (font: string) => {
+    return ['GNU Typewriter', 'CMTypewriter', 'UMTypewriter'].includes(font);
+  };
+
   return (
     <>
       <div className="settings-group">
@@ -67,6 +71,8 @@ export const Typography: FC<TypographyProps> = ({ settings, setSettings }) => {
             onChange={(e) => setSettings({ ...settings, editorFontFamily: e.target.value })}
           >
             <option value="GNU Typewriter">GNU Typewriter</option>
+            <option value="CMTypewriter">CMTypewriter</option>
+            <option value="UMTypewriter">UMTypewriter</option>
             <option value="Crimson Pro">Crimson Pro</option>
             <option value="PT Serif">PT Serif</option>
             <option value="Martel">Martel</option>
@@ -76,7 +82,7 @@ export const Typography: FC<TypographyProps> = ({ settings, setSettings }) => {
             <option value="Times New Roman">Times New Roman</option>
           </select>
         </div>
-        {settings.editorFontFamily === 'GNU Typewriter' && (
+        {isTypewriterFont(settings.editorFontFamily) && (
           <div className="setting-item">
             <label>Typewriter Sound</label>
             <select
@@ -121,6 +127,8 @@ export const Typography: FC<TypographyProps> = ({ settings, setSettings }) => {
           >
             <option value="Kaligrafica">Kaligrafica</option>
             <option value="GNU Typewriter">GNU Typewriter</option>
+            <option value="CMTypewriter">CMTypewriter</option>
+            <option value="UMTypewriter">UMTypewriter</option>
             <option value="Crimson Pro">Crimson Pro</option>
             <option value="PT Serif">PT Serif</option>
             <option value="Martel">Martel</option>
@@ -150,6 +158,8 @@ export const Typography: FC<TypographyProps> = ({ settings, setSettings }) => {
             onChange={(e) => setSettings({ ...settings, sidebarFontFamily: e.target.value })}
           >
             <option value="GNU Typewriter">GNU Typewriter</option>
+            <option value="CMTypewriter">CMTypewriter</option>
+            <option value="UMTypewriter">UMTypewriter</option>
             <option value="Crimson Pro">Crimson Pro</option>
             <option value="PT Serif">PT Serif</option>
             <option value="Martel">Martel</option>
