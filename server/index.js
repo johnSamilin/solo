@@ -25,14 +25,15 @@ const HTTP_PORT = process.env.HTTP_PORT || 80;
 const HTTPS_PORT = process.env.HTTPS_PORT || 443;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 const STATIC_DIR = _path.join(__dirname, '../dist');
+const LANDING_DIR = _path.join(__dirname, '../landing');
 
 // ACME challenge storage
 const ACME_CHALLENGES = new Map();
 
 // Load SSL certificates
 const serverOptions = {
-  key: fs.readFileSync(_path.join(__dirname, 'certs/server.key')),
-  cert: fs.readFileSync(_path.join(__dirname, 'certs/server.crt')),
+  key: fs.readFileSync(_path.join(__dirname, 'privkey.pem')),
+  cert: fs.readFileSync(_path.join(__dirname, 'fullchain.pem')),
   allowHTTP1: true
 };
 
@@ -173,6 +174,44 @@ http2Server.on('stream', async (stream, headers) => {
       ...responseHeaders
     });
     stream.end();
+    return;
+  }
+
+  // Handle /about route for landing page
+  if (path.startsWith('/about')) {
+    const subPath = path === '/about' ? '/index.html' : path.substring(6);
+    const filePath = _path.join(LANDING_DIR, subPath);
+
+    // Prevent directory traversal
+    if (!filePath.startsWith(LANDING_DIR)) {
+      stream.respond({ ':status': 403, ...responseHeaders });
+      stream.end('Forbidden');
+      return;
+    }
+
+    try {
+      const stat = await fs.promises.stat(filePath);
+      if (stat.isFile()) {
+        const contentType = getContentType(filePath);
+        stream.respondWithFile(filePath, {
+          ...responseHeaders,
+          'content-length': stat.size,
+          'content-type': `${contentType}; charset=utf-8`,
+        });
+      } else {
+        stream.respond({ ':status': 404, ...responseHeaders });
+        stream.end('Not found');
+      }
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        stream.respond({ ':status': 404, ...responseHeaders });
+        stream.end('Not found');
+      } else {
+        console.error(error);
+        stream.respond({ ':status': 500, ...responseHeaders });
+        stream.end('Internal server error');
+      }
+    }
     return;
   }
 

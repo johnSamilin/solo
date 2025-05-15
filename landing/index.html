@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="air">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solo - Minimalistic Private Note-Taking App</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=Outfit:wght@400;500;600&family=GNU+Typewriter&display=swap" rel="stylesheet">
+    <script>
+        function setTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            // Save theme preference
+            localStorage.setItem('preferred-theme', theme);
+        }
+
+        // Load saved theme preference
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedTheme = localStorage.getItem('preferred-theme');
+            if (savedTheme) {
+                setTheme(savedTheme);
+                document.getElementById('theme').value = savedTheme;
+            }
+        });
+    </script>
+</head>
+<body>
+    <div class="theme-selector">
+        <label for="theme">Theme:</label>
+        <select id="theme" onchange="setTheme(this.value)">
+            <option value="air">Air</option>
+            <option value="typewriter">Typewriter</option>
+            <option value="narrow">Narrow</option>
+        </select>
+    </div>
+
+    <header class="hero">
+        <div class="hero-content">
+            <h1>Solo</h1>
+            <p class="subtitle">Minimalistic private note-taking app with focus on typography</p>
+            <a href="https://github.com/yourusername/solo" class="cta-button">Get Started</a>
+        </div>
+    </header>
+
+    <main>
+        <section class="feature-grid">
+            <article class="feature-card typography">
+                <h2>Beautiful Typography</h2>
+                <img src="https://images.pexels.com/photos/6980429/pexels-photo-6980429.jpeg" alt="Clean, minimalist desk setup with a notebook and pen, representing the app's focus on typography and clean design">
+                <p>Choose from carefully crafted themes or customize every aspect of your writing environment. From font families to line heights, make your notes look exactly how you want.</p>
+            </article>
+
+            <article class="feature-card privacy">
+                <h2>Privacy First</h2>
+                <img src="https://images.pexels.com/photos/5473298/pexels-photo-5473298.jpeg" alt="A secure lock on a wooden surface, symbolizing the app's strong privacy features">
+                <p>Built-in censorship system lets you instantly hide sensitive content. PIN protection and fake "disabled" state provide additional security through obscurity.</p>
+            </article>
+
+            <article class="feature-card organization">
+                <h2>Smart Organization</h2>
+                <img src="https://images.pexels.com/photos/5717479/pexels-photo-5717479.jpeg" alt="Neatly organized notebooks and folders on a clean desk, representing the app's organizational features">
+                <p>Organize your thoughts with nested notebooks and hierarchical tags. Find what you need, when you need it.</p>
+            </article>
+
+            <article class="feature-card focus">
+                <h2>Focus on Writing</h2>
+                <img src="https://images.pexels.com/photos/4065624/pexels-photo-4065624.jpeg" alt="Person writing in a notebook in a calm, distraction-free environment">
+                <p>Auto-activating Zen mode removes distractions when you're in the flow. Just start typing, and watch everything else fade away.</p>
+            </article>
+        </section>
+
+        <section class="manual">
+            <h2>User Manual</h2>
+            
+            <article class="manual-section">
+                <h3>Getting Started</h3>
+                <ol>
+                    <li>Download and install Solo for your platform (Windows, macOS, or Linux)</li>
+                    <li>Launch the application</li>
+                    <li>Create your first notebook using the menu in the sidebar</li>
+                    <li>Start writing by clicking the "+" button in the toolbar</li>
+                </ol>
+            </article>
+
+            <article class="manual-section">
+                <h3>Writing and Formatting</h3>
+                <ul>
+                    <li>Use the toolbar buttons to:
+                        <ul>
+                            <li>Add images</li>
+                            <li>Insert links</li>
+                            <li>Create task lists</li>
+                            <li>Mark text as censored</li>
+                            <li>Add tags to paragraphs</li>
+                        </ul>
+                    </li>
+                    <li>Format text using headings (H1-H3)</li>
+                    <li>Create task lists with checkboxes</li>
+                    <li>Auto Zen mode activates when you write more than 5 words</li>
+                    <li>Tag paragraphs for better organization and searchability</li>
+                </ul>
+            </article>
+
+            <article class="manual-section">
+                <h3>Privacy Features</h3>
+                <ul>
+                    <li>Set up censorship PIN in Settings → Censorship</li>
+                    <li>Mark text as censored using the toolbar button or Ctrl+Alt+X</li>
+                    <li>Mark entire notes or notebooks as censored</li>
+                    <li>Quick-enable censorship with Ctrl+.</li>
+                    <li>When censorship is enabled, press Ctrl+. to quickly access settings</li>
+                    <li>Disable censorship by entering your PIN</li>
+                </ul>
+            </article>
+
+            <article class="manual-section">
+                <h3>Organization</h3>
+                <ul>
+                    <li>Create nested notebooks by selecting a parent notebook</li>
+                    <li>Add hierarchical tags using forward slashes (e.g., "work/projects/active")</li>
+                    <li>Tag paragraphs for content organization</li>
+                    <li>Move notes between notebooks using note settings</li>
+                    <li>Pin/unpin sidebar for quick access</li>
+                </ul>
+            </article>
+
+            <article class="manual-section">
+                <h3>Synchronization</h3>
+                <ul>
+                    <li>Choose your sync method:
+                        <ul>
+                            <li>WebDAV for self-hosted storage</li>
+                            <li>Server for centralized storage</li>
+                        </ul>
+                    </li>
+                    <li>Quick-sync changes with Ctrl+S</li>
+                    <li>Automatic backup of your data</li>
+                    <li>Restore from previous backups</li>
+                </ul>
+            </article>
+
+            <article class="manual-section">
+                <h3>Keyboard Shortcuts</h3>
+                <div class="shortcuts-grid">
+                    <div class="shortcut">
+                        <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>X</kbd>
+                        <span>Toggle censored text</span>
+                    </div>
+                    <div class="shortcut">
+                        <kbd>Ctrl</kbd> + <kbd>.</kbd>
+                        <span>Enable censorship / Open settings</span>
+                    </div>
+                    <div class="shortcut">
+                        <kbd>Ctrl</kbd> + <kbd>S</kbd>
+                        <span>Sync changes</span>
+                    </div>
+                    <div class="shortcut">
+                        <kbd>Ctrl</kbd> + <kbd>Z</kbd>
+                        <span>Undo</span>
+                    </div>
+                    <div class="shortcut">
+                        <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd>
+                        <span>Redo</span>
+                    </div>
+                </div>
+            </article>
+        </section>
+    </main>
+
+    <footer>
+        <p>Made with ♥ by <a href="https://github.com/yourusername">Your Name</a></p>
+        <p>© 2025 Solo. All rights reserved.</p>
+    </footer>
+</body>
+</html>
