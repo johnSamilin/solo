@@ -16,6 +16,7 @@ export default defineConfig({
       manifest: false,
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,ttf,woff2}'],
+        navigateFallbackDenylist: [/^\/about/], // Don't fallback /about to index.html
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com/,
