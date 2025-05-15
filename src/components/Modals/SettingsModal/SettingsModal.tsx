@@ -15,11 +15,10 @@ type SettingsModalProps = {
 type TabType = 'typography' | 'layout' | 'censorship' | 'data' | 'sync';
 
 export const SettingsModal: FC<SettingsModalProps> = observer(({ onClose}) => {
-  const [activeTab, setActiveTab] = useState<TabType>('typography');
   const { settingsStore } = useStore();
 
   const renderActiveTab = useCallback(() => {
-    switch (activeTab) {
+    switch (settingsStore.activeSettingsTab) {
       case 'typography':
         return <Typography settings={settingsStore.settings} setSettings={settingsStore.updateSettings} />;
       case 'layout':
@@ -33,7 +32,7 @@ export const SettingsModal: FC<SettingsModalProps> = observer(({ onClose}) => {
       default:
         return null;
     }
-  }, [activeTab, settingsStore.settings]);
+  }, [settingsStore.activeSettingsTab, settingsStore.settings]);
 
   return (
     <div className="modal-overlay">
@@ -46,32 +45,32 @@ export const SettingsModal: FC<SettingsModalProps> = observer(({ onClose}) => {
         </div>
         <div className="modal-tabs">
           <button
-            className={`modal-tab ${activeTab === 'typography' ? 'active' : ''}`}
-            onClick={() => setActiveTab('typography')}
+            className={`modal-tab ${settingsStore.activeSettingsTab === 'typography' ? 'active' : ''}`}
+            onClick={() => settingsStore.setActiveSettingsTab('typography')}
           >
             Typography
           </button>
           <button
-            className={`modal-tab ${activeTab === 'layout' ? 'active' : ''}`}
-            onClick={() => setActiveTab('layout')}
+            className={`modal-tab ${settingsStore.activeSettingsTab === 'layout' ? 'active' : ''}`}
+            onClick={() => settingsStore.setActiveSettingsTab('layout')}
           >
             Layout
           </button>
           <button
-            className={`modal-tab ${activeTab === 'censorship' ? 'active' : ''}`}
-            onClick={() => setActiveTab('censorship')}
+            className={`modal-tab ${settingsStore.activeSettingsTab === 'censorship' ? 'active' : ''}`}
+            onClick={() => settingsStore.setActiveSettingsTab('censorship')}
           >
             Censorship
           </button>
           <button
-            className={`modal-tab ${activeTab === 'data' ? 'active' : ''}`}
-            onClick={() => setActiveTab('data')}
+            className={`modal-tab ${settingsStore.activeSettingsTab === 'data' ? 'active' : ''}`}
+            onClick={() => settingsStore.setActiveSettingsTab('data')}
           >
             Data
           </button>
           <button
-            className={`modal-tab ${activeTab === 'sync' ? 'active' : ''}`}
-            onClick={() => setActiveTab('sync')}
+            className={`modal-tab ${settingsStore.activeSettingsTab === 'sync' ? 'active' : ''}`}
+            onClick={() => settingsStore.setActiveSettingsTab('sync')}
           >
             Sync
           </button>

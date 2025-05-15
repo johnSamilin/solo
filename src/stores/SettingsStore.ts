@@ -36,6 +36,7 @@ export class SettingsStore {
   exportPath = '';
   importStatus: 'idle' | 'success' | 'error' = 'idle';
   toast: Toast | null = null;
+  activeSettingsTab: 'typography' | 'layout' | 'censorship' | 'data' | 'sync' = 'typography';
 
   constructor() {
     makeAutoObservable(this);
@@ -62,9 +63,14 @@ export class SettingsStore {
 
   private setupKeyboardShortcuts = () => {
     document.addEventListener('keydown', (e) => {
-      // Ctrl+. to turn censorship on
+      // Ctrl+. to turn censorship on or open settings
       if (e.ctrlKey && e.key === '.') {
-        this.enableCensorship();
+        if (this.censorship.enabled) {
+          this.activeSettingsTab = 'censorship';
+          this.isSettingsOpen = true;
+        } else {
+          this.enableCensorship();
+        }
       }
     });
   };
@@ -251,5 +257,9 @@ export class SettingsStore {
 
   setNoteSettingsOpen = (isOpen: boolean) => {
     this.isNoteSettingsOpen = isOpen;
+  };
+
+  setActiveSettingsTab = (tab: 'typography' | 'layout' | 'censorship' | 'data' | 'sync') => {
+    this.activeSettingsTab = tab;
   };
 }

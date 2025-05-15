@@ -21,6 +21,7 @@ import { Toast } from './components/Toast/Toast';
 import { generateUniqueId } from './utils';
 import { TagNode } from './types';
 import { themes } from './constants';
+import { Plus } from 'lucide-react';
 
 const App = observer(() => {
   const { notesStore, settingsStore, tagsStore } = useStore();
@@ -85,6 +86,53 @@ const App = observer(() => {
       }
     },
   });
+
+  useEffect(() => {
+    const handleKeyDown = async (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        
+        if (settingsStore.syncMode === 'server' && settingsStore.server.token) {
+          try {
+            const response = await fetch(`${settingsStore.server.url}/api/data`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${settingsStore.server.token}`,
+              },
+              body: JSON.stringify({
+                notes: notesStore.notes,
+                notebooks: notesStore.notebooks,
+              }),
+            });
+
+            if (response.ok) {
+              settingsStore.setToast('Changes saved to server', 'success');
+            } else {
+              settingsStore.setToast('Failed to save changes', 'error');
+            }
+          } catch (error) {
+            console.error('Sync failed:', error);
+            settingsStore.setToast('Failed to save changes', 'error');
+          }
+        } else if (settingsStore.syncMode === 'webdav' && window.bridge?.syncWebDAV) {
+          try {
+            const success = await window.bridge.syncWebDAV(JSON.stringify(settingsStore.webDAV));
+            settingsStore.setToast(
+              success ? 'Changes saved to WebDAV' : 'Failed to save changes',
+              success ? 'success' : 'error'
+            );
+          } catch (error) {
+            console.error('Sync failed:', error);
+            settingsStore.setToast('Failed to save changes', 'error');
+          }
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [settingsStore.syncMode, settingsStore.server, settingsStore.webDAV]);
 
   useEffect(() => {
     if (editor && notesStore.selectedNote) {
@@ -230,6 +278,27 @@ const App = observer(() => {
     }
   };
 
+  const handleCreateNote = () => {
+    notesStore.createNote();
+    if (editor) {
+      editor.commands.setContent('');
+    }
+  };
+
+  const handleLinkInsert = () => {
+    const url = window.prompt('Enter the URL:');
+    if (url) {
+      editor?.chain().focus().toggleLink({ href: url }).run();
+    }
+  };
+
+  const insertTaskList = () => {
+    editor?.chain()
+      .focus()
+      .toggleTaskList()
+      .run();
+  };
+
   return (
     <div className={`app ${settingsStore.isZenMode ? 'zen-mode' : ''}`}>
       {/* Settings Modal */}
@@ -265,23 +334,24 @@ const App = observer(() => {
           <Editor
             editor={editor}
             handleImageUpload={handleImageUpload}
-            handleLinkInsert={() => {
-              const url = window.prompt('Enter the URL:');
-              if (url) {
-                editor?.chain().focus().toggleLink({ href: url }).run();
-              }
-            }}
-            insertTaskList={() => {
-              editor?.chain()
-                .focus()
-                .toggleTaskList()
-                .run();
-            }}
+            handleLinkInsert={handleLinkInsert}
+            insertTaskList={insertTaskList}
             handleParagraphTagging={handleParagraphTagging}
           />
         ) : (
           <div className="empty-state">
-            <p>Select a note or create a new one</p>
+            <div className="empty-state-content">
+              <p className="empty-state-text">Select a note or create a new one</p>
+              <div className="empty-state-buttons">
+                <button onClick={handleCreateNote} className="button-primary">
+                  <Plus className="h-4 w-4" />
+                  Create Note
+                </button>
+                <a href="/about" target="_blank" className="button-primary">
+                  Learn More
+                </a>
+              </div>
+            </div>
           </div>
         )}
       </div>
