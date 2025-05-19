@@ -24,6 +24,12 @@ const isTypewriterFont = (font: string) => {
   return ['GNU Typewriter', 'CMTypewriter', 'UMTypewriter'].includes(font);
 };
 
+interface ImageContextMenu {
+  x: number;
+  y: number;
+  target: HTMLImageElement;
+}
+
 type EditorProps = {
   editor: TEditor | null;
   handleImageUpload: (file: File) => void;
@@ -31,12 +37,6 @@ type EditorProps = {
   insertTaskList: () => void;
   handleParagraphTagging: () => void;
 };
-
-interface ImageContextMenu {
-  x: number;
-  y: number;
-  target: HTMLImageElement;
-}
 
 export const Editor: FC<EditorProps> = observer(({
   editor,
@@ -128,6 +128,10 @@ export const Editor: FC<EditorProps> = observer(({
 
     if (editor) {
       editor.chain().focus().setContent(editor.getHTML().replace(contextMenu.target.outerHTML, '')).run();
+      // Update note content in storage
+      notesStore.updateNote(notesStore.selectedNote.id, {
+        content: editor.getHTML()
+      });
     }
 
     setContextMenu(null);
