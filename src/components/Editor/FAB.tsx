@@ -54,6 +54,7 @@ export const FAB: FC<FABProps> = ({
             disabled={!editor?.can().undo()}
             title="Undo (Ctrl+Z)"
           >
+            <span>Undo</span>
             <Undo2 className="h-4 w-4" />
           </button>
           <button
@@ -62,6 +63,7 @@ export const FAB: FC<FABProps> = ({
             disabled={!editor?.can().redo()}
             title="Redo (Ctrl+Shift+Z)"
           >
+            <span>Redo</span>
             <Redo2 className="h-4 w-4" />
           </button>
         </div>
@@ -71,6 +73,7 @@ export const FAB: FC<FABProps> = ({
             className="button-icon"
             title="Insert Image"
           >
+            <span>Insert Image</span>
             <ImageIcon className="h-4 w-4" />
           </button>
           <input
@@ -85,6 +88,7 @@ export const FAB: FC<FABProps> = ({
             className="button-icon"
             title="Insert Link"
           >
+            <span>Insert Link</span>
             <LinkIcon className="h-4 w-4" />
           </button>
           <button
@@ -92,6 +96,7 @@ export const FAB: FC<FABProps> = ({
             className="button-icon"
             title="Toggle Censored Text (Ctrl+Alt+X)"
           >
+            <span>Toggle Censored</span>
             <EyeOff className="h-4 w-4" />
           </button>
           <button
@@ -99,6 +104,7 @@ export const FAB: FC<FABProps> = ({
             className="button-icon"
             title="Insert Task List"
           >
+            <span>Task List</span>
             <ListChecks className="h-4 w-4" />
           </button>
           <button
@@ -106,6 +112,7 @@ export const FAB: FC<FABProps> = ({
             className="button-icon"
             title="Add Tags to Paragraph"
           >
+            <span>Tag Paragraph</span>
             <Tag className="h-4 w-4" />
           </button>
         </div>
@@ -115,6 +122,7 @@ export const FAB: FC<FABProps> = ({
             className="button-icon"
             title={isZenMode ? 'Exit Zen Mode' : 'Enter Zen Mode'}
           >
+            <span>Zen Mode</span>
             <Leaf className="h-4 w-4" />
           </button>
           <button
@@ -122,6 +130,7 @@ export const FAB: FC<FABProps> = ({
             className="button-icon"
             title="Note Settings"
           >
+            <span>Settings</span>
             <Settings className="h-4 w-4" />
           </button>
         </div>
