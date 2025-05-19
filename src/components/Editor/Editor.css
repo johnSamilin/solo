@@ -20,7 +20,7 @@
   bottom: 2rem;
   right: 2rem;
   display: flex;
-  align-items: center;
+  flex-direction: column-reverse;
   gap: 0.5rem;
   padding: 0.75rem;
   background: var(--color-white);
@@ -52,9 +52,10 @@
 
 .editor-toolbar .toolbar-actions {
   display: flex;
+  flex-direction: column;
   gap: 0.5rem;
   opacity: 0;
-  width: 0;
+  height: 0;
   overflow: hidden;
   transition: all 0.3s ease;
 }
@@ -71,13 +72,36 @@
 
 .editor-toolbar.expanded .toolbar-actions {
   opacity: 1;
-  width: auto;
+  height: auto;
   overflow: visible;
 }
 
 .editor-toolbar-group {
   display: flex;
+  flex-direction: column;
   gap: 0.5rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.editor-toolbar-group:last-child {
+  border-bottom: none;
+}
+
+.editor-toolbar-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  color: var(--color-text-light);
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.editor-toolbar-button:hover {
+  background-color: var(--color-bg);
+  color: var(--color-text);
 }
 
 .editor-content {
@@ -236,36 +260,6 @@
   text-decoration: line-through;
 }
 
-.image-context-menu {
-  position: fixed;
-  background: var(--color-white);
-  border: 1px solid var(--color-border);
-  border-radius: 0.375rem;
-  padding: 0.25rem;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  z-index: 1000;
-}
-
-.image-context-menu .menu-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  width: 100%;
-  padding: 0.5rem 1rem;
-  border: none;
-  background: none;
-  text-align: left;
-  font-size: 0.875rem;
-  color: var(--color-text);
-  cursor: pointer;
-  border-radius: 0.25rem;
-  font-family: 'Outfit', system-ui, sans-serif;
-}
-
-.image-context-menu .menu-item:hover {
-  background-color: var(--color-bg);
-}
-
 .word-count {
   position: fixed;
   bottom: 2rem;
@@ -311,4 +305,34 @@
   border-radius: 2rem;
   width: fit-content;
   margin: 1rem auto;
+}
+
+.image-context-menu {
+  position: fixed;
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  padding: 0.25rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  z-index: 1000;
+}
+
+.image-context-menu .menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.5rem 1rem;
+  border: none;
+  background: none;
+  text-align: left;
+  font-size: 0.875rem;
+  color: var(--color-text);
+  cursor: pointer;
+  border-radius: 0.25rem;
+  font-family: 'Outfit', system-ui, sans-serif;
+}
+
+.image-context-menu .menu-item:hover {
+  background-color: var(--color-bg);
 }

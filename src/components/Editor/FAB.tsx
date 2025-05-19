@@ -38,7 +38,6 @@ export const FAB: FC<FABProps> = ({
     if (file) {
       handleImageUpload(file);
     }
-    // Reset input value to allow selecting the same file again
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -50,28 +49,31 @@ export const FAB: FC<FABProps> = ({
         <div className="editor-toolbar-group">
           <button
             onClick={() => editor?.commands.undo()}
-            className="button-icon"
+            className="editor-toolbar-button"
             disabled={!editor?.can().undo()}
             title="Undo (Ctrl+Z)"
           >
             <Undo2 className="h-4 w-4" />
+            <span>Undo</span>
           </button>
           <button
             onClick={() => editor?.commands.redo()}
-            className="button-icon"
+            className="editor-toolbar-button"
             disabled={!editor?.can().redo()}
             title="Redo (Ctrl+Shift+Z)"
           >
             <Redo2 className="h-4 w-4" />
+            <span>Redo</span>
           </button>
         </div>
         <div className="editor-toolbar-group">
           <button
             onClick={handleImageClick}
-            className="button-icon"
+            className="editor-toolbar-button"
             title="Insert Image"
           >
             <ImageIcon className="h-4 w-4" />
+            <span>Insert Image</span>
           </button>
           <input
             ref={fileInputRef}
@@ -82,47 +84,53 @@ export const FAB: FC<FABProps> = ({
           />
           <button
             onClick={handleLinkInsert}
-            className="button-icon"
+            className="editor-toolbar-button"
             title="Insert Link"
           >
             <LinkIcon className="h-4 w-4" />
+            <span>Insert Link</span>
           </button>
           <button
             onClick={() => editor?.commands.toggleCensored()}
-            className="button-icon"
+            className="editor-toolbar-button"
             title="Toggle Censored Text (Ctrl+Alt+X)"
           >
             <EyeOff className="h-4 w-4" />
+            <span>Censor Text</span>
           </button>
           <button
             onClick={insertTaskList}
-            className="button-icon"
+            className="editor-toolbar-button"
             title="Insert Task List"
           >
             <ListChecks className="h-4 w-4" />
+            <span>Task List</span>
           </button>
           <button
             onClick={handleParagraphTagging}
-            className="button-icon"
+            className="editor-toolbar-button"
             title="Add Tags to Paragraph"
           >
             <Tag className="h-4 w-4" />
+            <span>Tag Paragraph</span>
           </button>
         </div>
         <div className="editor-toolbar-group">
           <button
             onClick={toggleZenMode}
-            className="button-icon"
+            className="editor-toolbar-button"
             title={isZenMode ? 'Exit Zen Mode' : 'Enter Zen Mode'}
           >
             <Leaf className="h-4 w-4" />
+            <span>Zen Mode</span>
           </button>
           <button
             onClick={openNoteSettings}
-            className="button-icon"
+            className="editor-toolbar-button"
             title="Note Settings"
           >
             <Settings className="h-4 w-4" />
+            <span>Settings</span>
           </button>
         </div>
       </div>
