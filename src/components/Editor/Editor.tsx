@@ -7,7 +7,7 @@ import { useStore } from "../../stores/StoreProvider";
 import { FAB } from "./FAB";
 import { TagsDisplay } from "./TagsDisplay";
 import { NoteSettingsModal } from "../Modals/NoteSettingsModal";
-import { ArrowLeft, Plus, ArrowRight, Maximize2 } from "lucide-react";
+import { ArrowLeft, Plus, ArrowRight, Maximize2, Trash2 } from "lucide-react";
 import { themes } from "../../constants";
 
 import './Editor.css';
@@ -100,6 +100,42 @@ export const Editor: FC<EditorProps> = observer(({
       contextMenu.target.classList.toggle('full-width');
       setContextMenu(null);
     }
+  };
+
+  const deleteImage = async () => {
+    if (!contextMenu || !notesStore.selectedNote) return;
+
+    const src = contextMenu.target.src;
+    
+    // Delete from server if it's a server image
+    if (settingsStore.syncMode === 'server' && settingsStore.server.token && src.startsWith(settingsStore.server.url)) {
+      try {
+        const imageId = src.split('/').pop();
+        const response = await fetch(`${settingsStore.server.url}/api/images/${imageId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${settingsStore.server.token}`,
+          },
+        });
+
+        if (!response.ok) {
+          settingsStore.setToast('Failed to delete image from server', 'error');
+          return;
+        }
+      } catch (error) {
+        console.error('Failed to delete image:', error);
+        settingsStore.setToast('Failed to delete image from server', 'error');
+        return;
+      }
+    }
+
+    // Remove image from note content
+    if (editor) {
+      editor.chain().focus().setContent(editor.getHTML().replace(contextMenu.target.outerHTML, '')).run();
+    }
+
+    setContextMenu(null);
+    settingsStore.setToast('Image deleted successfully', 'success');
   };
 
   // Scroll to top when note changes
@@ -313,6 +349,10 @@ export const Editor: FC<EditorProps> = observer(({
           <button className="menu-item" onClick={toggleImageWidth}>
             <Maximize2 className="h-4 w-4" />
             Toggle Full Width
+          </button>
+          <button className="menu-item" onClick={deleteImage}>
+            <Trash2 className="h-4 w-4" />
+            Delete Image
           </button>
         </div>
       )}
