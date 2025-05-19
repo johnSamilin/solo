@@ -1,5 +1,5 @@
 import { EditorContent } from "@tiptap/react";
-import { FC, useEffect, useRef, useMemo, useState } from "react";
+import { FC, useEffect, useRef, useState } from "react";
 import { observer } from "mobx-react-lite";
 import { Editor as TEditor } from "@tiptap/react";
 import { Howl } from 'howler';
@@ -7,6 +7,7 @@ import { useStore } from "../../stores/StoreProvider";
 import { FAB } from "./FAB";
 import { TagsDisplay } from "./TagsDisplay";
 import { NoteSettingsModal } from "../Modals/NoteSettingsModal";
+import { TagModal } from "../Modals/TagModal";
 import { ArrowLeft, Plus, ArrowRight, Maximize2, Trash2 } from "lucide-react";
 import { themes } from "../../constants";
 
@@ -43,12 +44,13 @@ export const Editor: FC<EditorProps> = observer(({
   handleImageUpload,
   handleLinkInsert,
   insertTaskList,
-  handleParagraphTagging,
 }) => {
-  const { notesStore, settingsStore } = useStore();
+  const { notesStore, settingsStore, tagsStore } = useStore();
   const soundRef = useRef<Howl>();
   const editorContentRef = useRef<HTMLDivElement>(null);
   const [contextMenu, setContextMenu] = useState<ImageContextMenu | null>(null);
+  const [isParagraphTagModalOpen, setIsParagraphTagModalOpen] = useState(false);
+  const [selectedParagraphTags, setSelectedParagraphTags] = useState<string[]>([]);
   
   useEffect(() => {
     const currentSettings = notesStore.selectedNote?.theme ? 
@@ -141,21 +143,23 @@ export const Editor: FC<EditorProps> = observer(({
   }, [notesStore.selectedNote?.id]);
 
   useEffect(() => {
-    const handleFullscreen = async () => {
+    if (settingsStore.isZenMode) {
       try {
-        if (settingsStore.isZenMode) {
-          if (document.documentElement.requestFullscreen) {
-            await document.documentElement.requestFullscreen();
-          }
-        } else if (document.exitFullscreen) {
-          await document.exitFullscreen();
+        if (document.documentElement.requestFullscreen) {
+          document.documentElement.requestFullscreen();
         }
       } catch (error) {
         // Silently handle fullscreen errors
       }
-    };
-
-    handleFullscreen();
+    } else {
+      try {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        }
+      } catch (error) {
+        // Silently handle fullscreen errors
+      }
+    }
 
     function onFSChange() {
       try {
@@ -262,6 +266,26 @@ export const Editor: FC<EditorProps> = observer(({
     }
   };
 
+  const handleParagraphTagging = () => {
+    if (!editor) return;
+    setIsParagraphTagModalOpen(true);
+    
+    // Get current paragraph's tags
+    const node = editor.state.selection.$from.node();
+    if (node.attrs.tags) {
+      setSelectedParagraphTags(node.attrs.tags);
+    } else {
+      setSelectedParagraphTags([]);
+    }
+  };
+
+  const handleParagraphTagsApply = () => {
+    if (editor) {
+      editor.chain().focus().setParagraphTags(selectedParagraphTags).run();
+    }
+    setIsParagraphTagModalOpen(false);
+  };
+
   const wordCount = editor?.state.doc.textContent.trim().split(/\s+/).filter(word => word.length > 0).length || 0;
   const paragraphCount = editor?.state.doc.content.content.filter(
     node => node.type.name === 'paragraph' || node.type.name === 'heading'
@@ -363,6 +387,15 @@ export const Editor: FC<EditorProps> = observer(({
           isCensored={notesStore.selectedNote.isCensored}
           currentTheme={notesStore.selectedNote.theme || ''}
           onThemeChange={handleThemeChange}
+        />
+      )}
+
+      {isParagraphTagModalOpen && (
+        <TagModal
+          onClose={() => setIsParagraphTagModalOpen(false)}
+          selectedTags={selectedParagraphTags}
+          onTagsChange={setSelectedParagraphTags}
+          onApply={handleParagraphTagsApply}
         />
       )}
     </div>
