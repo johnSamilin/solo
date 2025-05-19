@@ -58,6 +58,7 @@
   gap: 0.5rem;
   opacity: 0;
   width: 0;
+  height: 0;
   overflow: hidden;
   transition: all 0.3s ease;
 }
@@ -75,6 +76,7 @@
 .editor-toolbar.expanded .toolbar-actions {
   opacity: 1;
   width: auto;
+  height: auto;
   overflow: visible;
 }
 
