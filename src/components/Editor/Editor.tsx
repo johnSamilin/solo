@@ -25,19 +25,18 @@ const isTypewriterFont = (font: string) => {
   return ['GNU Typewriter', 'CMTypewriter', 'UMTypewriter'].includes(font);
 };
 
-type EditorProps = {
-  editor: TEditor | null;
-  handleImageUpload: (file: File) => void;
-  handleLinkInsert: () => void;
-  insertTaskList: () => void;
-  handleParagraphTagging: () => void;
-};
-
 interface ImageContextMenu {
   x: number;
   y: number;
   target: HTMLImageElement;
 }
+
+type EditorProps = {
+  editor: TEditor | null;
+  handleImageUpload: (file: File) => void;
+  handleLinkInsert: () => void;
+  insertTaskList: () => void;
+};
 
 export const Editor: FC<EditorProps> = observer(({
   editor,
@@ -274,8 +273,37 @@ export const Editor: FC<EditorProps> = observer(({
     const node = editor.state.selection.$from.node();
     if (node.attrs.tags) {
       setSelectedParagraphTags(node.attrs.tags);
+      
+      // Build tag tree from existing tags
+      const allTags = Array.from(new Set([
+        ...notesStore.notes.flatMap(note => note.tags.map(tag => tag.path)),
+        ...node.attrs.tags
+      ])).map(path => ({ id: generateUniqueId(), path }));
+
+      const tree = buildTagTree(allTags);
+      
+      // Mark selected tags
+      const markSelectedTags = (nodes: TagNode[]) => {
+        nodes.forEach(node => {
+          node.isChecked = selectedParagraphTags.includes(node.name);
+          if (node.children.length > 0) {
+            markSelectedTags(node.children);
+          }
+        });
+      };
+
+      markSelectedTags(tree);
+      tagsStore.setTagTree(tree);
     } else {
       setSelectedParagraphTags([]);
+      
+      // Build tag tree from note tags
+      const allTags = Array.from(new Set(
+        notesStore.notes.flatMap(note => note.tags.map(tag => tag.path))
+      )).map(path => ({ id: generateUniqueId(), path }));
+
+      const tree = buildTagTree(allTags);
+      tagsStore.setTagTree(tree);
     }
   };
 
