@@ -415,31 +415,63 @@ http2Server.on('stream', async (stream, headers) => {
     return;
   }
 
-  // Handle image retrieval
-  if (path.startsWith('/api/images/') && method === 'GET') {
+  // Handle image retrieval and deletion
+  if (path.startsWith('/api/images/')) {
     const [, , , userId, imageId] = path.split('/');
-    try {
-      const imagePath = _path.join(USER_DATA_DIR, userId, 'images', imageId);
-      if (!fs.existsSync(imagePath)) {
-        stream.respond({ ':status': 404, ...responseHeaders });
-        stream.end('Image not found');
+    
+    // Handle image deletion
+    if (method === 'DELETE') {
+      const session = verifyToken(headers);
+      if (!session || session.user_id !== userId) {
+        stream.respond({ ':status': 401, ...responseHeaders });
+        stream.end(JSON.stringify({ error: 'Unauthorized' }));
         return;
       }
 
-      const stat = await fs.promises.stat(imagePath);
-      const contentType = 'image/' + _path.extname(imageId).slice(1);
-      
-      stream.respondWithFile(imagePath, {
-        'content-type': contentType,
-        'content-length': stat.size,
-        ...responseHeaders
-      });
-    } catch (error) {
-      console.error('Image retrieval error:', error);
-      stream.respond({ ':status': 500, ...responseHeaders });
-      stream.end('Internal server error');
+      try {
+        const imagePath = _path.join(USER_DATA_DIR, userId, 'images', imageId);
+        if (!fs.existsSync(imagePath)) {
+          stream.respond({ ':status': 404, ...responseHeaders });
+          stream.end(JSON.stringify({ error: 'Image not found' }));
+          return;
+        }
+
+        await fs.promises.unlink(imagePath);
+        stream.respond({ ':status': 200, ...responseHeaders });
+        stream.end(JSON.stringify({ message: 'Image deleted successfully' }));
+      } catch (error) {
+        console.error('Image deletion error:', error);
+        stream.respond({ ':status': 500, ...responseHeaders });
+        stream.end(JSON.stringify({ error: 'Failed to delete image' }));
+      }
+      return;
     }
-    return;
+
+    // Handle image retrieval
+    if (method === 'GET') {
+      try {
+        const imagePath = _path.join(USER_DATA_DIR, userId, 'images', imageId);
+        if (!fs.existsSync(imagePath)) {
+          stream.respond({ ':status': 404, ...responseHeaders });
+          stream.end('Image not found');
+          return;
+        }
+
+        const stat = await fs.promises.stat(imagePath);
+        const contentType = 'image/' + _path.extname(imageId).slice(1);
+        
+        stream.respondWithFile(imagePath, {
+          'content-type': contentType,
+          'content-length': stat.size,
+          ...responseHeaders
+        });
+      } catch (error) {
+        console.error('Image retrieval error:', error);
+        stream.respond({ ':status': 500, ...responseHeaders });
+        stream.end('Internal server error');
+      }
+      return;
+    }
   }
 
   // Serve static files
