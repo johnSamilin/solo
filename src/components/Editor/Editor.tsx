@@ -101,15 +101,20 @@ export const Editor: FC<EditorProps> = observer(({
     const image = contextMenu.target;
     const isFullWidth = image.classList.contains('full-width');
     
+    // Create a temporary element to handle HTML manipulation
+    const temp = document.createElement('div');
+    temp.innerHTML = image.outerHTML;
+    const tempImg = temp.firstChild as HTMLElement;
+    
+    if (isFullWidth) {
+      tempImg.classList.remove('full-width');
+    } else {
+      tempImg.classList.add('full-width');
+    }
+    
     // Update the image in the editor's content
     const content = editor.getHTML();
-    const newContent = content.replace(
-      image.outerHTML,
-      image.outerHTML.replace(
-        /class="([^"]*)"?/,
-        `class="${isFullWidth ? '' : 'full-width'}"`
-      )
-    );
+    const newContent = content.replace(image.outerHTML, tempImg.outerHTML);
     
     editor.commands.setContent(newContent);
     notesStore.updateNote(notesStore.selectedNote.id, {
