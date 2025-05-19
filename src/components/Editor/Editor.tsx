@@ -101,20 +101,27 @@ export const Editor: FC<EditorProps> = observer(({
     const image = contextMenu.target;
     const isFullWidth = image.classList.contains('full-width');
     
-    // Update the HTML content
-    const oldHtml = image.outerHTML;
-    const newHtml = oldHtml.replace(
-      /class="([^"]*)"?/,
-      `class="${isFullWidth ? '' : 'full-width'}"`
-    );
+    // Get all attributes from the original image
+    const attributes = Array.from(image.attributes).reduce((acc, attr) => {
+      if (attr.name !== 'class') {
+        acc[attr.name] = attr.value;
+      }
+      return acc;
+    }, {} as Record<string, string>);
+
+    // Create new HTML with updated class
+    const newHtml = `<img ${Object.entries(attributes).map(([key, value]) => `${key}="${value}"`).join(' ')} class="${isFullWidth ? '' : 'full-width'}" />`;
     
-    editor.chain().focus().setContent(
-      editor.getHTML().replace(oldHtml, newHtml)
-    ).run();
+    // Replace the old image with the new one in the editor content
+    const content = editor.getHTML();
+    const oldHtml = image.outerHTML;
+    const newContent = content.replace(oldHtml, newHtml);
+    
+    editor.commands.setContent(newContent);
 
     // Update the note
     notesStore.updateNote(notesStore.selectedNote.id, {
-      content: editor.getHTML()
+      content: newContent
     });
 
     setContextMenu(null);
