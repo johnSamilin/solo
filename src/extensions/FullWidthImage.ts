@@ -2,6 +2,14 @@ import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 
+declare module '@tiptap/core' {
+  interface Commands<ReturnType> {
+    fullWidthImage: {
+      toggleImageFullWidth: () => ReturnType;
+    };
+  }
+}
+
 export const FullWidthImage = Extension.create({
   name: 'fullWidthImage',
 

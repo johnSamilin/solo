@@ -46,7 +46,7 @@ const App = observer(() => {
         inline: true,
         allowBase64: true,
       }),
-      FullWidthImage,
+      FullWidthImage.configure({}),
       Link.configure({
         openOnClick: false,
         HTMLAttributes: {
