@@ -86,26 +86,6 @@
   gap: 0.5rem;
 }
 
-.editor-toolbar .button-icon {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  min-width: 160px;
-  white-space: nowrap;
-}
-
-.editor-toolbar .button-icon span {
-  font-size: 0.875rem;
-  font-family: 'Outfit', system-ui, sans-serif;
-}
-
-.editor-toolbar .toggle-button {
-  min-width: unset;
-  padding: 0.5rem;
-}
-
 .editor-content {
   flex: 1;
   overflow-y: auto;
