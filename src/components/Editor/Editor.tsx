@@ -1,5 +1,5 @@
 import { EditorContent } from "@tiptap/react";
-import { FC, useEffect, useRef, useMemo } from "react";
+import { FC, useEffect, useRef, useMemo, useState } from "react";
 import { observer } from "mobx-react-lite";
 import { Editor as TEditor } from "@tiptap/react";
 import { Howl } from 'howler';
@@ -7,7 +7,7 @@ import { useStore } from "../../stores/StoreProvider";
 import { FAB } from "./FAB";
 import { TagsDisplay } from "./TagsDisplay";
 import { NoteSettingsModal } from "../Modals/NoteSettingsModal";
-import { ArrowLeft, Plus, ArrowRight } from "lucide-react";
+import { ArrowLeft, Plus, ArrowRight, Maximize2 } from "lucide-react";
 import { themes } from "../../constants";
 
 import './Editor.css';
@@ -33,6 +33,12 @@ type EditorProps = {
   handleParagraphTagging: () => void;
 };
 
+interface ImageContextMenu {
+  x: number;
+  y: number;
+  target: HTMLImageElement;
+}
+
 export const Editor: FC<EditorProps> = observer(({
   editor,
   handleImageUpload,
@@ -43,6 +49,7 @@ export const Editor: FC<EditorProps> = observer(({
   const { notesStore, settingsStore } = useStore();
   const soundRef = useRef<Howl>();
   const editorContentRef = useRef<HTMLDivElement>(null);
+  const [contextMenu, setContextMenu] = useState<ImageContextMenu | null>(null);
   
   useEffect(() => {
     const currentSettings = notesStore.selectedNote?.theme ? 
@@ -55,6 +62,45 @@ export const Editor: FC<EditorProps> = observer(({
       rate: 2.0
     });
   }, [settingsStore.settings.typewriterSound, notesStore.selectedNote?.theme]);
+
+  // Handle image context menu
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (contextMenu && !e.target?.closest('.image-context-menu')) {
+        setContextMenu(null);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [contextMenu]);
+
+  const handleImageContextMenu = (e: MouseEvent) => {
+    e.preventDefault();
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'IMG') {
+      setContextMenu({
+        x: e.clientX,
+        y: e.clientY,
+        target: target as HTMLImageElement
+      });
+    }
+  };
+
+  useEffect(() => {
+    const editorContent = editorContentRef.current;
+    if (editorContent) {
+      editorContent.addEventListener('contextmenu', handleImageContextMenu);
+      return () => editorContent.removeEventListener('contextmenu', handleImageContextMenu);
+    }
+  }, []);
+
+  const toggleImageWidth = () => {
+    if (contextMenu) {
+      contextMenu.target.classList.toggle('full-width');
+      setContextMenu(null);
+    }
+  };
 
   // Scroll to top when note changes
   useEffect(() => {
@@ -109,10 +155,6 @@ export const Editor: FC<EditorProps> = observer(({
       if (isTypewriterFont(currentSettings.editorFontFamily)) {
         const currentLength = editor.state.doc.textContent.length;
         
-        // Only play sound if:
-        // 1. Not a special key
-        // 2. Content length has increased (character was added)
-        // 3. Not a combination with modifier keys
         if (!nonCharacterKeys.has(event.key) && 
             currentLength > lastLength &&
             !event.ctrlKey && 
@@ -259,6 +301,21 @@ export const Editor: FC<EditorProps> = observer(({
           openNoteSettings={() => settingsStore.setNoteSettingsOpen(true)}
         />
       </div>
+
+      {contextMenu && (
+        <div
+          className="image-context-menu"
+          style={{
+            left: contextMenu.x,
+            top: contextMenu.y
+          }}
+        >
+          <button className="menu-item" onClick={toggleImageWidth}>
+            <Maximize2 className="h-4 w-4" />
+            Toggle Full Width
+          </button>
+        </div>
+      )}
 
       {settingsStore.isNoteSettingsOpen && (
         <NoteSettingsModal

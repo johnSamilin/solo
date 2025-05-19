@@ -92,6 +92,11 @@
   max-width: var(--editor-width);
   display: block;
   margin: 1rem auto;
+  transition: max-width 0.3s ease;
+}
+
+.editor-content img.full-width {
+  max-width: 100%;
 }
 
 .editor-title {
@@ -229,6 +234,36 @@
 .editor-body ul[data-type="taskList"] li input[type="checkbox"]:checked+div {
   color: var(--color-text-light);
   text-decoration: line-through;
+}
+
+.image-context-menu {
+  position: fixed;
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  padding: 0.25rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  z-index: 1000;
+}
+
+.image-context-menu .menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.5rem 1rem;
+  border: none;
+  background: none;
+  text-align: left;
+  font-size: 0.875rem;
+  color: var(--color-text);
+  cursor: pointer;
+  border-radius: 0.25rem;
+  font-family: 'Outfit', system-ui, sans-serif;
+}
+
+.image-context-menu .menu-item:hover {
+  background-color: var(--color-bg);
 }
 
 .word-count {
