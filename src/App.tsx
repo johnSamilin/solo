@@ -10,6 +10,7 @@ import TaskItem from '@tiptap/extension-task-item';
 import { observer } from 'mobx-react-lite';
 import { Censored } from './extensions/Censored';
 import { ParagraphTags } from './extensions/ParagraphTags';
+import { FullWidthImage } from './extensions/FullWidthImage';
 import { buildTagTree } from './utils';
 import { useStore } from './stores/StoreProvider';
 import { SettingsModal } from './components/Modals/SettingsModal/SettingsModal';
@@ -45,6 +46,7 @@ const App = observer(() => {
         inline: true,
         allowBase64: true,
       }),
+      FullWidthImage,
       Link.configure({
         openOnClick: false,
         HTMLAttributes: {
