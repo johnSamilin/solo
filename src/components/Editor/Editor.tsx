@@ -1,5 +1,5 @@
 import { EditorContent } from "@tiptap/react";
-import { FC, useEffect, useRef, useState } from "react";
+import { FC, useEffect, useRef, useMemo, useState } from "react";
 import { observer } from "mobx-react-lite";
 import { Editor as TEditor } from "@tiptap/react";
 import { Howl } from 'howler';
@@ -7,7 +7,6 @@ import { useStore } from "../../stores/StoreProvider";
 import { FAB } from "./FAB";
 import { TagsDisplay } from "./TagsDisplay";
 import { NoteSettingsModal } from "../Modals/NoteSettingsModal";
-import { TagModal } from "../Modals/TagModal";
 import { ArrowLeft, Plus, ArrowRight, Maximize2, Trash2 } from "lucide-react";
 import { themes } from "../../constants";
 
@@ -25,31 +24,31 @@ const isTypewriterFont = (font: string) => {
   return ['GNU Typewriter', 'CMTypewriter', 'UMTypewriter'].includes(font);
 };
 
+type EditorProps = {
+  editor: TEditor | null;
+  handleImageUpload: (file: File) => void;
+  handleLinkInsert: () => void;
+  insertTaskList: () => void;
+  handleParagraphTagging: () => void;
+};
+
 interface ImageContextMenu {
   x: number;
   y: number;
   target: HTMLImageElement;
 }
 
-type EditorProps = {
-  editor: TEditor | null;
-  handleImageUpload: (file: File) => void;
-  handleLinkInsert: () => void;
-  insertTaskList: () => void;
-};
-
 export const Editor: FC<EditorProps> = observer(({
   editor,
   handleImageUpload,
   handleLinkInsert,
   insertTaskList,
+  handleParagraphTagging,
 }) => {
-  const { notesStore, settingsStore, tagsStore } = useStore();
+  const { notesStore, settingsStore } = useStore();
   const soundRef = useRef<Howl>();
   const editorContentRef = useRef<HTMLDivElement>(null);
   const [contextMenu, setContextMenu] = useState<ImageContextMenu | null>(null);
-  const [isParagraphTagModalOpen, setIsParagraphTagModalOpen] = useState(false);
-  const [selectedParagraphTags, setSelectedParagraphTags] = useState<string[]>([]);
   
   useEffect(() => {
     const currentSettings = notesStore.selectedNote?.theme ? 
@@ -142,23 +141,21 @@ export const Editor: FC<EditorProps> = observer(({
   }, [notesStore.selectedNote?.id]);
 
   useEffect(() => {
-    if (settingsStore.isZenMode) {
+    const handleFullscreen = async () => {
       try {
-        if (document.documentElement.requestFullscreen) {
-          document.documentElement.requestFullscreen();
+        if (settingsStore.isZenMode) {
+          if (document.documentElement.requestFullscreen) {
+            await document.documentElement.requestFullscreen();
+          }
+        } else if (document.exitFullscreen) {
+          await document.exitFullscreen();
         }
       } catch (error) {
         // Silently handle fullscreen errors
       }
-    } else {
-      try {
-        if (document.exitFullscreen) {
-          document.exitFullscreen();
-        }
-      } catch (error) {
-        // Silently handle fullscreen errors
-      }
-    }
+    };
+
+    handleFullscreen();
 
     function onFSChange() {
       try {
@@ -265,55 +262,6 @@ export const Editor: FC<EditorProps> = observer(({
     }
   };
 
-  const handleParagraphTagging = () => {
-    if (!editor) return;
-    setIsParagraphTagModalOpen(true);
-    
-    // Get current paragraph's tags
-    const node = editor.state.selection.$from.node();
-    if (node.attrs.tags) {
-      setSelectedParagraphTags(node.attrs.tags);
-      
-      // Build tag tree from existing tags
-      const allTags = Array.from(new Set([
-        ...notesStore.notes.flatMap(note => note.tags.map(tag => tag.path)),
-        ...node.attrs.tags
-      ])).map(path => ({ id: generateUniqueId(), path }));
-
-      const tree = buildTagTree(allTags);
-      
-      // Mark selected tags
-      const markSelectedTags = (nodes: TagNode[]) => {
-        nodes.forEach(node => {
-          node.isChecked = selectedParagraphTags.includes(node.name);
-          if (node.children.length > 0) {
-            markSelectedTags(node.children);
-          }
-        });
-      };
-
-      markSelectedTags(tree);
-      tagsStore.setTagTree(tree);
-    } else {
-      setSelectedParagraphTags([]);
-      
-      // Build tag tree from note tags
-      const allTags = Array.from(new Set(
-        notesStore.notes.flatMap(note => note.tags.map(tag => tag.path))
-      )).map(path => ({ id: generateUniqueId(), path }));
-
-      const tree = buildTagTree(allTags);
-      tagsStore.setTagTree(tree);
-    }
-  };
-
-  const handleParagraphTagsApply = () => {
-    if (editor) {
-      editor.chain().focus().setParagraphTags(selectedParagraphTags).run();
-    }
-    setIsParagraphTagModalOpen(false);
-  };
-
   const wordCount = editor?.state.doc.textContent.trim().split(/\s+/).filter(word => word.length > 0).length || 0;
   const paragraphCount = editor?.state.doc.content.content.filter(
     node => node.type.name === 'paragraph' || node.type.name === 'heading'
@@ -415,15 +363,6 @@ export const Editor: FC<EditorProps> = observer(({
           isCensored={notesStore.selectedNote.isCensored}
           currentTheme={notesStore.selectedNote.theme || ''}
           onThemeChange={handleThemeChange}
-        />
-      )}
-
-      {isParagraphTagModalOpen && (
-        <TagModal
-          onClose={() => setIsParagraphTagModalOpen(false)}
-          selectedTags={selectedParagraphTags}
-          onTagsChange={setSelectedParagraphTags}
-          onApply={handleParagraphTagsApply}
         />
       )}
     </div>
