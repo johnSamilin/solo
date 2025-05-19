@@ -1,5 +1,5 @@
 import { EditorContent } from "@tiptap/react";
-import { FC, useEffect, useRef, useMemo, useState } from "react";
+import { FC, useEffect, useRef, useState } from "react";
 import { observer } from "mobx-react-lite";
 import { Editor as TEditor } from "@tiptap/react";
 import { Howl } from 'howler';
@@ -96,10 +96,28 @@ export const Editor: FC<EditorProps> = observer(({
   }, []);
 
   const toggleImageWidth = () => {
-    if (contextMenu) {
-      contextMenu.target.classList.toggle('full-width');
-      setContextMenu(null);
-    }
+    if (!contextMenu || !editor || !notesStore.selectedNote) return;
+
+    const image = contextMenu.target;
+    const isFullWidth = image.classList.contains('full-width');
+    
+    // Update the HTML content
+    const oldHtml = image.outerHTML;
+    const newHtml = oldHtml.replace(
+      /class="([^"]*)"?/,
+      `class="${isFullWidth ? '' : 'full-width'}"`
+    );
+    
+    editor.chain().focus().setContent(
+      editor.getHTML().replace(oldHtml, newHtml)
+    ).run();
+
+    // Update the note
+    notesStore.updateNote(notesStore.selectedNote.id, {
+      content: editor.getHTML()
+    });
+
+    setContextMenu(null);
   };
 
   const deleteImage = async () => {
@@ -132,6 +150,11 @@ export const Editor: FC<EditorProps> = observer(({
     // Remove image from note content
     if (editor) {
       editor.chain().focus().setContent(editor.getHTML().replace(contextMenu.target.outerHTML, '')).run();
+      
+      // Update the note
+      notesStore.updateNote(notesStore.selectedNote.id, {
+        content: editor.getHTML()
+      });
     }
 
     setContextMenu(null);
