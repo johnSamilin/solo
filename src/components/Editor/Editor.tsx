@@ -1,5 +1,5 @@
 import { EditorContent } from "@tiptap/react";
-import { FC, useEffect, useRef, useState } from "react";
+import { FC, useEffect, useRef, useMemo, useState } from "react";
 import { observer } from "mobx-react-lite";
 import { Editor as TEditor } from "@tiptap/react";
 import { Howl } from 'howler';
@@ -96,35 +96,10 @@ export const Editor: FC<EditorProps> = observer(({
   }, []);
 
   const toggleImageWidth = () => {
-    if (!contextMenu || !editor || !notesStore.selectedNote) return;
-
-    const image = contextMenu.target;
-    const isFullWidth = image.classList.contains('full-width');
-    
-    // Get all attributes from the original image
-    const attributes = Array.from(image.attributes).reduce((acc, attr) => {
-      if (attr.name !== 'class') {
-        acc[attr.name] = attr.value;
-      }
-      return acc;
-    }, {} as Record<string, string>);
-
-    // Create new HTML with updated class
-    const newHtml = `<img ${Object.entries(attributes).map(([key, value]) => `${key}="${value}"`).join(' ')} class="${isFullWidth ? '' : 'full-width'}" />`;
-    
-    // Replace the old image with the new one in the editor content
-    const content = editor.getHTML();
-    const oldHtml = image.outerHTML;
-    const newContent = content.replace(oldHtml, newHtml);
-    
-    editor.commands.setContent(newContent);
-
-    // Update the note
-    notesStore.updateNote(notesStore.selectedNote.id, {
-      content: newContent
-    });
-
-    setContextMenu(null);
+    if (contextMenu) {
+      contextMenu.target.classList.toggle('full-width');
+      setContextMenu(null);
+    }
   };
 
   const deleteImage = async () => {
@@ -157,11 +132,6 @@ export const Editor: FC<EditorProps> = observer(({
     // Remove image from note content
     if (editor) {
       editor.chain().focus().setContent(editor.getHTML().replace(contextMenu.target.outerHTML, '')).run();
-      
-      // Update the note
-      notesStore.updateNote(notesStore.selectedNote.id, {
-        content: editor.getHTML()
-      });
     }
 
     setContextMenu(null);
