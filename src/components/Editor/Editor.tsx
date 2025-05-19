@@ -12,7 +12,6 @@ import { themes } from "../../constants";
 
 import './Editor.css';
 
-// Keys that should not trigger the typewriter sound
 const nonCharacterKeys = new Set([
   'Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'Tab',
   'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
@@ -63,7 +62,6 @@ export const Editor: FC<EditorProps> = observer(({
     });
   }, [settingsStore.settings.typewriterSound, notesStore.selectedNote?.theme]);
 
-  // Handle image context menu
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (contextMenu && !e.target?.closest('.image-context-menu')) {
@@ -96,8 +94,8 @@ export const Editor: FC<EditorProps> = observer(({
   }, []);
 
   const toggleImageWidth = () => {
-    if (contextMenu) {
-      contextMenu.target.classList.toggle('full-width');
+    if (contextMenu && editor) {
+      editor.chain().focus().toggleImageFullWidth().run();
       setContextMenu(null);
     }
   };
@@ -107,7 +105,6 @@ export const Editor: FC<EditorProps> = observer(({
 
     const src = contextMenu.target.src;
     
-    // Delete from server if it's a server image
     if (settingsStore.syncMode === 'server' && settingsStore.server.token && src.startsWith(settingsStore.server.url)) {
       try {
         const imageId = src.split('/').pop();
@@ -129,7 +126,6 @@ export const Editor: FC<EditorProps> = observer(({
       }
     }
 
-    // Remove image from note content
     if (editor) {
       editor.chain().focus().setContent(editor.getHTML().replace(contextMenu.target.outerHTML, '')).run();
     }
@@ -138,7 +134,6 @@ export const Editor: FC<EditorProps> = observer(({
     settingsStore.setToast('Image deleted successfully', 'success');
   };
 
-  // Scroll to top when note changes
   useEffect(() => {
     if (editorContentRef.current) {
       editorContentRef.current.scrollTop = 0;
