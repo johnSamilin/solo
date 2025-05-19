@@ -459,10 +459,26 @@ http2Server.on('stream', async (stream, headers) => {
 
         const stat = await fs.promises.stat(imagePath);
         const contentType = 'image/' + _path.extname(imageId).slice(1);
+        const etag = `"${stat.size}-${stat.mtime.getTime()}"`;
+        
+        // Check if the client has a cached version
+        const ifNoneMatch = headers['if-none-match'];
+        if (ifNoneMatch === etag) {
+          stream.respond({
+            ':status': 304,
+            'etag': etag,
+            'cache-control': 'public, max-age=31536000', // Cache for 1 year
+            ...responseHeaders
+          });
+          stream.end();
+          return;
+        }
         
         stream.respondWithFile(imagePath, {
           'content-type': contentType,
           'content-length': stat.size,
+          'cache-control': 'public, max-age=31536000', // Cache for 1 year
+          'etag': etag,
           ...responseHeaders
         });
       } catch (error) {
