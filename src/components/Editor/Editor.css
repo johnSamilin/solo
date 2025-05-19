@@ -286,6 +286,32 @@
   transition: all 0.3s ease;
 }
 
+/* Button tooltip styles */
+.button-icon {
+  position: relative;
+}
+
+.button-icon::after {
+  content: attr(title);
+  position: absolute;
+  right: calc(100% + 0.5rem);
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 0.25rem 0.5rem;
+  background: var(--color-text);
+  color: var(--color-white);
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.button-icon:hover::after {
+  opacity: 1;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .word-count {
         transition: none;
@@ -294,27 +320,4 @@
 
 .zen-mode .word-count {
   left: 2rem;
-}
-
-.empty-state {
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-text-light);
-  font-family: var(--editor-font-family), Georgia, serif;
-  font-size: var(--editor-font-size);
-}
-
-.note-navigation {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  margin: 1rem 0;
-  padding: 0.5rem;
-  background: var(--color-white);
-  border-radius: 2rem;
-  width: fit-content;
-  margin: 1rem auto;
 }
