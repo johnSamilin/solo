@@ -48,10 +48,12 @@
 
 .editor-toolbar .toggle-button {
   z-index: 2;
+  align-self: end;
 }
 
 .editor-toolbar .toolbar-actions {
   display: flex;
+  flex-direction: column;
   gap: 0.5rem;
   opacity: 0;
   width: 0;
