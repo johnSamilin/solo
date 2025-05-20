@@ -52,6 +52,7 @@ export const Editor: FC<EditorProps> = observer(({
   const [isDictating, setIsDictating] = useState(false);
   const [dictationLang, setDictationLang] = useState<'en-US' | 'ru-RU'>('en-US');
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const isLanguageSwitchPending = useRef(false);
   
   useEffect(() => {
     const currentSettings = notesStore.selectedNote?.theme ? 
@@ -269,21 +270,14 @@ export const Editor: FC<EditorProps> = observer(({
     }
   };
 
-  const handleDictation = () => {
+  const initializeSpeechRecognition = () => {
     if (!('webkitSpeechRecognition' in window)) {
       settingsStore.setToast('Speech recognition is not supported in your browser', 'error');
-      return;
-    }
-
-    if (isDictating) {
-      recognitionRef.current?.stop();
-      setIsDictating(false);
-      return;
+      return null;
     }
 
     const SpeechRecognition = window.webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
-    recognitionRef.current = recognition;
 
     recognition.continuous = true;
     recognition.interimResults = true;
@@ -309,23 +303,47 @@ export const Editor: FC<EditorProps> = observer(({
       console.error('Speech recognition error:', event.error);
       settingsStore.setToast('Speech recognition error: ' + event.error, 'error');
       setIsDictating(false);
+      isLanguageSwitchPending.current = false;
     };
 
     recognition.onend = () => {
       setIsDictating(false);
+      if (isLanguageSwitchPending.current) {
+        isLanguageSwitchPending.current = false;
+        const newRecognition = initializeSpeechRecognition();
+        if (newRecognition) {
+          recognitionRef.current = newRecognition;
+          newRecognition.start();
+        }
+      }
     };
 
-    recognition.start();
+    return recognition;
+  };
+
+  const handleDictation = () => {
+    if (isDictating) {
+      recognitionRef.current?.stop();
+      isLanguageSwitchPending.current = false;
+      return;
+    }
+
+    const recognition = initializeSpeechRecognition();
+    if (recognition) {
+      recognitionRef.current = recognition;
+      recognition.start();
+    }
   };
 
   const toggleDictationLanguage = () => {
+    if (!isDictating) return;
+
     const newLang = dictationLang === 'en-US' ? 'ru-RU' : 'en-US';
     setDictationLang(newLang);
+    isLanguageSwitchPending.current = true;
     
-    if (recognitionRef.current && isDictating) {
-      recognitionRef.current.lang = newLang;
+    if (recognitionRef.current) {
       recognitionRef.current.stop();
-      recognitionRef.current.start();
     }
   };
 
