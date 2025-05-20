@@ -290,7 +290,7 @@ export const Editor: FC<EditorProps> = observer(({
 
     recognition.onresult = (event) => {
       if (!editor) return;
-
+      console.log(event.results);
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const transcript = event.results[i][0].transcript;
         if (event.results[i].isFinal) {
@@ -344,8 +344,12 @@ export const Editor: FC<EditorProps> = observer(({
     const newLang = dictationLang === 'en-US' ? 'ru-RU' : 'en-US';
     setDictationLang(newLang);
     isLanguageSwitchPending.current = true;
-
-    handleDictation();
+    
+    const newRecognition = initializeSpeechRecognition();
+    if (newRecognition) {
+      recognitionRef.current = newRecognition;
+      newRecognition.start();
+    }
   };
 
   const wordCount = editor?.state.doc.textContent.trim().split(/\s+/).filter(word => word.length > 0).length || 0;
