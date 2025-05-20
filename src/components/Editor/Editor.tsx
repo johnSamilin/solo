@@ -1,6 +1,5 @@
+import { useEffect, useRef, useState } from 'react';
 import { EditorContent } from "@tiptap/react";
-import { FC, useEffect, useRef, useState } from "react";
-import { observer } from "mobx-react-lite";
 import { Editor as TEditor } from "@tiptap/react";
 import { Howl } from 'howler';
 import { useStore } from "../../stores/StoreProvider";
@@ -286,6 +285,7 @@ export const Editor: FC<EditorProps> = observer(({
 
     recognition.continuous = true;
     recognition.interimResults = true;
+    recognition.lang = 'en-US,ru-RU'; // Support English and Russian
 
     recognition.onstart = () => {
       setIsDictating(true);
