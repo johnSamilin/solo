@@ -337,10 +337,14 @@ export const Editor: FC<EditorProps> = observer(({
 
   const toggleDictationLanguage = () => {
     if (!isDictating) return;
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
 
     const newLang = dictationLang === 'en-US' ? 'ru-RU' : 'en-US';
     setDictationLang(newLang);
     isLanguageSwitchPending.current = true;
+
     handleDictation();
   };
 
