@@ -337,19 +337,13 @@ export const Editor: FC<EditorProps> = observer(({
 
   const toggleDictationLanguage = () => {
     if (!isDictating) return;
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-    }
+    // if (recognitionRef.current) {
+    //   recognitionRef.current.stop();
+    // }
 
     const newLang = dictationLang === 'en-US' ? 'ru-RU' : 'en-US';
     setDictationLang(newLang);
     isLanguageSwitchPending.current = true;
-    
-    const newRecognition = initializeSpeechRecognition();
-    if (newRecognition) {
-      recognitionRef.current = newRecognition;
-      newRecognition.start();
-    }
   };
 
   const wordCount = editor?.state.doc.textContent.trim().split(/\s+/).filter(word => word.length > 0).length || 0;
