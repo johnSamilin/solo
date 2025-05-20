@@ -8,7 +8,7 @@ import { FAB } from "./FAB";
 import { TagsDisplay } from "./TagsDisplay";
 import { NoteSettingsModal } from "../Modals/NoteSettingsModal";
 import { ArrowLeft, Plus, ArrowRight, Maximize2, Trash2 } from "lucide-react";
-import { themes } from "../../constants";
+import { themes } from "../../themes";
 
 import './Editor.css';
 

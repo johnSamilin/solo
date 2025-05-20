@@ -21,7 +21,7 @@ import { Editor } from './components/Editor/Editor';
 import { Toast } from './components/Toast/Toast';
 import { generateUniqueId } from './utils';
 import { TagNode } from './types';
-import { themes } from './constants';
+import { themes } from './themes';
 import { Plus } from 'lucide-react';
 
 const App = observer(() => {
