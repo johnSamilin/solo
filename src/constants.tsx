@@ -1,4 +1,5 @@
 import { TypographySettings } from './types';
+import { themes } from './themes';
 
 export const defaultSettings: TypographySettings = {
   editorFontFamily: 'Crimson Pro',
@@ -17,3 +18,5 @@ export const defaultSettings: TypographySettings = {
   sidebarPinned: true,
   typewriterSound: 'typewriter-1'
 };
+
+export { themes };
