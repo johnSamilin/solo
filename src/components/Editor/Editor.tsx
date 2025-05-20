@@ -50,6 +50,7 @@ export const Editor: FC<EditorProps> = observer(({
   const editorContentRef = useRef<HTMLDivElement>(null);
   const [contextMenu, setContextMenu] = useState<ImageContextMenu | null>(null);
   const [isDictating, setIsDictating] = useState(false);
+  const [dictationLang, setDictationLang] = useState<'en-US' | 'ru-RU'>('en-US');
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   
   useEffect(() => {
@@ -286,7 +287,7 @@ export const Editor: FC<EditorProps> = observer(({
 
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang = 'ru-RU,en-US'; // Support English and Russian
+    recognition.lang = dictationLang;
 
     recognition.onstart = () => {
       setIsDictating(true);
@@ -315,6 +316,17 @@ export const Editor: FC<EditorProps> = observer(({
     };
 
     recognition.start();
+  };
+
+  const toggleDictationLanguage = () => {
+    const newLang = dictationLang === 'en-US' ? 'ru-RU' : 'en-US';
+    setDictationLang(newLang);
+    
+    if (recognitionRef.current && isDictating) {
+      recognitionRef.current.lang = newLang;
+      recognitionRef.current.stop();
+      recognitionRef.current.start();
+    }
   };
 
   const wordCount = editor?.state.doc.textContent.trim().split(/\s+/).filter(word => word.length > 0).length || 0;
@@ -373,6 +385,15 @@ export const Editor: FC<EditorProps> = observer(({
           {!settingsStore.isZenMode && <div className="word-count">
             {wordCount}/{paragraphCount}
           </div>}
+          {isDictating && (
+            <button
+              onClick={toggleDictationLanguage}
+              className="language-selector"
+              title={`Current language: ${dictationLang === 'en-US' ? 'English' : 'Russian'}`}
+            >
+              {dictationLang === 'en-US' ? '🇺🇸' : '🇷🇺'}
+            </button>
+          )}
         </div>
         <FAB
           editor={editor}
