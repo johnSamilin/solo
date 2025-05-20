@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { EditorContent } from "@tiptap/react";
 import { Editor as TEditor } from "@tiptap/react";
 import { Howl } from 'howler';
+import { observer } from 'mobx-react-lite';
 import { useStore } from "../../stores/StoreProvider";
 import { FAB } from "./FAB";
 import { TagsDisplay } from "./TagsDisplay";
