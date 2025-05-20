@@ -50,7 +50,7 @@ export const Editor: FC<EditorProps> = observer(({
   const editorContentRef = useRef<HTMLDivElement>(null);
   const [contextMenu, setContextMenu] = useState<ImageContextMenu | null>(null);
   const [isDictating, setIsDictating] = useState(false);
-  const [dictationLang, setDictationLang] = useState<'en-US' | 'ru-RU'>('en-US');
+  const [dictationLang, setDictationLang] = useState<'en-US' | 'ru-RU'>('ru-RU');
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const isLanguageSwitchPending = useRef(false);
   
