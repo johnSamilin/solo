@@ -286,7 +286,7 @@ export const Editor: FC<EditorProps> = observer(({
 
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang = 'en-US,ru-RU'; // Support English and Russian
+    recognition.lang = 'ru-RU,en-US'; // Support English and Russian
 
     recognition.onstart = () => {
       setIsDictating(true);
