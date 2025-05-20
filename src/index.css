@@ -27,22 +27,6 @@
   --editor-width: 75%;
 }
 
-/* Terminal theme colors */
-[data-theme="terminal"] {
-  --color-bg: #1a1b26;
-  --color-white: #1a1b26;
-  --color-border: #24283b;
-  --color-text: #a9b1d6;
-  --color-text-light: #565f89;
-  --color-button: #414868;
-  --color-button-hover: #565f89;
-  --color-danger: #f7768e;
-  --color-danger-hover: #24283b;
-  --color-disabled: #565f89;
-  --color-checkbox: #9ece6a;
-  --color-checkbox-bg: #24283b;
-}
-
 @font-face {
   font-family: 'GNU Typewriter';
   src: url('./assets/fonts/gtw.ttf') format('truetype');

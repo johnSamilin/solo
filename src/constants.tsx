@@ -79,24 +79,4 @@ export const themes: Record<string, { name: string; settings: TypographySettings
       typewriterSound: 'typewriter-1'
     },
   },
-  terminal: {
-    name: 'Terminal',
-    settings: {
-      editorFontFamily: 'monospace',
-      editorFontSize: '1rem',
-      editorLineHeight: '1.5',
-      titleFontFamily: 'monospace',
-      titleFontSize: '1.25rem',
-      sidebarFontFamily: 'monospace',
-      sidebarFontSize: '0.875rem',
-      pageMargins: '2rem',
-      paragraphSpacing: '1em',
-      enableDropCaps: false,
-      dropCapSize: '2.5em',
-      dropCapLineHeight: '2.5',
-      maxEditorWidth: '80%',
-      sidebarPinned: true,
-      typewriterSound: 'typewriter-1'
-    },
-  },
 };
