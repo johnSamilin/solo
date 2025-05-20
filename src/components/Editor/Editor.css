@@ -318,6 +318,11 @@
   opacity: 1;
 }
 
+.button-icon.active {
+  color: var(--color-button);
+  background-color: var(--color-bg);
+}
+
 @media (prefers-reduced-motion: reduce) {
     .word-count {
         transition: none;

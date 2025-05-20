@@ -1,5 +1,5 @@
 import { EditorContent } from "@tiptap/react";
-import { FC, useEffect, useRef, useMemo, useState } from "react";
+import { FC, useEffect, useRef, useState } from "react";
 import { observer } from "mobx-react-lite";
 import { Editor as TEditor } from "@tiptap/react";
 import { Howl } from 'howler';
@@ -49,6 +49,8 @@ export const Editor: FC<EditorProps> = observer(({
   const soundRef = useRef<Howl>();
   const editorContentRef = useRef<HTMLDivElement>(null);
   const [contextMenu, setContextMenu] = useState<ImageContextMenu | null>(null);
+  const [isDictating, setIsDictating] = useState(false);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
   
   useEffect(() => {
     const currentSettings = notesStore.selectedNote?.theme ? 
@@ -266,6 +268,54 @@ export const Editor: FC<EditorProps> = observer(({
     }
   };
 
+  const handleDictation = () => {
+    if (!('webkitSpeechRecognition' in window)) {
+      settingsStore.setToast('Speech recognition is not supported in your browser', 'error');
+      return;
+    }
+
+    if (isDictating) {
+      recognitionRef.current?.stop();
+      setIsDictating(false);
+      return;
+    }
+
+    const SpeechRecognition = window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognitionRef.current = recognition;
+
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    recognition.onstart = () => {
+      setIsDictating(true);
+      settingsStore.setToast('Listening...', 'success');
+    };
+
+    recognition.onresult = (event) => {
+      if (!editor) return;
+
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          editor.commands.insertContent(transcript + ' ');
+        }
+      }
+    };
+
+    recognition.onerror = (event) => {
+      console.error('Speech recognition error:', event.error);
+      settingsStore.setToast('Speech recognition error: ' + event.error, 'error');
+      setIsDictating(false);
+    };
+
+    recognition.onend = () => {
+      setIsDictating(false);
+    };
+
+    recognition.start();
+  };
+
   const wordCount = editor?.state.doc.textContent.trim().split(/\s+/).filter(word => word.length > 0).length || 0;
   const paragraphCount = editor?.state.doc.content.content.filter(
     node => node.type.name === 'paragraph' || node.type.name === 'heading'
@@ -334,6 +384,8 @@ export const Editor: FC<EditorProps> = observer(({
           handleParagraphTagging={handleParagraphTagging}
           setIsToolbarExpanded={(expanded) => settingsStore.isToolbarExpanded = expanded}
           openNoteSettings={() => settingsStore.setNoteSettingsOpen(true)}
+          handleDictation={handleDictation}
+          isDictating={isDictating}
         />
       </div>
 
