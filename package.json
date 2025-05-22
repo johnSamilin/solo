@@ -22,7 +22,8 @@
     "electron:package:win": "yarn build:plugin && electron-builder --win --config electron-builder.config.cjs",
     "electron:package:mac": "yarn build:plugin && electron-builder --mac --config electron-builder.config.cjs",
     "electron:package:all": "yarn build:plugin && electron-builder -mw --config electron-builder.config.cjs",
-    "copy-assets": "cp -R assets dist/assets"
+    "copy-assets": "cp -R assets dist/assets",
+    "extract-joplin-images": "node scripts/extract-joplin-images.js"
   },
   "dependencies": {
     "@tiptap/extension-heading": "^2.2.4",
@@ -44,7 +45,8 @@
     "rotating-file-stream": "^3.2.1",
     "sqlite3": "^5.1.7",
     "turndown": "^7.1.2",
-    "webdav": "^5.8.0"
+    "webdav": "^5.8.0",
+    "mkdirp": "^3.0.1"
   },
   "devDependencies": {
     "@babel/core": "^7.24.3",
