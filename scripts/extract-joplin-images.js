@@ -17,14 +17,37 @@ function getDefaultJoplinPath() {
   return path.join(process.env.HOME, '.config', 'joplin-desktop');
 }
 
-// Find the most recent database file
-function findJoplinDatabase(basePath) {
-  const files = fs.readdirSync(basePath);
+// List available profiles
+function listProfiles(basePath) {
+  try {
+    const entries = fs.readdirSync(basePath, { withFileTypes: true });
+    const profiles = entries
+      .filter(entry => entry.isDirectory())
+      .map(entry => entry.name);
+
+    if (profiles.length === 0) {
+      throw new Error('No profiles found');
+    }
+
+    console.log('\nAvailable profiles:');
+    profiles.forEach((profile, index) => {
+      console.log(`${index + 1}. ${profile}`);
+    });
+
+    return profiles;
+  } catch (error) {
+    throw new Error(`Failed to read profiles: ${error.message}`);
+  }
+}
+
+// Find the most recent database file in a profile
+function findJoplinDatabase(profilePath) {
+  const files = fs.readdirSync(profilePath);
   const dbFiles = files.filter(file => file.endsWith('.sqlite'));
   if (dbFiles.length === 0) {
     throw new Error('No Joplin database found');
   }
-  return path.join(basePath, dbFiles[0]);
+  return path.join(profilePath, dbFiles[0]);
 }
 
 // Get folder path for a note
@@ -137,14 +160,29 @@ async function extractImages(dbPath, outputPath) {
 async function main() {
   try {
     const joplinPath = getDefaultJoplinPath();
-    const dbPath = findJoplinDatabase(joplinPath);
+    console.log('Joplin config directory:', joplinPath);
+
+    // List available profiles and get user selection
+    const profiles = listProfiles(joplinPath);
+    const profileIndex = parseInt(process.argv[2], 10) - 1;
+
+    if (isNaN(profileIndex) || profileIndex < 0 || profileIndex >= profiles.length) {
+      console.error('\nUsage: npm run extract-joplin-images <profile-number>');
+      console.error('Please select a profile number from the list above.');
+      process.exit(1);
+    }
+
+    const selectedProfile = profiles[profileIndex];
+    const profilePath = path.join(joplinPath, selectedProfile);
+    const dbPath = findJoplinDatabase(profilePath);
     const outputPath = path.join(__dirname, '..', 'joplin-images');
 
-    console.log('Joplin database:', dbPath);
+    console.log('\nSelected profile:', selectedProfile);
+    console.log('Database path:', dbPath);
     console.log('Output directory:', outputPath);
 
     await extractImages(dbPath, outputPath);
-    console.log('Image extraction complete!');
+    console.log('\nImage extraction complete!');
   } catch (error) {
     console.error('Failed to extract images:', error);
     process.exit(1);
