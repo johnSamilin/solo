@@ -10,7 +10,7 @@ const __dirname = path.dirname(__filename);
 // Get Joplin database path based on platform
 function getDefaultJoplinPath() {
   if (process.platform === 'win32') {
-    return path.join(process.env.APPDATA, 'joplin-desktop');
+    return path.join(process.env.APPDATA, '../../.config/joplin-desktop');
   } else if (process.platform === 'darwin') {
     return path.join(process.env.HOME, 'Library', 'Application Support', 'joplin-desktop');
   }
@@ -115,7 +115,7 @@ async function extractImages(dbPath, outputPath) {
       await mkdirp(notePath);
 
       // Determine resource file path
-      const resourcePath = path.join(resourcesDir, `${resource.id}.${resource.mime.split('/')[1]}`);
+      const resourcePath = path.join(resourcesDir, `${resource.id}.${resource.title.split('/')[1]}`);
       if (!fs.existsSync(resourcePath)) {
         console.warn(`Resource file not found: ${resourcePath}`);
         continue;
