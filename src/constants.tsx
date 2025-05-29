@@ -79,4 +79,24 @@ export const themes: Record<string, { name: string; settings: TypographySettings
       typewriterSound: 'typewriter-1'
     },
   },
+  fbi: {
+    name: 'FBI',
+    settings: {
+      editorFontFamily: 'UMTypewriter',
+      editorFontSize: '1rem',
+      editorLineHeight: '2',
+      titleFontFamily: 'UMTypewriter',
+      titleFontSize: '1.25rem',
+      sidebarFontFamily: 'UMTypewriter',
+      sidebarFontSize: '0.875rem',
+      pageMargins: '2.5rem',
+      paragraphSpacing: '2em',
+      enableDropCaps: false,
+      dropCapSize: '3.5em',
+      dropCapLineHeight: '3.5',
+      maxEditorWidth: '60%',
+      sidebarPinned: true,
+      typewriterSound: 'typewriter'
+    },
+  },
 };

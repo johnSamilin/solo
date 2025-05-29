@@ -1,8 +1,8 @@
+import { useEffect, useRef, useState } from 'react';
 import { EditorContent } from "@tiptap/react";
-import { FC, useEffect, useRef, useMemo, useState } from "react";
-import { observer } from "mobx-react-lite";
 import { Editor as TEditor } from "@tiptap/react";
 import { Howl } from 'howler';
+import { observer } from 'mobx-react-lite';
 import { useStore } from "../../stores/StoreProvider";
 import { FAB } from "./FAB";
 import { TagsDisplay } from "./TagsDisplay";
@@ -49,6 +49,10 @@ export const Editor: FC<EditorProps> = observer(({
   const soundRef = useRef<Howl>();
   const editorContentRef = useRef<HTMLDivElement>(null);
   const [contextMenu, setContextMenu] = useState<ImageContextMenu | null>(null);
+  const [isDictating, setIsDictating] = useState(false);
+  const [dictationLang, setDictationLang] = useState<'en-US' | 'ru-RU'>('ru-RU');
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const isLanguageSwitchPending = useRef(false);
   
   useEffect(() => {
     const currentSettings = notesStore.selectedNote?.theme ? 
@@ -266,6 +270,80 @@ export const Editor: FC<EditorProps> = observer(({
     }
   };
 
+  const initializeSpeechRecognition = () => {
+    if (!('webkitSpeechRecognition' in window)) {
+      settingsStore.setToast('Speech recognition is not supported in your browser', 'error');
+      return null;
+    }
+
+    const SpeechRecognition = window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = dictationLang;
+
+    recognition.onstart = () => {
+      setIsDictating(true);
+      settingsStore.setToast('Listening...', 'success');
+    };
+
+    recognition.onresult = (event) => {
+      if (!editor) return;
+      console.log(event.results);
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          editor.commands.insertContent(transcript + ' ');
+        }
+      }
+    };
+
+    recognition.onerror = (event) => {
+      console.error('Speech recognition error:', event.error);
+      settingsStore.setToast('Speech recognition error: ' + event.error, 'error');
+      setIsDictating(false);
+      isLanguageSwitchPending.current = false;
+    };
+
+    recognition.onend = () => {
+      setIsDictating(false);
+      if (isLanguageSwitchPending.current) {
+        isLanguageSwitchPending.current = false;
+        const newRecognition = initializeSpeechRecognition();
+        if (newRecognition) {
+          recognitionRef.current = newRecognition;
+          newRecognition.start();
+        }
+      }
+    };
+
+    return recognition;
+  };
+
+  const handleDictation = () => {
+    if (isDictating) {
+      recognitionRef.current?.stop();
+      isLanguageSwitchPending.current = false;
+      return;
+    }
+
+    const recognition = initializeSpeechRecognition();
+    if (recognition) {
+      recognitionRef.current = recognition;
+      recognition.start();
+    }
+  };
+
+  const toggleDictationLanguage = () => {
+    if (!isDictating) return;
+
+    const newLang = dictationLang === 'en-US' ? 'ru-RU' : 'en-US';
+    setDictationLang(newLang);
+    isLanguageSwitchPending.current = true;
+    recognitionRef.current?.stop();
+  };
+
   const wordCount = editor?.state.doc.textContent.trim().split(/\s+/).filter(word => word.length > 0).length || 0;
   const paragraphCount = editor?.state.doc.content.content.filter(
     node => node.type.name === 'paragraph' || node.type.name === 'heading'
@@ -322,6 +400,15 @@ export const Editor: FC<EditorProps> = observer(({
           {!settingsStore.isZenMode && <div className="word-count">
             {wordCount}/{paragraphCount}
           </div>}
+          {isDictating && (
+            <button
+              onClick={toggleDictationLanguage}
+              className="language-selector"
+              title={`Current language: ${dictationLang === 'en-US' ? 'English' : 'Russian'}`}
+            >
+              {dictationLang === 'en-US' ? '🇺🇸' : '🇷🇺'}
+            </button>
+          )}
         </div>
         <FAB
           editor={editor}
@@ -334,6 +421,8 @@ export const Editor: FC<EditorProps> = observer(({
           handleParagraphTagging={handleParagraphTagging}
           setIsToolbarExpanded={(expanded) => settingsStore.isToolbarExpanded = expanded}
           openNoteSettings={() => settingsStore.setNoteSettingsOpen(true)}
+          handleDictation={handleDictation}
+          isDictating={isDictating}
         />
       </div>
 

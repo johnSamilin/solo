@@ -13,7 +13,8 @@
     "certs:init": "node scripts/init-certs.js",
     "certs:renew": "node scripts/renew-certs.js",
     "db:init": "node scripts/init-db.js",
-    "user:create": "node scripts/create-user.js"
+    "user:create": "node scripts/create-user.js",
+    "umami:install": "cd umami && npm install && npm run build"
   },
   "dependencies": {
     "acme-client": "^5.3.0",

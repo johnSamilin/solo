@@ -1,6 +1,6 @@
 import { Editor } from "@tiptap/react";
-import { Undo2, Redo2, ImageIcon, LinkIcon, EyeOff, ListChecks, Minimize2, Maximize2, Leaf, Settings, Tag } from "lucide-react";
-import { FC, useRef } from "react";
+import { Undo2, Redo2, ImageIcon, LinkIcon, EyeOff, ListChecks, Minimize2, Maximize2, Leaf, Settings, Tag, Mic } from "lucide-react";
+import { FC, useRef, useState } from "react";
 
 type FABProps = {
   editor: Editor | null;
@@ -13,6 +13,8 @@ type FABProps = {
   handleParagraphTagging: () => void;
   setIsToolbarExpanded: (val: boolean) => void;
   openNoteSettings: () => void;
+  handleDictation: () => void;
+  isDictating: boolean;
 };
 
 export const FAB: FC<FABProps> = ({
@@ -26,6 +28,8 @@ export const FAB: FC<FABProps> = ({
   handleParagraphTagging,
   setIsToolbarExpanded,
   openNoteSettings,
+  handleDictation,
+  isDictating,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -107,6 +111,13 @@ export const FAB: FC<FABProps> = ({
             title="Add Tags to Paragraph"
           >
             <Tag className="h-4 w-4" />
+          </button>
+          <button
+            onClick={handleDictation}
+            className={`button-icon ${isDictating ? 'active' : ''}`}
+            title="Toggle Speech-to-Text"
+          >
+            <Mic className="h-4 w-4" />
           </button>
         </div>
         <div className="editor-toolbar-group">
