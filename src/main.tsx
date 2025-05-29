@@ -4,7 +4,7 @@ import App from './App.tsx';
 import './index.css';
 import { StoreProvider } from './stores/StoreProvider';
 import { registerSW } from './pwa';
-import { init } from '@umami/analytics';
+import { init } from '@umami/client';
 
 // Initialize Umami analytics if configured
 if (import.meta.env.VITE_UMAMI_WEBSITE_ID && import.meta.env.VITE_UMAMI_HOST) {
