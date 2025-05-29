@@ -20,7 +20,6 @@
     "@tiptap/pm": "^2.2.4",
     "@tiptap/react": "^2.2.4",
     "@tiptap/starter-kit": "^2.2.4",
-    "@umami/client": "^0.6.1",
     "howler": "^2.2.4",
     "lucide-react": "^0.344.0",
     "mobx": "^6.12.0",
