@@ -94,7 +94,7 @@ export const themes: Record<string, { name: string; settings: TypographySettings
       enableDropCaps: false,
       dropCapSize: '3.5em',
       dropCapLineHeight: '3.5',
-      maxEditorWidth: '60%',
+      maxEditorWidth: '90%',
       sidebarPinned: true,
       typewriterSound: 'typewriter'
     },

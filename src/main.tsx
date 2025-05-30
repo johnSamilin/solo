@@ -5,6 +5,22 @@ import './index.css';
 import { StoreProvider } from './stores/StoreProvider';
 import { registerSW } from './pwa';
 
+// Initialize Google Analytics if configured
+const gaId = import.meta.env.VITE_GANALYTICS;
+if (gaId) {
+  const script = document.createElement('script');
+  script.async = true;
+  script.src = `https://www.googletagmanager.com/gtag/js?id=${gaId}`;
+  document.head.appendChild(script);
+
+  window.dataLayer = window.dataLayer || [];
+  function gtag(...args: any[]) {
+    window.dataLayer.push(args);
+  }
+  gtag('js', new Date());
+  gtag('config', gaId);
+}
+
 // Register service worker
 registerSW();
 
