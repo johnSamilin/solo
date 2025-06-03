@@ -352,3 +352,39 @@ body {
 .link-context-menu .menu-item:hover {
   background-color: var(--color-bg);
 }
+
+/* Cut-in styles */
+.cut-in {
+  max-width: 300px;
+  margin: 1rem 0;
+  padding: 1rem;
+  background: var(--color-bg);
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.cut-in.left {
+  float: left;
+  margin-right: 1.5rem;
+  margin-left: -2rem;
+}
+
+.cut-in.right {
+  float: right;
+  margin-left: 1.5rem;
+  margin-right: -2rem;
+}
+
+.cut-in-image {
+  width: 100%;
+  height: auto;
+  border-radius: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.cut-in-text {
+  font-size: 0.875rem;
+  color: var(--color-text);
+  margin: 0;
+  line-height: 1.5;
+}

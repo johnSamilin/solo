@@ -1,5 +1,5 @@
 import { Editor } from "@tiptap/react";
-import { Undo2, Redo2, ImageIcon, LinkIcon, EyeOff, ListChecks, Minimize2, Maximize2, Leaf, Settings, Tag, Mic } from "lucide-react";
+import { Undo2, Redo2, ImageIcon, LinkIcon, EyeOff, ListChecks, Minimize2, Maximize2, Leaf, Settings, Tag, Mic, SplitSquareVertical } from "lucide-react";
 import { FC, useRef, useState } from "react";
 
 type FABProps = {
@@ -15,6 +15,7 @@ type FABProps = {
   openNoteSettings: () => void;
   handleDictation: () => void;
   isDictating: boolean;
+  handleCutIn: () => void;
 };
 
 export const FAB: FC<FABProps> = ({
@@ -30,6 +31,7 @@ export const FAB: FC<FABProps> = ({
   openNoteSettings,
   handleDictation,
   isDictating,
+  handleCutIn,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -118,6 +120,13 @@ export const FAB: FC<FABProps> = ({
             title="Toggle Speech-to-Text"
           >
             <Mic className="h-4 w-4" />
+          </button>
+          <button
+            onClick={handleCutIn}
+            className="button-icon"
+            title="Insert Cut-in"
+          >
+            <SplitSquareVertical className="h-4 w-4" />
           </button>
         </div>
         <div className="editor-toolbar-group">

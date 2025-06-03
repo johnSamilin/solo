@@ -11,6 +11,7 @@ import { observer } from 'mobx-react-lite';
 import { Censored } from './extensions/Censored';
 import { ParagraphTags } from './extensions/ParagraphTags';
 import { FullWidthImage } from './extensions/FullWidthImage';
+import { CutIn } from './extensions/CutIn';
 import { buildTagTree } from './utils';
 import { useStore } from './stores/StoreProvider';
 import { SettingsModal } from './components/Modals/SettingsModal/SettingsModal';
@@ -64,6 +65,7 @@ const App = observer(() => {
         nested: true,
       }),
       ParagraphTags,
+      CutIn,
     ],
     content: '',
     onUpdate: ({ editor }) => {
@@ -301,6 +303,16 @@ const App = observer(() => {
       .run();
   };
 
+  const handleCutIn = () => {
+    const text = prompt('Enter cut-in text (optional):');
+    const image = prompt('Enter image URL (optional):');
+    const position = confirm('Position on right side?') ? 'right' : 'left';
+
+    if (text || image) {
+      editor?.chain().focus().setCutIn({ text, image, position }).run();
+    }
+  };
+
   return (
     <div className={`app ${settingsStore.isZenMode ? 'zen-mode' : ''}`}>
       {/* Settings Modal */}
@@ -339,6 +351,7 @@ const App = observer(() => {
             handleLinkInsert={handleLinkInsert}
             insertTaskList={insertTaskList}
             handleParagraphTagging={handleParagraphTagging}
+            handleCutIn={handleCutIn}
           />
         ) : (
           <div className="empty-state">
