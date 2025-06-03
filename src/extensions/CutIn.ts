@@ -16,13 +16,10 @@ declare module '@tiptap/core' {
 export const CutIn = Node.create({
   name: 'cutIn',
   group: 'block',
-  atom: true,
+  content: 'inline*',
 
   addAttributes() {
     return {
-      text: {
-        default: '',
-      },
       image: {
         default: '',
       },
@@ -47,7 +44,6 @@ export const CutIn = Node.create({
             return false;
           }
           return {
-            text: element.getAttribute('data-text') || '',
             image: element.getAttribute('data-image') || '',
             position: element.getAttribute('data-position') || 'right',
           };
@@ -59,10 +55,9 @@ export const CutIn = Node.create({
   renderHTML({ HTMLAttributes }) {
     return ['div', mergeAttributes({ 
       'data-type': 'cut-in',
-      'data-text': HTMLAttributes.text,
       'data-image': HTMLAttributes.image,
       'data-position': HTMLAttributes.position,
-    }, HTMLAttributes)];
+    }, HTMLAttributes), 0];
   },
 
   addNodeView() {
@@ -76,7 +71,14 @@ export const CutIn = Node.create({
         ({ commands }) => {
           return commands.insertContent({
             type: this.name,
-            attrs: options,
+            attrs: {
+              image: options.image || '',
+              position: options.position || 'right',
+            },
+            content: options.text ? [{ 
+              type: 'text',
+              text: options.text
+            }] : []
           });
         },
     };
