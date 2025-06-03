@@ -16,10 +16,7 @@ export const CutInComponent: FC<CutInProps> = ({ node }) => {
 
   return (
     <NodeViewWrapper>
-      <div
-        className={`cut-in ${position}`}
-        contentEditable={false}
-      >
+      <div className={`cut-in ${position}`} contentEditable={false}>
         {image && (
           <img src={image} alt={text || 'Cut-in image'} className="cut-in-image" />
         )}

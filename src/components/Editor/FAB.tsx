@@ -1,6 +1,6 @@
 import { Editor } from "@tiptap/react";
 import { Undo2, Redo2, ImageIcon, LinkIcon, EyeOff, ListChecks, Minimize2, Maximize2, Leaf, Settings, Tag, Mic, SplitSquareVertical } from "lucide-react";
-import { FC, useRef, useState } from "react";
+import { FC, useRef } from "react";
 
 type FABProps = {
   editor: Editor | null;
