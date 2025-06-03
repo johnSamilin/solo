@@ -42,12 +42,27 @@ export const CutIn = Node.create({
     return [
       {
         tag: 'div[data-type="cut-in"]',
+        getAttrs: element => {
+          if (!(element instanceof HTMLElement)) {
+            return false;
+          }
+          return {
+            text: element.getAttribute('data-text') || '',
+            image: element.getAttribute('data-image') || '',
+            position: element.getAttribute('data-position') || 'right',
+          };
+        },
       },
     ];
   },
 
   renderHTML({ HTMLAttributes }) {
-    return ['div', mergeAttributes({ 'data-type': 'cut-in' }, HTMLAttributes), 0];
+    return ['div', mergeAttributes({ 
+      'data-type': 'cut-in',
+      'data-text': HTMLAttributes.text,
+      'data-image': HTMLAttributes.image,
+      'data-position': HTMLAttributes.position,
+    }, HTMLAttributes)];
   },
 
   addNodeView() {
