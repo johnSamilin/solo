@@ -71,13 +71,11 @@ const App = observer(() => {
     onUpdate: ({ editor }) => {
       if (notesStore.selectedNote) {
         const content = editor.getHTML();
-        // Only update if content has actually changed
         if (content !== notesStore.selectedNote.content) {
           notesStore.updateNote(notesStore.selectedNote.id, {
             content: content,
           });
 
-          // Check word count since note was opened
           const currentContent = editor.state.doc.textContent.trim();
           const initialWords = initialContent.trim().split(/\s+/).filter(word => word.length > 0).length;
           const currentWords = currentContent.split(/\s+/).filter(word => word.length > 0).length;
@@ -148,30 +146,25 @@ const App = observer(() => {
 
       const content = notesStore.selectedNote.content;
       if (settingsStore.isCensorshipEnabled()) {
-        // Remove censored content
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = content;
         const censoredElements = tempDiv.querySelectorAll('span[data-censored]');
         censoredElements.forEach(el => el.textContent = '');
         
-        // Only update if content has changed
         if (tempDiv.innerHTML !== editor.getHTML()) {
           editor.commands.setContent(tempDiv.innerHTML);
           setInitialContent(tempDiv.textContent || '');
         }
       } else {
-        // Only update if content has changed
         if (content !== editor.getHTML()) {
           editor.commands.setContent(content);
           setInitialContent(editor.state.doc.textContent);
         }
       }
-      // Reset auto zen mode when switching notes
       setAutoZenDisabled(false);
     }
   }, [editor, notesStore.selectedNote, settingsStore.isCensorshipEnabled()]);
 
-  // Watch for zen mode changes
   useEffect(() => {
     if (!settingsStore.isZenMode) {
       setAutoZenDisabled(true);
@@ -204,11 +197,9 @@ const App = observer(() => {
     const root = document.documentElement;
     const globalSettings = settingsStore.settings;
 
-    // Always apply global settings to sidebar
     root.style.setProperty('--sidebar-font-family', globalSettings.sidebarFontFamily);
     root.style.setProperty('--sidebar-font-size', globalSettings.sidebarFontSize);
 
-    // Apply note-specific or global settings for editor
     const currentSettings = notesStore.selectedNote?.theme ? 
       themes[notesStore.selectedNote.theme].settings : 
       globalSettings;
@@ -224,7 +215,6 @@ const App = observer(() => {
     root.style.setProperty('--drop-cap-line-height', currentSettings.dropCapLineHeight);
     root.style.setProperty('--editor-width', currentSettings.maxEditorWidth);
 
-    // Toggle drop caps
     const editorContent = document.querySelector('.editor-body');
     if (editorContent) {
       if (currentSettings.enableDropCaps) {
@@ -262,7 +252,6 @@ const App = observer(() => {
         settingsStore.setToast('Failed to upload image', 'error');
       }
     } else {
-      // Fallback to base64 if no server sync
       const reader = new FileReader();
       reader.onload = () => {
         if (typeof reader.result === 'string') {
@@ -304,45 +293,45 @@ const App = observer(() => {
   };
 
   const handleCutIn = () => {
-    const text = prompt('Enter cut-in text (optional):');
-    const image = prompt('Enter image URL (optional):');
+    if (!editor) return;
+    
+    const { from, to } = editor.state.selection;
     const position = confirm('Position on right side?') ? 'right' : 'left';
-
-    if (text || image) {
-      editor?.chain().focus().setCutIn({ text, image, position }).run();
+    
+    const content = editor.state.doc.textBetween(from, to);
+    if (content) {
+      editor.chain()
+        .focus()
+        .deleteRange({ from, to })
+        .setCutIn({ text: content, position })
+        .run();
     }
   };
 
   return (
     <div className={`app ${settingsStore.isZenMode ? 'zen-mode' : ''}`}>
-      {/* Settings Modal */}
       {settingsStore.isSettingsOpen && (
         <SettingsModal
           onClose={() => settingsStore.setSettingsOpen(false)}
         />
       )}
 
-      {/* New Notebook Modal */}
       {settingsStore.isNewNotebookModalOpen && (
         <NewNotebookModal
           onClose={() => settingsStore.setNewNotebookModalOpen(false)}
         />
       )}
 
-      {/* Tag Modal */}
       {settingsStore.isTagModalOpen && (
         <TagModal
           onClose={() => settingsStore.setTagModalOpen(false)}
         />
       )}
 
-      {/* Toast */}
       <Toast />
 
-      {/* Sidebar */}
       <Sidebar editor={editor} />
 
-      {/* Main Content */}
       <div className="main-content">
         {notesStore.selectedNote ? (
           <Editor
