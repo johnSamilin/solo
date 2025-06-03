@@ -36,6 +36,7 @@ type EditorProps = {
   handleLinkInsert: () => void;
   insertTaskList: () => void;
   handleParagraphTagging: () => void;
+  handleCutIn: () => void;
 };
 
 export const Editor: FC<EditorProps> = observer(({
@@ -44,6 +45,7 @@ export const Editor: FC<EditorProps> = observer(({
   handleLinkInsert,
   insertTaskList,
   handleParagraphTagging,
+  handleCutIn,
 }) => {
   const { notesStore, settingsStore } = useStore();
   const soundRef = useRef<Howl>();
@@ -132,7 +134,6 @@ export const Editor: FC<EditorProps> = observer(({
 
     if (editor) {
       editor.chain().focus().setContent(editor.getHTML().replace(contextMenu.target.outerHTML, '')).run();
-      // Update note content in storage
       notesStore.updateNote(notesStore.selectedNote.id, {
         content: editor.getHTML()
       });
@@ -270,6 +271,20 @@ export const Editor: FC<EditorProps> = observer(({
     }
   };
 
+  const handleDictation = () => {
+    if (isDictating) {
+      recognitionRef.current?.stop();
+      isLanguageSwitchPending.current = false;
+      return;
+    }
+
+    const recognition = initializeSpeechRecognition();
+    if (recognition) {
+      recognitionRef.current = recognition;
+      recognition.start();
+    }
+  };
+
   const initializeSpeechRecognition = () => {
     if (!('webkitSpeechRecognition' in window)) {
       settingsStore.setToast('Speech recognition is not supported in your browser', 'error');
@@ -319,20 +334,6 @@ export const Editor: FC<EditorProps> = observer(({
     };
 
     return recognition;
-  };
-
-  const handleDictation = () => {
-    if (isDictating) {
-      recognitionRef.current?.stop();
-      isLanguageSwitchPending.current = false;
-      return;
-    }
-
-    const recognition = initializeSpeechRecognition();
-    if (recognition) {
-      recognitionRef.current = recognition;
-      recognition.start();
-    }
   };
 
   const toggleDictationLanguage = () => {
@@ -423,6 +424,7 @@ export const Editor: FC<EditorProps> = observer(({
           openNoteSettings={() => settingsStore.setNoteSettingsOpen(true)}
           handleDictation={handleDictation}
           isDictating={isDictating}
+          handleCutIn={handleCutIn}
         />
       </div>
 
