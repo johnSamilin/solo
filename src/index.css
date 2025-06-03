@@ -324,6 +324,7 @@ body {
   color: #991b1b;
 }
 
+/* Link context menu styles */
 .link-context-menu {
   position: fixed;
   background: var(--color-white);
@@ -354,78 +355,46 @@ body {
 
 /* Cut-in styles */
 .cut-in {
-  max-width: 350px;
-  margin: 2rem 0;
-  padding: 1.5rem;
-  background: var(--color-white);
-  border-radius: 0;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  max-width: 300px;
+  margin: 1rem 0;
+  padding: 1rem;
+  background: var(--color-bg);
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   position: relative;
-  font-family: var(--editor-font-family), Georgia, serif;
-  border: 1px solid var(--color-border);
-}
-
-.cut-in::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: var(--color-text);
 }
 
 .cut-in.left {
   float: left;
-  margin-right: 2rem;
-  margin-left: -3rem;
+  margin-right: 1.5rem;
+  margin-left: -2rem;
 }
 
 .cut-in.right {
   float: right;
-  margin-left: 2rem;
-  margin-right: -3rem;
-}
-
-.cut-in.left::before {
-  right: -1px;
-}
-
-.cut-in.right::before {
-  left: -1px;
+  margin-left: 1.5rem;
+  margin-right: -2rem;
 }
 
 .cut-in-image {
   width: 100%;
   height: auto;
-  margin-bottom: 1rem;
+  border-radius: 0.25rem;
+  margin-bottom: 0.5rem;
 }
 
 .cut-in-text {
-  font-size: 1.1rem;
+  font-size: 0.875rem;
   color: var(--color-text);
   margin: 0;
-  line-height: 1.6;
-  font-style: italic;
-  position: relative;
-  padding: 0 1rem;
-}
-
-.cut-in-text::before {
-  content: '"';
-  position: absolute;
-  left: -0.5rem;
-  top: -0.5rem;
-  font-size: 2.5rem;
-  color: var(--color-text-light);
-  font-family: Georgia, serif;
-  line-height: 1;
+  line-height: 1.5;
 }
 
 .cut-in-position-toggle {
   position: absolute;
-  top: 0.75rem;
-  right: 0.75rem;
-  padding: 0.375rem;
+  top: 0.5rem;
+  right: 0.5rem;
+  padding: 0.25rem;
   background: var(--color-white);
   border: 1px solid var(--color-border);
   border-radius: 0.25rem;
@@ -435,8 +404,7 @@ body {
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  transition: opacity 0.2s ease;
 }
 
 .cut-in:hover .cut-in-position-toggle {
@@ -446,6 +414,4 @@ body {
 .cut-in-position-toggle:hover {
   background: var(--color-bg);
   color: var(--color-text);
-  transform: translateY(-1px);
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
 }
