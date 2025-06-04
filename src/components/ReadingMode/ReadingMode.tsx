@@ -1,4 +1,4 @@
-import { FC, useEffect, useRef, useState } from 'react';
+import { FC, useEffect } from 'react';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { observer } from 'mobx-react-lite';
 import { useStore } from '../../stores/StoreProvider';
@@ -10,21 +10,21 @@ interface ReadingModeProps {
 
 export const ReadingMode: FC<ReadingModeProps> = observer(({ onClose }) => {
   const { notesStore } = useStore();
-  const contentRef = useRef<HTMLDivElement>(null);
-  const [progress, setProgress] = useState(0);
-  const [fontSize, setFontSize] = useState('1rem');
 
   useEffect(() => {
-    const handleScroll = () => {
-      if (!contentRef.current) return;
-      const { scrollTop, scrollHeight, clientHeight } = contentRef.current;
-      const progress = (scrollTop / (scrollHeight - clientHeight)) * 100;
-      setProgress(Math.round(progress));
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      } else if (e.key === 'ArrowLeft') {
+        handlePrevNote();
+      } else if (e.key === 'ArrowRight') {
+        handleNextNote();
+      }
     };
 
-    contentRef.current?.addEventListener('scroll', handleScroll);
-    return () => contentRef.current?.removeEventListener('scroll', handleScroll);
-  }, []);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   const handlePrevNote = () => {
     if (!notesStore.selectedNote) return;
@@ -32,9 +32,6 @@ export const ReadingMode: FC<ReadingModeProps> = observer(({ onClose }) => {
     const currentIndex = visibleNotes.findIndex(note => note.id === notesStore.selectedNote?.id);
     if (currentIndex > 0) {
       notesStore.setSelectedNote(visibleNotes[currentIndex - 1]);
-      if (contentRef.current) {
-        contentRef.current.scrollTop = 0;
-      }
     }
   };
 
@@ -44,62 +41,48 @@ export const ReadingMode: FC<ReadingModeProps> = observer(({ onClose }) => {
     const currentIndex = visibleNotes.findIndex(note => note.id === notesStore.selectedNote?.id);
     if (currentIndex < visibleNotes.length - 1) {
       notesStore.setSelectedNote(visibleNotes[currentIndex + 1]);
-      if (contentRef.current) {
-        contentRef.current.scrollTop = 0;
-      }
     }
   };
 
   if (!notesStore.selectedNote) return null;
 
+  // Transform the content to ensure note title is an H1
+  const content = notesStore.selectedNote.content.replace(
+    /<h1[^>]*>.*?<\/h1>/g, 
+    ''
+  );
+
+  const transformedContent = `
+    <h1>${notesStore.selectedNote.title}</h1>
+    ${content}
+  `;
+
   return (
     <div className="reading-mode">
-      <div className="reading-mode-header">
-        <h1 className="reading-mode-title">{notesStore.selectedNote.title}</h1>
-        <button className="button-icon" onClick={onClose}>
-          <X className="h-4 w-4" />
-        </button>
-      </div>
-
+      <button className="reading-mode-close" onClick={onClose}>
+        <X className="h-4 w-4" />
+      </button>
+      
       <div 
-        ref={contentRef}
         className="reading-mode-content"
-        style={{ fontSize }}
-        dangerouslySetInnerHTML={{ __html: notesStore.selectedNote.content }}
+        dangerouslySetInnerHTML={{ __html: transformedContent }}
       />
 
-      <div className="reading-mode-footer">
-        <div className="reading-mode-progress">
-          {progress}% read
-        </div>
-        <div className="reading-mode-controls">
-          <select 
-            value={fontSize}
-            onChange={(e) => setFontSize(e.target.value)}
-            title="Font size"
-          >
-            <option value="0.875rem">Small</option>
-            <option value="1rem">Medium</option>
-            <option value="1.125rem">Large</option>
-            <option value="1.25rem">Extra Large</option>
-          </select>
-          <button
-            className="button-icon"
-            onClick={handlePrevNote}
-            disabled={!notesStore.selectedNote}
-            title="Previous note"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          <button
-            className="button-icon"
-            onClick={handleNextNote}
-            disabled={!notesStore.selectedNote}
-            title="Next note"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
+      <div className="reading-mode-nav">
+        <button
+          onClick={handlePrevNote}
+          disabled={!notesStore.selectedNote}
+          title="Previous note (←)"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <button
+          onClick={handleNextNote}
+          disabled={!notesStore.selectedNote}
+          title="Next note (→)"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
       </div>
     </div>
   );
