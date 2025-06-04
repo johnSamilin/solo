@@ -1,5 +1,5 @@
 import { FC, useEffect } from 'react';
-import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X } from 'lucide-react';
 import { observer } from 'mobx-react-lite';
 import { useStore } from '../../stores/StoreProvider';
 import './ReadingMode.css';
@@ -9,16 +9,12 @@ interface ReadingModeProps {
 }
 
 export const ReadingMode: FC<ReadingModeProps> = observer(({ onClose }) => {
-  const { notesStore } = useStore();
+  const { notesStore, settingsStore } = useStore();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         onClose();
-      } else if (e.key === 'ArrowLeft') {
-        handlePrevNote();
-      } else if (e.key === 'ArrowRight') {
-        handleNextNote();
       }
     };
 
@@ -26,36 +22,38 @@ export const ReadingMode: FC<ReadingModeProps> = observer(({ onClose }) => {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  const handlePrevNote = () => {
-    if (!notesStore.selectedNote) return;
-    const visibleNotes = notesStore.getVisibleNotes(false);
-    const currentIndex = visibleNotes.findIndex(note => note.id === notesStore.selectedNote?.id);
-    if (currentIndex > 0) {
-      notesStore.setSelectedNote(visibleNotes[currentIndex - 1]);
+  // Get all visible notes
+  const visibleNotes = notesStore.getVisibleNotes(settingsStore.isCensorshipEnabled());
+
+  // Sort notes by notebook hierarchy and creation date
+  const sortedNotes = visibleNotes.sort((a, b) => {
+    // First sort by notebook hierarchy
+    const notebookA = notesStore.notebooks.find(n => n.id === a.notebookId);
+    const notebookB = notesStore.notebooks.find(n => n.id === b.notebookId);
+    
+    if (notebookA && notebookB) {
+      if (notebookA.parentId !== notebookB.parentId) {
+        return notebookA.parentId ? 1 : -1;
+      }
     }
-  };
+    
+    // Then sort by creation date
+    return a.createdAt.getTime() - b.createdAt.getTime();
+  });
 
-  const handleNextNote = () => {
-    if (!notesStore.selectedNote) return;
-    const visibleNotes = notesStore.getVisibleNotes(false);
-    const currentIndex = visibleNotes.findIndex(note => note.id === notesStore.selectedNote?.id);
-    if (currentIndex < visibleNotes.length - 1) {
-      notesStore.setSelectedNote(visibleNotes[currentIndex + 1]);
-    }
-  };
+  // Combine all notes into a single content
+  const combinedContent = sortedNotes.map(note => {
+    // Remove any existing h1 tags from the content
+    const content = note.content.replace(
+      /<h1[^>]*>.*?<\/h1>/g, 
+      ''
+    );
 
-  if (!notesStore.selectedNote) return null;
-
-  // Transform the content to ensure note title is an H1
-  const content = notesStore.selectedNote.content.replace(
-    /<h1[^>]*>.*?<\/h1>/g, 
-    ''
-  );
-
-  const transformedContent = `
-    <h1>${notesStore.selectedNote.title}</h1>
-    ${content}
-  `;
+    return `
+      <h1>${note.title}</h1>
+      ${content}
+    `;
+  }).join('<hr class="note-separator" />');
 
   return (
     <div className="reading-mode">
@@ -65,25 +63,8 @@ export const ReadingMode: FC<ReadingModeProps> = observer(({ onClose }) => {
       
       <div 
         className="reading-mode-content"
-        dangerouslySetInnerHTML={{ __html: transformedContent }}
+        dangerouslySetInnerHTML={{ __html: combinedContent }}
       />
-
-      <div className="reading-mode-nav">
-        <button
-          onClick={handlePrevNote}
-          disabled={!notesStore.selectedNote}
-          title="Previous note (←)"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </button>
-        <button
-          onClick={handleNextNote}
-          disabled={!notesStore.selectedNote}
-          title="Next note (→)"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </button>
-      </div>
     </div>
   );
 });

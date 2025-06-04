@@ -17,6 +17,8 @@
   margin: 0 auto;
   padding: 0 2rem;
   font-family: var(--editor-font-family), Georgia, serif;
+  font-size: var(--editor-font-size);
+  line-height: var(--editor-line-height);
 }
 
 @media (max-width: 768px) {
@@ -30,8 +32,14 @@
   column-span: all;
   font-family: var(--title-font-family), Georgia, serif;
   font-size: 2.5rem;
-  margin: 0 0 3rem;
+  margin: 3rem 0 2rem;
   text-align: center;
+  break-after: avoid;
+  break-inside: avoid;
+}
+
+.reading-mode-content h1:first-child {
+  margin-top: 0;
 }
 
 .reading-mode-content p {
@@ -44,6 +52,7 @@
 .reading-mode-content h2,
 .reading-mode-content h3 {
   break-after: avoid;
+  break-inside: avoid;
   margin-top: 2em;
   margin-bottom: 1em;
 }
@@ -64,19 +73,6 @@
   top: 2rem;
   right: 2rem;
   z-index: 1001;
-}
-
-.reading-mode-nav {
-  position: fixed;
-  bottom: 2rem;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 2rem;
-  z-index: 1001;
-}
-
-.reading-mode button {
   width: 3rem;
   height: 3rem;
   border-radius: 50%;
@@ -91,15 +87,17 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.reading-mode button:hover {
+.reading-mode-close:hover {
   background: var(--color-bg);
   transform: translateY(-1px);
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
-.reading-mode button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
+.reading-mode-content .note-separator {
+  column-span: all;
+  margin: 3rem 0;
+  border: none;
+  border-top: 1px solid var(--color-border);
+  break-after: avoid;
+  break-inside: avoid;
 }
