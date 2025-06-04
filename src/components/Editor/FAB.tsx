@@ -1,5 +1,5 @@
 import { Editor } from "@tiptap/react";
-import { Undo2, Redo2, ImageIcon, LinkIcon, EyeOff, ListChecks, Minimize2, Maximize2, Leaf, Settings, Tag, Mic, SplitSquareVertical } from "lucide-react";
+import { Undo2, Redo2, ImageIcon, LinkIcon, EyeOff, ListChecks, Minimize2, Maximize2, Leaf, Settings, Tag, Mic, SplitSquareVertical, Book } from "lucide-react";
 import { FC, useRef } from "react";
 
 type FABProps = {
@@ -16,6 +16,7 @@ type FABProps = {
   handleDictation: () => void;
   isDictating: boolean;
   handleCutIn: () => void;
+  toggleReadingMode: () => void;
 };
 
 export const FAB: FC<FABProps> = ({
@@ -32,6 +33,7 @@ export const FAB: FC<FABProps> = ({
   handleDictation,
   isDictating,
   handleCutIn,
+  toggleReadingMode,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -136,6 +138,13 @@ export const FAB: FC<FABProps> = ({
             title={isZenMode ? 'Exit Zen Mode' : 'Enter Zen Mode'}
           >
             <Leaf className="h-4 w-4" />
+          </button>
+          <button
+            onClick={toggleReadingMode}
+            className="button-icon"
+            title="Toggle Reading Mode"
+          >
+            <Book className="h-4 w-4" />
           </button>
           <button
             onClick={openNoteSettings}

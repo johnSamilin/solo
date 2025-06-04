@@ -7,6 +7,7 @@ import { useStore } from "../../stores/StoreProvider";
 import { FAB } from "./FAB";
 import { TagsDisplay } from "./TagsDisplay";
 import { NoteSettingsModal } from "../Modals/NoteSettingsModal";
+import { ReadingMode } from "../ReadingMode/ReadingMode";
 import { ArrowLeft, Plus, ArrowRight, Maximize2, Trash2 } from "lucide-react";
 import { themes } from "../../constants";
 
@@ -53,6 +54,7 @@ export const Editor: FC<EditorProps> = observer(({
   const [contextMenu, setContextMenu] = useState<ImageContextMenu | null>(null);
   const [isDictating, setIsDictating] = useState(false);
   const [dictationLang, setDictationLang] = useState<'en-US' | 'ru-RU'>('ru-RU');
+  const [isReadingMode, setIsReadingMode] = useState(false);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const isLanguageSwitchPending = useRef(false);
   
@@ -357,6 +359,10 @@ export const Editor: FC<EditorProps> = observer(({
   const hasPrev = currentIndex > 0;
   const hasNext = currentIndex < visibleNotes.length - 1;
 
+  if (isReadingMode) {
+    return <ReadingMode onClose={() => setIsReadingMode(false)} />;
+  }
+
   return (
     <div className="editor">
       <div className="editor-container">
@@ -425,6 +431,7 @@ export const Editor: FC<EditorProps> = observer(({
           handleDictation={handleDictation}
           isDictating={isDictating}
           handleCutIn={handleCutIn}
+          toggleReadingMode={() => setIsReadingMode(!isReadingMode)}
         />
       </div>
 
