@@ -5,6 +5,7 @@ import { NotebookItem } from "./NotebookItem";
 import { useStore } from "../../stores/StoreProvider";
 import { Editor } from "@tiptap/react";
 import { isPlugin } from "../../config";
+import { analytics } from "../../utils/analytics";
 
 import './Sidebar.css';
 
@@ -76,9 +77,15 @@ export const Sidebar: FC<SidebarProps> = observer(({ editor }) => {
           success ? 'WebDAV sync completed successfully' : 'WebDAV sync failed',
           success ? 'success' : 'error'
         );
+        if (success) {
+          analytics.syncCompleted('webdav');
+        } else {
+          analytics.syncFailed('webdav');
+        }
       } catch (error) {
         console.error('Sync failed:', error);
         settingsStore.setToast('WebDAV sync failed', 'error');
+        analytics.syncFailed('webdav');
       }
     } else if (settingsStore.syncMode === 'server' && settingsStore.server.token) {
       try {
@@ -96,12 +103,15 @@ export const Sidebar: FC<SidebarProps> = observer(({ editor }) => {
 
         if (response.ok) {
           settingsStore.setToast('Server sync completed successfully', 'success');
+          analytics.syncCompleted('server');
         } else {
           settingsStore.setToast('Server sync failed', 'error');
+          analytics.syncFailed('server');
         }
       } catch (error) {
         console.error('Server sync failed:', error);
         settingsStore.setToast('Server sync failed', 'error');
+        analytics.syncFailed('server');
       }
     }
     setIsMenuOpen(false);

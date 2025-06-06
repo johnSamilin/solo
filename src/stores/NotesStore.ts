@@ -2,6 +2,7 @@ import { makeObservable, observable } from 'mobx';
 import { Note, Tag, Notebook, ImportMode } from '../types';
 import { generateUniqueId } from '../utils';
 import { isPlugin } from '../config';
+import { analytics } from '../utils/analytics';
 
 const STORAGE_KEY = 'solo-notes-data';
 
@@ -177,6 +178,7 @@ export class NotesStore {
     this.cacheNotebooks();
     this.cacheNotes();
     this.saveToStorage();
+    analytics.dataImported(mode);
   };
 
   createNote = (notebookId?: string) => {
@@ -202,6 +204,7 @@ export class NotesStore {
 
     this.saveToStorage();
     this.cacheNotes();
+    analytics.noteCreated();
     return newNote;
   };
 
@@ -214,6 +217,16 @@ export class NotesStore {
       }
       this.saveToStorage();
       this.cacheNotes();
+      
+      // Track theme changes
+      if (updates.theme !== undefined) {
+        analytics.themeChanged(updates.theme || 'default');
+      }
+      
+      // Track content edits (but not too frequently)
+      if (updates.content !== undefined) {
+        analytics.noteEdited();
+      }
     }
   };
 
@@ -235,6 +248,7 @@ export class NotesStore {
       }
       this.saveToStorage();
       this.cacheNotes();
+      analytics.censorshipToggled(note.isCensored);
     }
   };
 
@@ -244,6 +258,7 @@ export class NotesStore {
       notebook.isCensored = !notebook.isCensored;
       this.saveToStorage();
       this.cacheNotebooks();
+      analytics.censorshipToggled(notebook.isCensored);
     }
   };
 
@@ -255,6 +270,7 @@ export class NotesStore {
     }
     this.saveToStorage();
     this.cacheNotes();
+    analytics.noteDeleted();
   };
 
   setSelectedNote = (note: Note | null) => {
@@ -301,6 +317,7 @@ export class NotesStore {
     this.cacheNotebooks();
     this.cacheNotes();
     this.saveToStorage();
+    analytics.notebookCreated();
     return newNotebook;
   };
 
