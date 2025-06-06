@@ -9,6 +9,7 @@ import { TagsDisplay } from "./TagsDisplay";
 import { NoteSettingsModal } from "../Modals/NoteSettingsModal";
 import { ArrowLeft, Plus, ArrowRight, Maximize2, Trash2 } from "lucide-react";
 import { themes } from "../../constants";
+import { analytics } from "../../utils/analytics";
 
 import './Editor.css';
 
@@ -282,6 +283,7 @@ export const Editor: FC<EditorProps> = observer(({
     if (recognition) {
       recognitionRef.current = recognition;
       recognition.start();
+      analytics.dictationUsed();
     }
   };
 

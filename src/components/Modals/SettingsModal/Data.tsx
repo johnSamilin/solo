@@ -3,6 +3,7 @@ import { useStore } from "../../../stores/StoreProvider";
 import { isPlugin } from "../../../config";
 import { observer } from "mobx-react-lite";
 import { ImportMode } from "../../../types";
+import { analytics } from "../../../utils/analytics";
 
 export const Data: FC = observer(() => {
   const { notesStore, settingsStore } = useStore();
@@ -20,6 +21,7 @@ export const Data: FC = observer(() => {
       if (folder !== '')  {
         window.bridge?.exportData(JSON.stringify(data), folder);
       }
+      analytics.dataExported();
       return;
     }
 
@@ -33,6 +35,7 @@ export const Data: FC = observer(() => {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    analytics.dataExported();
   };
 
   const handleImport = () => {

@@ -24,6 +24,7 @@ import { generateUniqueId } from './utils';
 import { TagNode } from './types';
 import { themes } from './constants';
 import { Plus } from 'lucide-react';
+import { analytics } from './utils/analytics';
 
 const App = observer(() => {
   const { notesStore, settingsStore, tagsStore } = useStore();
@@ -110,12 +111,15 @@ const App = observer(() => {
 
             if (response.ok) {
               settingsStore.setToast('Changes saved to server', 'success');
+              analytics.syncCompleted('server');
             } else {
               settingsStore.setToast('Failed to save changes', 'error');
+              analytics.syncFailed('server');
             }
           } catch (error) {
             console.error('Sync failed:', error);
             settingsStore.setToast('Failed to save changes', 'error');
+            analytics.syncFailed('server');
           }
         } else if (settingsStore.syncMode === 'webdav' && window.bridge?.syncWebDAV) {
           try {
@@ -124,9 +128,15 @@ const App = observer(() => {
               success ? 'Changes saved to WebDAV' : 'Failed to save changes',
               success ? 'success' : 'error'
             );
+            if (success) {
+              analytics.syncCompleted('webdav');
+            } else {
+              analytics.syncFailed('webdav');
+            }
           } catch (error) {
             console.error('Sync failed:', error);
             settingsStore.setToast('Failed to save changes', 'error');
+            analytics.syncFailed('webdav');
           }
         }
       }
@@ -244,6 +254,7 @@ const App = observer(() => {
           editor?.chain().focus().setImage({ 
             src: `${settingsStore.server.url}${url}` 
           }).run();
+          analytics.imageUploaded();
         } else {
           settingsStore.setToast('Failed to upload image', 'error');
         }
@@ -256,6 +267,7 @@ const App = observer(() => {
       reader.onload = () => {
         if (typeof reader.result === 'string') {
           editor?.chain().focus().setImage({ src: reader.result }).run();
+          analytics.imageUploaded();
         }
       };
       reader.readAsDataURL(file);
@@ -282,6 +294,7 @@ const App = observer(() => {
     const url = window.prompt('Enter the URL:');
     if (url) {
       editor?.chain().focus().toggleLink({ href: url }).run();
+      analytics.linkInserted();
     }
   };
 
@@ -290,6 +303,7 @@ const App = observer(() => {
       .focus()
       .toggleTaskList()
       .run();
+    analytics.taskListCreated();
   };
 
   const handleCutIn = () => {
