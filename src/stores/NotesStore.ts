@@ -222,11 +222,6 @@ export class NotesStore {
       if (updates.theme !== undefined) {
         analytics.themeChanged(updates.theme || 'default');
       }
-      
-      // Track content edits (but not too frequently)
-      if (updates.content !== undefined) {
-        analytics.noteEdited();
-      }
     }
   };
 

@@ -24,7 +24,6 @@ export const analytics = {
   // Note events
   noteCreated: () => trackEvent('note_created'),
   noteDeleted: () => trackEvent('note_deleted'),
-  noteEdited: () => trackEvent('note_edited'),
   
   // Notebook events
   notebookCreated: () => trackEvent('notebook_created'),
