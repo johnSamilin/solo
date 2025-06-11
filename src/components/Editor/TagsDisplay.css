@@ -148,3 +148,7 @@
 .tag-apply-button:hover {
     background-color: var(--color-button-hover);
 }
+
+.tags-container {
+    clear: both;
+}
