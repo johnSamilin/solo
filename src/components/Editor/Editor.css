@@ -147,6 +147,10 @@
   position: relative;
 }
 
+.editor-body .ProseMirror li p {
+  margin: 0;
+}
+
 .editor-body.drop-caps .ProseMirror>p:first-child::first-letter {
   font-size: var(--drop-cap-size);
   line-height: 1;
