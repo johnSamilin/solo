@@ -1,4 +1,4 @@
-import { Plus, FolderPlus, MoreVertical, Settings, Upload, Download, Menu } from "lucide-react";
+import { Plus, FolderPlus, MoreVertical, Settings, Upload, Download, Menu, Mail } from "lucide-react";
 import { FC, useState, useEffect, useRef } from "react";
 import { observer } from "mobx-react-lite";
 import { NotebookItem } from "./NotebookItem";
@@ -66,6 +66,11 @@ export const Sidebar: FC<SidebarProps> = observer(({ editor }) => {
 
   const handleOpenSettings = () => {
     settingsStore.setSettingsOpen(true);
+    setIsMenuOpen(false);
+  };
+
+  const handleAskQuestion = () => {
+    window.open('mailto:masteralex@inbox.ru', '_blank');
     setIsMenuOpen(false);
   };
 
@@ -241,6 +246,14 @@ export const Sidebar: FC<SidebarProps> = observer(({ editor }) => {
                     </button>
                   </>
                 )}
+                <button
+                  className="sidebar-dropdown-item"
+                  onClick={handleAskQuestion}
+                  role="menuitem"
+                >
+                  <Mail className="h-4 w-4" />
+                  Ask a question
+                </button>
                 <button
                   className="sidebar-dropdown-item"
                   onClick={handleOpenSettings}
