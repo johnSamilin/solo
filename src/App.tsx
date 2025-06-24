@@ -289,7 +289,8 @@ const App = observer(() => {
 
     const tags = prompt('Enter tags for this paragraph (comma-separated):', currentTags);
     if (tags !== null) { // Check for null to handle cancel button
-      const tagArray = tags.trim() ? tags.split(',').map(t => t.trim()).filter(t => t) : [];
+      // If tags is empty string, remove all tags; otherwise process the input
+      const tagArray = tags.trim() === '' ? [] : tags.split(',').map(t => t.trim()).filter(t => t);
       editor.chain().focus().setParagraphTags(tagArray).run();
     }
   };
