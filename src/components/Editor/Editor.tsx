@@ -347,6 +347,26 @@ export const Editor: FC<EditorProps> = observer(({
     recognitionRef.current?.stop();
   };
 
+  const handleParagraphTaggingWithPrepopulation = () => {
+    if (!editor) return;
+
+    // Get current paragraph and its tags
+    const { selection } = editor.state;
+    const { $from } = selection;
+    const node = $from.node();
+    
+    let currentTags = '';
+    if (node.type.name === 'paragraph' && node.attrs.tags?.length) {
+      currentTags = node.attrs.tags.join(', ');
+    }
+
+    const tags = prompt('Enter tags for this paragraph (comma-separated):', currentTags);
+    if (tags !== null) { // Check for null to handle cancel button
+      const tagArray = tags.trim() ? tags.split(',').map(t => t.trim()).filter(t => t) : [];
+      editor.chain().focus().setParagraphTags(tagArray).run();
+    }
+  };
+
   const wordCount = editor?.state.doc.textContent.trim().split(/\s+/).filter(word => word.length > 0).length || 0;
   const paragraphCount = editor?.state.doc.content.content.filter(
     node => node.type.name === 'paragraph' || node.type.name === 'heading'
@@ -421,7 +441,7 @@ export const Editor: FC<EditorProps> = observer(({
           handleImageUpload={handleImageUpload}
           handleLinkInsert={handleLinkInsert}
           insertTaskList={insertTaskList}
-          handleParagraphTagging={handleParagraphTagging}
+          handleParagraphTagging={handleParagraphTaggingWithPrepopulation}
           setIsToolbarExpanded={(expanded) => settingsStore.isToolbarExpanded = expanded}
           openNoteSettings={() => settingsStore.setNoteSettingsOpen(true)}
           handleDictation={handleDictation}

@@ -277,9 +277,20 @@ const App = observer(() => {
   const handleParagraphTagging = () => {
     if (!editor) return;
 
-    const tags = prompt('Enter tags for this paragraph (comma-separated):');
-    if (tags) {
-      editor.chain().focus().setParagraphTags(tags.split(',').map(t => t.trim())).run();
+    // Get current paragraph and its tags
+    const { selection } = editor.state;
+    const { $from } = selection;
+    const node = $from.node();
+    
+    let currentTags = '';
+    if (node.type.name === 'paragraph' && node.attrs.tags?.length) {
+      currentTags = node.attrs.tags.join(', ');
+    }
+
+    const tags = prompt('Enter tags for this paragraph (comma-separated):', currentTags);
+    if (tags !== null) { // Check for null to handle cancel button
+      const tagArray = tags.trim() ? tags.split(',').map(t => t.trim()).filter(t => t) : [];
+      editor.chain().focus().setParagraphTags(tagArray).run();
     }
   };
 
