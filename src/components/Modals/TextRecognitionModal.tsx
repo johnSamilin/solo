@@ -8,7 +8,7 @@ interface TextRecognitionModalProps {
   imageUrl: string;
 }
 
-type RecognitionService = 'google-vision' | 'azure-vision' | 'tesseract';
+type RecognitionService = 'google-vision' | 'azure-vision';
 
 export const TextRecognitionModal: FC<TextRecognitionModalProps> = ({
   onClose,
@@ -27,30 +27,29 @@ export const TextRecognitionModal: FC<TextRecognitionModalProps> = ({
   const serviceOptions = [
     { 
       value: 'google-vision', 
-      label: 'Google Cloud Vision (Best for handwriting)',
-      description: 'Excellent handwriting recognition, requires API key'
+      label: 'Google Cloud Vision API',
+      description: 'Best-in-class handwriting recognition with excellent accuracy for both printed and handwritten text'
     },
     { 
       value: 'azure-vision', 
-      label: 'Azure Computer Vision (Good for handwriting)',
-      description: 'Good handwriting support, requires API key'
-    },
-    { 
-      value: 'tesseract', 
-      label: 'Tesseract (Free, printed text only)',
-      description: 'Free but poor handwriting recognition'
+      label: 'Azure Computer Vision API',
+      description: 'Professional handwriting recognition with strong multilingual support'
     },
   ];
 
   const languageOptions = [
     { value: 'en', label: 'English' },
-    { value: 'ru', label: 'Russian' },
+    { value: 'ru', label: 'Russian (Cyrillic)' },
     { value: 'de', label: 'German' },
     { value: 'fr', label: 'French' },
     { value: 'es', label: 'Spanish' },
+    { value: 'it', label: 'Italian' },
+    { value: 'pt', label: 'Portuguese' },
     { value: 'zh', label: 'Chinese' },
     { value: 'ja', label: 'Japanese' },
     { value: 'ko', label: 'Korean' },
+    { value: 'ar', label: 'Arabic' },
+    { value: 'hi', label: 'Hindi' },
   ];
 
   const recognizeWithGoogleVision = async (imageDataUrl: string) => {
@@ -188,36 +187,6 @@ export const TextRecognitionModal: FC<TextRecognitionModalProps> = ({
     return extractedText;
   };
 
-  const recognizeWithTesseract = async () => {
-    setProgress('Loading Tesseract...');
-    
-    // Dynamic import to reduce bundle size
-    const Tesseract = await import('tesseract.js');
-    
-    const { data: { text } } = await Tesseract.recognize(
-      imageUrl,
-      selectedLanguage === 'en' ? 'eng' : selectedLanguage === 'ru' ? 'rus' : 'eng',
-      {
-        logger: m => {
-          if (m.status === 'recognizing text') {
-            const progressPercent = Math.round(m.progress * 100);
-            setProgress(`Recognizing text... ${progressPercent}%`);
-          } else if (m.status === 'loading tesseract core') {
-            setProgress('Loading OCR engine...');
-          } else if (m.status === 'initializing tesseract') {
-            setProgress('Initializing OCR...');
-          } else if (m.status === 'loading language traineddata') {
-            setProgress('Loading language data...');
-          } else if (m.status === 'initializing api') {
-            setProgress('Preparing recognition...');
-          }
-        }
-      }
-    );
-    
-    return text.trim();
-  };
-
   const convertImageToDataUrl = async (url: string): Promise<string> => {
     return new Promise((resolve, reject) => {
       const canvas = document.createElement('canvas');
@@ -245,15 +214,12 @@ export const TextRecognitionModal: FC<TextRecognitionModalProps> = ({
     
     try {
       let text = '';
+      const imageDataUrl = await convertImageToDataUrl(imageUrl);
       
       if (selectedService === 'google-vision') {
-        const imageDataUrl = await convertImageToDataUrl(imageUrl);
         text = await recognizeWithGoogleVision(imageDataUrl);
       } else if (selectedService === 'azure-vision') {
-        const imageDataUrl = await convertImageToDataUrl(imageUrl);
         text = await recognizeWithAzureVision(imageDataUrl);
-      } else {
-        text = await recognizeWithTesseract();
       }
       
       setRecognizedText(text);
@@ -343,28 +309,26 @@ export const TextRecognitionModal: FC<TextRecognitionModalProps> = ({
                 </div>
               )}
 
-              {(selectedService === 'google-vision' || selectedService === 'azure-vision') && (
-                <div className="setting-item">
-                  <label>API Key</label>
-                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                    <input
-                      type="password"
-                      value={apiKey}
-                      onChange={(e) => setApiKey(e.target.value)}
-                      placeholder={`Enter ${selectedService === 'google-vision' ? 'Google Cloud Vision' : 'Azure Computer Vision'} API key`}
-                      className="language-select"
-                      style={{ flex: 1 }}
-                    />
-                    <button
-                      onClick={() => setShowSettings(!showSettings)}
-                      className="button-icon"
-                      title="API Setup Instructions"
-                    >
-                      <Settings className="h-4 w-4" />
-                    </button>
-                  </div>
+              <div className="setting-item">
+                <label>API Key</label>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <input
+                    type="password"
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    placeholder={`Enter ${selectedService === 'google-vision' ? 'Google Cloud Vision' : 'Azure Computer Vision'} API key`}
+                    className="language-select"
+                    style={{ flex: 1 }}
+                  />
+                  <button
+                    onClick={() => setShowSettings(!showSettings)}
+                    className="button-icon"
+                    title="API Setup Instructions"
+                  >
+                    <Settings className="h-4 w-4" />
+                  </button>
                 </div>
-              )}
+              </div>
 
               {showSettings && selectedService === 'google-vision' && (
                 <div className="import-status" style={{ backgroundColor: '#fefce8', color: '#a16207', border: '1px solid #fde047' }}>
@@ -372,7 +336,8 @@ export const TextRecognitionModal: FC<TextRecognitionModalProps> = ({
                   1. Go to <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer">Google Cloud Console</a><br />
                   2. Enable the Vision API<br />
                   3. Create an API key in Credentials<br />
-                  4. Paste the API key above
+                  4. Paste the API key above<br />
+                  <em>Free tier: 1,000 requests/month</em>
                 </div>
               )}
 
@@ -382,7 +347,9 @@ export const TextRecognitionModal: FC<TextRecognitionModalProps> = ({
                   1. Go to <a href="https://portal.azure.com/" target="_blank" rel="noopener noreferrer">Azure Portal</a><br />
                   2. Create a Computer Vision resource<br />
                   3. Copy the API key from Keys and Endpoint<br />
-                  4. Paste the API key above
+                  4. Update the endpoint URL in the code<br />
+                  5. Paste the API key above<br />
+                  <em>Free tier: 5,000 requests/month</em>
                 </div>
               )}
 
@@ -408,7 +375,7 @@ export const TextRecognitionModal: FC<TextRecognitionModalProps> = ({
                 <button
                   onClick={recognizeText}
                   className="button-primary"
-                  disabled={isProcessing || ((selectedService === 'google-vision' || selectedService === 'azure-vision') && !apiKey)}
+                  disabled={isProcessing || !apiKey}
                 >
                   Start Recognition
                 </button>
