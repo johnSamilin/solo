@@ -1,5 +1,6 @@
 import { FC, useState } from 'react';
-import { X, Copy, Loader2 } from 'lucide-react';
+import { X, Copy, Loader2, Languages } from 'lucide-react';
+import { analytics } from '../../utils/analytics';
 import './Modals.css';
 
 interface TextRecognitionModalProps {
@@ -15,11 +16,24 @@ export const TextRecognitionModal: FC<TextRecognitionModalProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string>('');
   const [hasStarted, setHasStarted] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState<string>('eng+rus');
+  const [progress, setProgress] = useState<string>('');
+
+  const languageOptions = [
+    { value: 'eng+rus', label: 'English + Russian (Auto)' },
+    { value: 'eng', label: 'English' },
+    { value: 'rus', label: 'Russian' },
+    { value: 'eng+deu', label: 'English + German' },
+    { value: 'eng+fra', label: 'English + French' },
+    { value: 'eng+spa', label: 'English + Spanish' },
+  ];
 
   const recognizeText = async () => {
     setIsProcessing(true);
     setError('');
     setHasStarted(true);
+    setProgress('Initializing...');
+    analytics.ocrUsed();
     
     try {
       // Dynamic import to reduce bundle size
@@ -27,29 +41,50 @@ export const TextRecognitionModal: FC<TextRecognitionModalProps> = ({
       
       const { data: { text } } = await Tesseract.recognize(
         imageUrl,
-        'eng',
+        selectedLanguage,
         {
           logger: m => {
             if (m.status === 'recognizing text') {
-              // Optional: could show progress here
+              const progressPercent = Math.round(m.progress * 100);
+              setProgress(`Recognizing text... ${progressPercent}%`);
+            } else if (m.status === 'loading tesseract core') {
+              setProgress('Loading OCR engine...');
+            } else if (m.status === 'initializing tesseract') {
+              setProgress('Initializing OCR...');
+            } else if (m.status === 'loading language traineddata') {
+              setProgress('Loading language data...');
+            } else if (m.status === 'initializing api') {
+              setProgress('Preparing recognition...');
             }
           }
         }
       );
       
       setRecognizedText(text.trim());
+      analytics.ocrCompleted(true);
     } catch (err) {
       console.error('OCR Error:', err);
-      setError('Failed to recognize text from image. Please try again.');
+      setError('Failed to recognize text from image. Please try again or try a different language.');
+      analytics.ocrCompleted(false);
     } finally {
       setIsProcessing(false);
+      setProgress('');
     }
   };
 
   const copyToClipboard = async () => {
     try {
       await navigator.clipboard.writeText(recognizedText);
-      // Could show a toast here, but keeping it simple
+      analytics.textCopied();
+      // Show success feedback
+      const button = document.activeElement as HTMLButtonElement;
+      if (button) {
+        const originalText = button.textContent;
+        button.textContent = 'Copied!';
+        setTimeout(() => {
+          button.innerHTML = '<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>Copy to Clipboard';
+        }, 1000);
+      }
     } catch (err) {
       console.error('Failed to copy text:', err);
       // Fallback for older browsers
@@ -59,6 +94,7 @@ export const TextRecognitionModal: FC<TextRecognitionModalProps> = ({
       textArea.select();
       document.execCommand('copy');
       document.body.removeChild(textArea);
+      analytics.textCopied();
     }
   };
 
@@ -87,21 +123,40 @@ export const TextRecognitionModal: FC<TextRecognitionModalProps> = ({
           </div>
           
           {!hasStarted && (
-            <div className="modal-actions">
-              <button
-                onClick={recognizeText}
-                className="button-primary"
-                disabled={isProcessing}
-              >
-                Start Recognition
-              </button>
-            </div>
+            <>
+              <div className="setting-item">
+                <label>
+                  <Languages className="h-4 w-4" style={{ display: 'inline', marginRight: '0.5rem' }} />
+                  Recognition Language
+                </label>
+                <select
+                  value={selectedLanguage}
+                  onChange={(e) => setSelectedLanguage(e.target.value)}
+                  className="language-select"
+                >
+                  {languageOptions.map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="modal-actions">
+                <button
+                  onClick={recognizeText}
+                  className="button-primary"
+                  disabled={isProcessing}
+                >
+                  Start Recognition
+                </button>
+              </div>
+            </>
           )}
 
           {isProcessing && (
             <div className="ocr-status">
               <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Recognizing text...</span>
+              <span>{progress}</span>
             </div>
           )}
 

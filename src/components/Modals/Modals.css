@@ -135,6 +135,8 @@
   color: var(--color-text);
   font-family: 'Outfit', system-ui, sans-serif;
   font-weight: 500;
+  display: flex;
+  align-items: center;
 }
 
 /* Form controls */
@@ -347,6 +349,28 @@
 }
 
 .ocr-textarea:focus {
+  outline: none;
+  border-color: var(--color-text);
+  box-shadow: 0 0 0 2px rgba(41, 37, 36, 0.1);
+}
+
+.language-select {
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-white);
+  font-size: 0.875rem;
+  color: var(--color-text);
+  min-width: 200px;
+  font-family: 'Outfit', system-ui, sans-serif;
+  transition: all 0.2s ease;
+}
+
+.language-select:hover {
+  border-color: var(--color-text-light);
+}
+
+.language-select:focus {
   outline: none;
   border-color: var(--color-text);
   box-shadow: 0 0 0 2px rgba(41, 37, 36, 0.1);
