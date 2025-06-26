@@ -163,16 +163,19 @@
 .editor-body .ProseMirror h1 {
   font-size: 1.75em;
   margin: 1em 0 0.5em;
+  clear: both;
 }
 
 .editor-body .ProseMirror h2 {
   font-size: 1.5em;
   margin: 1em 0 0.5em;
+  clear: both;
 }
 
 .editor-body .ProseMirror h3 {
   font-size: 1.25em;
   margin: 1em 0 0.5em;
+  clear: both;
 }
 
 .editor-body .ProseMirror p.is-editor-empty:first-child::before {
