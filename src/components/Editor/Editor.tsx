@@ -7,7 +7,8 @@ import { useStore } from "../../stores/StoreProvider";
 import { FAB } from "./FAB";
 import { TagsDisplay } from "./TagsDisplay";
 import { NoteSettingsModal } from "../Modals/NoteSettingsModal";
-import { ArrowLeft, Plus, ArrowRight, Maximize2, Trash2 } from "lucide-react";
+import { TextRecognitionModal } from "../Modals/TextRecognitionModal";
+import { ArrowLeft, Plus, ArrowRight, Maximize2, Trash2, ScanText } from "lucide-react";
 import { themes } from "../../constants";
 import { analytics } from "../../utils/analytics";
 
@@ -54,6 +55,8 @@ export const Editor: FC<EditorProps> = observer(({
   const [contextMenu, setContextMenu] = useState<ImageContextMenu | null>(null);
   const [isDictating, setIsDictating] = useState(false);
   const [dictationLang, setDictationLang] = useState<'en-US' | 'ru-RU'>('ru-RU');
+  const [isOcrModalOpen, setIsOcrModalOpen] = useState(false);
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string>('');
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const isLanguageSwitchPending = useRef(false);
   
@@ -103,6 +106,14 @@ export const Editor: FC<EditorProps> = observer(({
   const toggleImageWidth = () => {
     if (contextMenu && editor) {
       editor.chain().focus().toggleImageFullWidth().run();
+      setContextMenu(null);
+    }
+  };
+
+  const recognizeImageText = () => {
+    if (contextMenu) {
+      setSelectedImageUrl(contextMenu.target.src);
+      setIsOcrModalOpen(true);
       setContextMenu(null);
     }
   };
@@ -442,6 +453,10 @@ export const Editor: FC<EditorProps> = observer(({
             <Maximize2 className="h-4 w-4" />
             Toggle Full Width
           </button>
+          <button className="menu-item" onClick={recognizeImageText}>
+            <ScanText className="h-4 w-4" />
+            Recognise Text
+          </button>
           <button className="menu-item" onClick={deleteImage}>
             <Trash2 className="h-4 w-4" />
             Delete Image
@@ -460,6 +475,13 @@ export const Editor: FC<EditorProps> = observer(({
           isCensored={notesStore.selectedNote.isCensored}
           currentTheme={notesStore.selectedNote.theme || ''}
           onThemeChange={handleThemeChange}
+        />
+      )}
+
+      {isOcrModalOpen && (
+        <TextRecognitionModal
+          onClose={() => setIsOcrModalOpen(false)}
+          imageUrl={selectedImageUrl}
         />
       )}
     </div>
