@@ -1,4 +1,4 @@
-import { Plus, FolderPlus, MoreVertical, Settings, Upload, Download, Menu, Mail } from "lucide-react";
+import { Plus, FolderPlus, MoreVertical, Settings, Upload, Download, Menu, Mail, Search } from "lucide-react";
 import { FC, useState, useEffect, useRef } from "react";
 import { observer } from "mobx-react-lite";
 import { NotebookItem } from "./NotebookItem";
@@ -11,9 +11,10 @@ import './Sidebar.css';
 
 type SidebarProps = {
   editor: Editor | null;
+  onOpenSearch: () => void;
 };
 
-export const Sidebar: FC<SidebarProps> = observer(({ editor }) => {
+export const Sidebar: FC<SidebarProps> = observer(({ editor, onOpenSearch }) => {
   const { notesStore, settingsStore } = useStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSidebarVisible, setIsSidebarVisible] = useState(false);
@@ -219,6 +220,17 @@ export const Sidebar: FC<SidebarProps> = observer(({ editor }) => {
                 >
                   <Plus className="h-4 w-4" />
                   New Note
+                </button>
+                <button
+                  className="sidebar-dropdown-item"
+                  onClick={() => {
+                    onOpenSearch();
+                    setIsMenuOpen(false);
+                  }}
+                  role="menuitem"
+                >
+                  <Search className="h-4 w-4" />
+                  Search Notes
                 </button>
                 <button
                   className="sidebar-dropdown-item"

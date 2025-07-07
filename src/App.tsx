@@ -19,6 +19,7 @@ import { NewNotebookModal } from './components/Modals/NewNoteBookModal';
 import { TagModal } from './components/Modals/TagModal';
 import { Sidebar } from './components/Sidebar/Sidebar';
 import { Editor } from './components/Editor/Editor';
+import { SearchPage } from './components/Search/SearchPage';
 import { Toast } from './components/Toast/Toast';
 import { generateUniqueId } from './utils';
 import { TagNode } from './types';
@@ -30,6 +31,7 @@ const App = observer(() => {
   const { notesStore, settingsStore, tagsStore } = useStore();
   const [initialContent, setInitialContent] = useState('');
   const [autoZenDisabled, setAutoZenDisabled] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const editor = useEditor({
     extensions: [
@@ -361,7 +363,20 @@ const App = observer(() => {
 
       <Toast />
 
-      <Sidebar editor={editor} />
+      {isSearchOpen && (
+        <SearchPage
+          onClose={() => setIsSearchOpen(false)}
+          onNoteSelect={(note) => {
+            notesStore.setSelectedNote(note);
+            setIsSearchOpen(false);
+          }}
+        />
+      )}
+
+      <Sidebar 
+        editor={editor} 
+        onOpenSearch={() => setIsSearchOpen(true)}
+      />
 
       <div className="main-content">
         {notesStore.selectedNote ? (
