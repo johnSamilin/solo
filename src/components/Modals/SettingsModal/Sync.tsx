@@ -39,9 +39,15 @@ export const Sync: FC = observer(() => {
   };
 
   const handleSync = async () => {
+    const { notesStore } = useStore();
+    
     if (settingsStore.syncMode === 'webdav' && window.bridge?.syncWebDAV) {
       try {
-        const success = await window.bridge.syncWebDAV(JSON.stringify(settingsStore.webDAV));
+        const syncData = await notesStore.exportForSync();
+        const success = await window.bridge.syncWebDAV(JSON.stringify({
+          ...settingsStore.webDAV,
+          data: syncData
+        }));
         settingsStore.setToast(
           success ? 'WebDAV sync completed successfully' : 'WebDAV sync failed',
           success ? 'success' : 'error'
@@ -52,16 +58,14 @@ export const Sync: FC = observer(() => {
       }
     } else if (settingsStore.syncMode === 'server' && settingsStore.server.token) {
       try {
+        const syncData = await notesStore.exportForSync();
         const response = await fetch(`${settingsStore.server.url}/api/data`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json; charset=utf-8',
             'Authorization': `Bearer ${settingsStore.server.token}`,
           },
-          body: JSON.stringify({
-            notes: settingsStore.notes,
-            notebooks: settingsStore.notebooks,
-          }),
+          body: JSON.stringify(syncData),
         });
 
         if (response.ok) {

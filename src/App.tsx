@@ -148,6 +148,11 @@ const App = observer(() => {
 
   useEffect(() => {
     if (editor && notesStore.selectedNote) {
+      // Load note content if not already loaded
+      if (!notesStore.selectedNote.content) {
+        notesStore.loadNoteContent(notesStore.selectedNote);
+      }
+      
       if (notesStore.selectedNote.isCensored && settingsStore.isCensorshipEnabled()) {
         editor.commands.setContent('');
         setInitialContent('');
@@ -386,6 +391,14 @@ const App = observer(() => {
         )}
       </div>
     </div>
+      {notesStore.isLoading && (
+        <div className="loading-overlay">
+          <div className="loading-spinner">
+            <p>Loading your notes...</p>
+          </div>
+        </div>
+      )}
+
   );
 });
 
