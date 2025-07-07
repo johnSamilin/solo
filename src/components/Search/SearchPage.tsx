@@ -1,6 +1,6 @@
 import { FC, useState, useEffect, useMemo } from 'react';
 import { observer } from 'mobx-react-lite';
-import { Search, X, Tag as TagIcon, Filter, ArrowLeft } from 'lucide-react';
+import { Search, X, Tag as TagIcon, Filter, ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react';
 import { useStore } from '../../stores/StoreProvider';
 import { Note, TagNode } from '../../types';
 import { buildTagTree } from '../../utils';
@@ -24,6 +24,7 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
   const [availableTags, setAvailableTags] = useState<TagNode[]>([]);
   const [isTagSelectorOpen, setIsTagSelectorOpen] = useState(false);
   const [selectedTagOperator, setSelectedTagOperator] = useState<'AND' | 'OR' | 'NOT'>('AND');
+  const [isFiltersCollapsed, setIsFiltersCollapsed] = useState(false);
 
   // Get all available tags from notes
   useEffect(() => {
@@ -135,7 +136,6 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
       await notesStore.loadNoteContent(note);
     }
     onNoteSelect(note);
-    onClose();
   };
 
   const getOperatorColor = (operator: 'AND' | 'OR' | 'NOT') => {
@@ -146,6 +146,31 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
       default: return '#6b7280';
     }
   };
+
+  // Combine all filtered notes into one big content
+  const combinedContent = useMemo(() => {
+    if (filteredNotes.length === 0) return '';
+    
+    return filteredNotes.map(note => {
+      const notebook = notesStore.notebooks.find(nb => nb.id === note.notebookId);
+      const noteHeader = `
+        <div class="combined-note-header" data-note-id="${note.id}">
+          <h2>${note.title}</h2>
+          <div class="note-meta">
+            <span class="notebook-name">${notebook?.name || 'Unknown'}</span>
+            <span class="note-date">${note.createdAt.toLocaleDateString()}</span>
+          </div>
+          ${note.tags.length > 0 ? `
+            <div class="note-tags">
+              ${note.tags.map(tag => `<span class="note-tag">${tag.path}</span>`).join('')}
+            </div>
+          ` : ''}
+        </div>
+      `;
+      
+      return noteHeader + (note.content || '<p><em>No content</em></p>');
+    }).join('<hr class="note-separator" />');
+  }, [filteredNotes, notesStore.notebooks]);
 
   const renderTagTree = (nodes: TagNode[], level = 0) => {
     return nodes.map(node => (
@@ -173,7 +198,20 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
       </div>
 
       <div className="search-content">
-        <div className="search-panel">
+        <div className={`search-panel ${isFiltersCollapsed ? 'collapsed' : ''}`}>
+          <button 
+            className="filters-toggle"
+            onClick={() => setIsFiltersCollapsed(!isFiltersCollapsed)}
+          >
+            <Filter className="h-4 w-4" />
+            <span>Filters</span>
+            {isFiltersCollapsed ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronUp className="h-4 w-4" />
+            )}
+          </button>
+          
           <div className="search-input-section">
             <div className="search-input-wrapper">
               <Search className="h-5 w-5 search-icon" />
@@ -196,7 +234,8 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
             </div>
           </div>
 
-          <div className="tag-filters-section">
+          {!isFiltersCollapsed && (
+            <div className="tag-filters-section">
             <div className="tag-filters-header">
               <h3>Tag Filters</h3>
               <div className="tag-operator-selector">
@@ -271,6 +310,7 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
               </button>
             )}
           </div>
+          )}
         </div>
 
         <div className="search-results">
@@ -294,50 +334,25 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
             )}
           </div>
 
-          <div className="results-list">
-            {filteredNotes.map(note => {
-              const notebook = notesStore.notebooks.find(nb => nb.id === note.notebookId);
-              const contentPreview = note.content
-                .replace(/<[^>]*>/g, '') // Remove HTML tags
-                .substring(0, 200) + (note.content.length > 200 ? '...' : '');
-
-              return (
-                <div
-                  key={note.id}
-                  className="search-result-item"
-                  onClick={() => handleNoteClick(note)}
-                >
-                  <div className="result-header">
-                    <h4 className="result-title">{note.title}</h4>
-                    <div className="result-meta">
-                      <span className="result-notebook">{notebook?.name}</span>
-                      <span className="result-date">
-                        {note.createdAt.toLocaleDateString()}
-                      </span>
-                    </div>
-                  </div>
-                  
-                  {contentPreview && (
-                    <p className="result-preview">{contentPreview}</p>
-                  )}
-                  
-                  {note.tags.length > 0 && (
-                    <div className="result-tags">
-                      {note.tags.slice(0, 5).map(tag => (
-                        <span key={tag.id} className="result-tag">
-                          {tag.path}
-                        </span>
-                      ))}
-                      {note.tags.length > 5 && (
-                        <span className="result-tag-more">
-                          +{note.tags.length - 5} more
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+          <div className="combined-notes-container">
+            {filteredNotes.length > 0 ? (
+              <div 
+                className="combined-notes-content"
+                dangerouslySetInnerHTML={{ __html: combinedContent }}
+                onClick={(e) => {
+                  // Handle clicks on note headers to select individual notes
+                  const target = e.target as HTMLElement;
+                  const noteHeader = target.closest('.combined-note-header');
+                  if (noteHeader) {
+                    const noteId = noteHeader.getAttribute('data-note-id');
+                    const note = filteredNotes.find(n => n.id === noteId);
+                    if (note) {
+                      handleNoteClick(note);
+                    }
+                  }
+                }}
+              />
+            ) : null}
 
             {filteredNotes.length === 0 && (searchQuery || tagFilters.length > 0) && (
               <div className="no-results">
