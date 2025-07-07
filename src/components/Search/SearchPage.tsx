@@ -149,7 +149,7 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
 
   const renderTagTree = (nodes: TagNode[], level = 0) => {
     return nodes.map(node => (
-      <div key={node.id} style={{ paddingLeft: `${level * 1rem}rem` }}>
+      <div key={node.id} style={{ paddingLeft: `${level}rem` }}>
         <div 
           className="tag-selector-item"
           onClick={() => addTagFilter(node.name)}
