@@ -3,8 +3,9 @@ import { observer } from 'mobx-react-lite';
 import { Search, X, Tag as TagIcon, Filter, ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react';
 import { useStore } from '../../stores/StoreProvider';
 import { Note, TagNode } from '../../types';
-import { buildTagTree } from '../../utils';
+import { buildTagTree, generateUniqueId } from '../../utils';
 import { TagTreeItem } from '../Sidebar/TagTreeItem';
+import { themes } from '../../constants';
 import './SearchPage.css';
 
 interface SearchPageProps {
@@ -25,6 +26,7 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
   const [isTagSelectorOpen, setIsTagSelectorOpen] = useState(false);
   const [selectedTagOperator, setSelectedTagOperator] = useState<'AND' | 'OR' | 'NOT'>('AND');
   const [isFiltersCollapsed, setIsFiltersCollapsed] = useState(false);
+  const [loadingNotes, setLoadingNotes] = useState<Set<string>>(new Set());
 
   // Get all available tags from notes
   useEffect(() => {
@@ -133,7 +135,13 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
   const handleNoteClick = async (note: Note) => {
     // Load note content if not already loaded
     if (!note.content) {
+      setLoadingNotes(prev => new Set(prev).add(note.id));
       await notesStore.loadNoteContent(note);
+      setLoadingNotes(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(note.id);
+        return newSet;
+      });
     }
     onNoteSelect(note);
   };
@@ -147,30 +155,100 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
     }
   };
 
-  // Combine all filtered notes into one big content
-  const combinedContent = useMemo(() => {
-    if (filteredNotes.length === 0) return '';
+  // Load content for all filtered notes
+  useEffect(() => {
+    const loadAllContent = async () => {
+      const notesToLoad = filteredNotes.filter(note => !note.content);
+      if (notesToLoad.length === 0) return;
+
+      setLoadingNotes(prev => {
+        const newSet = new Set(prev);
+        notesToLoad.forEach(note => newSet.add(note.id));
+        return newSet;
+      });
+
+      // Load content for all notes in parallel
+      await Promise.all(
+        notesToLoad.map(note => notesStore.loadNoteContent(note))
+      );
+
+      setLoadingNotes(prev => {
+        const newSet = new Set(prev);
+        notesToLoad.forEach(note => newSet.delete(note.id));
+        return newSet;
+      });
+    };
+
+    loadAllContent();
+  }, [filteredNotes, notesStore]);
+
+  const renderNoteContent = (note: Note) => {
+    const notebook = notesStore.notebooks.find(nb => nb.id === note.notebookId);
+    const isLoading = loadingNotes.has(note.id);
     
-    return filteredNotes.map(note => {
-      const notebook = notesStore.notebooks.find(nb => nb.id === note.notebookId);
-      const noteHeader = `
-        <div class="combined-note-header" data-note-id="${note.id}">
-          <h2>${note.title}</h2>
-          <div class="note-meta">
-            <span class="notebook-name">${notebook?.name || 'Unknown'}</span>
-            <span class="note-date">${note.createdAt.toLocaleDateString()}</span>
+    // Apply note-specific theme styles
+    const noteTheme = note.theme ? themes[note.theme]?.settings : settingsStore.settings;
+    const noteStyles = noteTheme ? {
+      fontFamily: noteTheme.editorFontFamily,
+      fontSize: noteTheme.editorFontSize,
+      lineHeight: noteTheme.editorLineHeight,
+    } : {};
+
+    return (
+      <div key={note.id} className="search-note-item">
+        <div 
+          className="search-note-header" 
+          onClick={() => handleNoteClick(note)}
+          data-note-id={note.id}
+        >
+          <h2 style={{ 
+            fontFamily: noteTheme?.titleFontFamily || settingsStore.settings.titleFontFamily,
+            fontSize: noteTheme?.titleFontSize || settingsStore.settings.titleFontSize
+          }}>
+            {note.title}
+          </h2>
+          <div className="note-meta">
+            <span className="notebook-name">{notebook?.name || 'Unknown'}</span>
+            <span className="note-date">{note.createdAt.toLocaleDateString()}</span>
+            {note.theme && (
+              <span className="note-theme">Theme: {themes[note.theme]?.name || note.theme}</span>
+            )}
           </div>
-          ${note.tags.length > 0 ? `
-            <div class="note-tags">
-              ${note.tags.map(tag => `<span class="note-tag">${tag.path}</span>`).join('')}
+          {note.tags.length > 0 && (
+            <div className="note-tags">
+              {note.tags.map(tag => (
+                <span key={tag.id} className="note-tag">{tag.path}</span>
+              ))}
             </div>
-          ` : ''}
+          )}
         </div>
-      `;
-      
-      return noteHeader + (note.content || '<p><em>No content</em></p>');
-    }).join('<hr class="note-separator" />');
-  }, [filteredNotes, notesStore.notebooks]);
+        
+        <div 
+          className="search-note-content"
+          style={noteStyles}
+        >
+          {isLoading ? (
+            <div className="note-loading">
+              <div className="loading-spinner-small"></div>
+              <span>Loading content...</span>
+            </div>
+          ) : note.content ? (
+            <div 
+              dangerouslySetInnerHTML={{ __html: note.content }}
+              onClick={(e) => {
+                // Prevent event bubbling to note header
+                e.stopPropagation();
+              }}
+            />
+          ) : (
+            <div className="no-content">
+              <em>No content</em>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   const renderTagTree = (nodes: TagNode[], level = 0) => {
     return nodes.map(node => (
@@ -336,22 +414,16 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
 
           <div className="combined-notes-container">
             {filteredNotes.length > 0 ? (
-              <div 
-                className="combined-notes-content"
-                dangerouslySetInnerHTML={{ __html: combinedContent }}
-                onClick={(e) => {
-                  // Handle clicks on note headers to select individual notes
-                  const target = e.target as HTMLElement;
-                  const noteHeader = target.closest('.combined-note-header');
-                  if (noteHeader) {
-                    const noteId = noteHeader.getAttribute('data-note-id');
-                    const note = filteredNotes.find(n => n.id === noteId);
-                    if (note) {
-                      handleNoteClick(note);
-                    }
-                  }
-                }}
-              />
+              <div className="search-notes-list">
+                {filteredNotes.map((note, index) => (
+                  <div key={note.id}>
+                    {renderNoteContent(note)}
+                    {index < filteredNotes.length - 1 && (
+                      <hr className="note-separator" />
+                    )}
+                  </div>
+                ))}
+              </div>
             ) : null}
 
             {filteredNotes.length === 0 && (searchQuery || tagFilters.length > 0) && (
