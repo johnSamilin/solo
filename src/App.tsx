@@ -390,7 +390,6 @@ const App = observer(() => {
           </div>
         )}
       </div>
-    </div>
       {notesStore.isLoading && (
         <div className="loading-overlay">
           <div className="loading-spinner">
@@ -398,6 +397,7 @@ const App = observer(() => {
           </div>
         </div>
       )}
+    </div>
 
   );
 });
