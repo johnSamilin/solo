@@ -110,6 +110,20 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
     });
   }, [searchQuery, tagFilters, notesStore.notes, settingsStore.isCensorshipEnabled()]);
 
+  // Filter content based on censorship mode
+  const getFilteredContent = (note: Note): string => {
+    if (!settingsStore.isCensorshipEnabled()) {
+      return note.content;
+    }
+    
+    // Remove censored content when censorship is enabled
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = note.content;
+    const censoredElements = tempDiv.querySelectorAll('span[data-censored]');
+    censoredElements.forEach(el => el.remove());
+    return tempDiv.innerHTML;
+  };
+
   const addTagFilter = (tagPath: string) => {
     if (!tagFilters.some(f => f.path === tagPath)) {
       setTagFilters([...tagFilters, { path: tagPath, operator: selectedTagOperator }]);
@@ -185,6 +199,7 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
   const renderNoteContent = (note: Note) => {
     const notebook = notesStore.notebooks.find(nb => nb.id === note.notebookId);
     const isLoading = loadingNotes.has(note.id);
+    const filteredContent = getFilteredContent(note);
     
     // Apply note-specific theme styles
     const noteTheme = note.theme ? themes[note.theme]?.settings : settingsStore.settings;
@@ -218,9 +233,9 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
               <div className="loading-spinner-small"></div>
               <span>Loading content...</span>
             </div>
-          ) : note.content ? (
+          ) : filteredContent ? (
             <div 
-              dangerouslySetInnerHTML={{ __html: note.content }}
+              dangerouslySetInnerHTML={{ __html: filteredContent }}
               onClick={(e) => {
                 // Prevent event bubbling to note header
                 e.stopPropagation();
