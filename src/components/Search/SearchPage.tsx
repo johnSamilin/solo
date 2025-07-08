@@ -207,20 +207,7 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
           }}>
             {note.title}
           </h2>
-          <div className="note-meta">
-            <span className="notebook-name">{notebook?.name || 'Unknown'}</span>
-            <span className="note-date">{note.createdAt.toLocaleDateString()}</span>
-            {note.theme && (
-              <span className="note-theme">Theme: {themes[note.theme]?.name || note.theme}</span>
-            )}
-          </div>
-          {note.tags.length > 0 && (
-            <div className="note-tags">
-              {note.tags.map(tag => (
-                <span key={tag.id} className="note-tag">{tag.path}</span>
-              ))}
-            </div>
-          )}
+          /
         </div>
         
         <div 
