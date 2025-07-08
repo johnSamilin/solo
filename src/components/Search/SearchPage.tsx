@@ -55,8 +55,40 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
     return queryIndex === normalizedQuery.length;
   };
 
-  // Extract matching paragraphs from note content
-  const getMatchingParagraphs = (content: string, query: string): string[] => {
+  // Extract paragraphs that have matching tags
+  const getMatchingParagraphs = (content: string, tagFilters: TagFilter[]): string[] => {
+    if (tagFilters.length === 0) return [];
+    
+    // Create a temporary div to parse HTML content
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = content;
+    
+    // Get all paragraph-like elements
+    const elements = tempDiv.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li');
+    const matchingParagraphs: string[] = [];
+    
+    elements.forEach(element => {
+      const dataTags = element.getAttribute('data-tags') || '';
+      if (!dataTags) return;
+      
+      // Parse paragraph tags
+      const paragraphTags = dataTags.split(',').map(tag => tag.trim()).filter(tag => tag);
+      
+      // Check if paragraph tags match any of the tag filters
+      const matches = tagFilters.some(filter => {
+        return paragraphTags.some(tag => tag.includes(filter.path));
+      });
+      
+      if (matches) {
+        matchingParagraphs.push(element.outerHTML);
+      }
+    });
+    
+    return matchingParagraphs;
+  };
+
+  // Extract matching paragraphs from note content based on text search
+  const getTextMatchingParagraphs = (content: string, query: string): string[] => {
     if (!query.trim()) return [];
     
     // Create a temporary div to parse HTML content
@@ -69,15 +101,8 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
     
     elements.forEach(element => {
       const text = element.textContent || '';
-      const dataTags = element.getAttribute('data-tags') || '';
       
-      // Check if text content matches
-      const textMatches = fuzzyMatch(text, query);
-      
-      // Check if any paragraph tags match
-      const tagsMatch = dataTags && fuzzyMatch(dataTags.replace(/,/g, ' '), query);
-      
-      if (textMatches || tagsMatch) {
+      if (fuzzyMatch(text, query)) {
         matchingParagraphs.push(element.outerHTML);
       }
     });
@@ -110,7 +135,7 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
     }
     
     // Get matching paragraphs
-    const matchingParagraphs = getMatchingParagraphs(filteredContent, query);
+    const matchingParagraphs = getTextMatchingParagraphs(filteredContent, query);
     if (matchingParagraphs.length > 0) {
       return { content: matchingParagraphs.join(''), isPartial: true };
     }
@@ -131,7 +156,7 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
         }
         
         // Check if any paragraphs match
-        const matchingParagraphs = getMatchingParagraphs(note.content, searchQuery.trim());
+        const matchingParagraphs = getTextMatchingParagraphs(note.content, searchQuery.trim());
         return matchingParagraphs.length > 0;
       });
     }
@@ -139,6 +164,13 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
     // Apply tag filters
     if (tagFilters.length > 0) {
       notes = notes.filter(note => {
+        // First check if note has matching paragraph tags
+        const matchingParagraphs = getMatchingParagraphs(note.content, tagFilters);
+        if (matchingParagraphs.length > 0) {
+          return true;
+        }
+        
+        // Then check note-level tags
         const noteTags = note.tags.map(tag => tag.path);
         
         // Group filters by operator
