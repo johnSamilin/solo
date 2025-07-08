@@ -342,6 +342,7 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
         
         <div 
           className="search-note-content"
+          data-partial={isPartial}
           style={noteStyles}
         >
           {isLoading ? (

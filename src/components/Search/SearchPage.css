@@ -410,6 +410,33 @@
   position: relative;
 }
 
+/* Add ellipsis to partial content paragraphs */
+.search-note-content[data-partial="true"] p::before,
+.search-note-content[data-partial="true"] h1::before,
+.search-note-content[data-partial="true"] h2::before,
+.search-note-content[data-partial="true"] h3::before,
+.search-note-content[data-partial="true"] h4::before,
+.search-note-content[data-partial="true"] h5::before,
+.search-note-content[data-partial="true"] h6::before,
+.search-note-content[data-partial="true"] li::before {
+  content: "...";
+  color: var(--color-text-light);
+  font-style: italic;
+}
+
+.search-note-content[data-partial="true"] p::after,
+.search-note-content[data-partial="true"] h1::after,
+.search-note-content[data-partial="true"] h2::after,
+.search-note-content[data-partial="true"] h3::after,
+.search-note-content[data-partial="true"] h4::after,
+.search-note-content[data-partial="true"] h5::after,
+.search-note-content[data-partial="true"] h6::after,
+.search-note-content[data-partial="true"] li::after {
+  content: "...";
+  color: var(--color-text-light);
+  font-style: italic;
+}
+
 .search-note-header {
   margin: 0 0 1rem 0;
   cursor: pointer;
