@@ -150,7 +150,6 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
     if (allMatchingParagraphs.length > 0) {
       // Join matching paragraphs with separators
       const partialContent = allMatchingParagraphs
-        .map(paragraph => `...${paragraph}...`)
         .join('<br/><br/>');
       return { content: partialContent, isPartial: true };
     }
