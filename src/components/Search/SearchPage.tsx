@@ -327,15 +327,7 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
     } : {};
 
     return (
-      <div key={note.id} className="search-note-item">
-        {isPartial && (
-          <div className="partial-match-indicator">
-            <MoreHorizontal className="h-4 w-4" />
-            <span>Showing matching paragraphs</span>
-            <MoreHorizontal className="h-4 w-4" />
-          </div>
-        )}
-        
+      <div key={note.id} className="search-note-item">        
         <div 
           className="search-note-header" 
           onClick={() => handleNoteClick(note)}
