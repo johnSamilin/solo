@@ -207,7 +207,6 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
           }}>
             {note.title}
           </h2>
-          /
         </div>
         
         <div 
