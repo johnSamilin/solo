@@ -415,3 +415,33 @@ body {
   background: var(--color-bg);
   color: var(--color-text);
 }
+
+/* Loading overlay */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.loading-spinner {
+  text-align: center;
+  padding: 2rem;
+  background: var(--color-white);
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--color-border);
+}
+
+.loading-spinner p {
+  margin: 0;
+  color: var(--color-text);
+  font-family: 'Outfit', system-ui, sans-serif;
+  font-size: 1rem;
+}

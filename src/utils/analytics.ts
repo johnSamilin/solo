@@ -50,4 +50,9 @@ export const analytics = {
   linkInserted: () => trackEvent('link_inserted'),
   taskListCreated: () => trackEvent('task_list_created'),
   dictationUsed: () => trackEvent('dictation_used'),
+  
+  // OCR events
+  ocrUsed: () => trackEvent('ocr_used'),
+  ocrCompleted: (success: boolean) => trackEvent('ocr_completed', { success }),
+  textCopied: () => trackEvent('text_copied'),
 };

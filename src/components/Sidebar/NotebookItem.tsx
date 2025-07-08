@@ -45,7 +45,7 @@ export const NotebookItem = observer(({ notebook, level = 0, editor }: NotebookI
       }
       notesStore.setSelectedNote(note);
       notesStore.isEditing = true;
-      editor?.commands.setContent(note.content);
+      // Content will be loaded on demand in App.tsx
     }
   };
 

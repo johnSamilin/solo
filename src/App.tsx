@@ -19,6 +19,7 @@ import { NewNotebookModal } from './components/Modals/NewNoteBookModal';
 import { TagModal } from './components/Modals/TagModal';
 import { Sidebar } from './components/Sidebar/Sidebar';
 import { Editor } from './components/Editor/Editor';
+import { SearchPage } from './components/Search/SearchPage';
 import { Toast } from './components/Toast/Toast';
 import { generateUniqueId } from './utils';
 import { TagNode } from './types';
@@ -30,6 +31,7 @@ const App = observer(() => {
   const { notesStore, settingsStore, tagsStore } = useStore();
   const [initialContent, setInitialContent] = useState('');
   const [autoZenDisabled, setAutoZenDisabled] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const editor = useEditor({
     extensions: [
@@ -148,6 +150,11 @@ const App = observer(() => {
 
   useEffect(() => {
     if (editor && notesStore.selectedNote) {
+      // Load note content if not already loaded
+      if (!notesStore.selectedNote.content) {
+        notesStore.loadNoteContent(notesStore.selectedNote);
+      }
+      
       if (notesStore.selectedNote.isCensored && settingsStore.isCensorshipEnabled()) {
         editor.commands.setContent('');
         setInitialContent('');
@@ -277,9 +284,21 @@ const App = observer(() => {
   const handleParagraphTagging = () => {
     if (!editor) return;
 
-    const tags = prompt('Enter tags for this paragraph (comma-separated):');
-    if (tags) {
-      editor.chain().focus().setParagraphTags(tags.split(',').map(t => t.trim())).run();
+    // Get current paragraph and its tags
+    const { selection } = editor.state;
+    const { $from } = selection;
+    const node = $from.node();
+    
+    let currentTags = '';
+    if (node.type.name === 'paragraph' && node.attrs.tags?.length) {
+      currentTags = node.attrs.tags.join(', ');
+    }
+
+    const tags = prompt('Enter tags for this paragraph (comma-separated):', currentTags);
+    if (tags !== null) { // Check for null to handle cancel button
+      // If tags is empty string, remove all tags; otherwise process the input
+      const tagArray = tags.trim() === '' ? [] : tags.split(',').map(t => t.trim()).filter(t => t);
+      editor.chain().focus().setParagraphTags(tagArray).run();
     }
   };
 
@@ -344,7 +363,20 @@ const App = observer(() => {
 
       <Toast />
 
-      <Sidebar editor={editor} />
+      {isSearchOpen && (
+        <SearchPage
+          onClose={() => setIsSearchOpen(false)}
+          onNoteSelect={(note) => {
+            notesStore.setSelectedNote(note);
+            setIsSearchOpen(false);
+          }}
+        />
+      )}
+
+      <Sidebar 
+        editor={editor} 
+        onOpenSearch={() => setIsSearchOpen(true)}
+      />
 
       <div className="main-content">
         {notesStore.selectedNote ? (
@@ -373,7 +405,15 @@ const App = observer(() => {
           </div>
         )}
       </div>
+      {notesStore.isLoading && (
+        <div className="loading-overlay">
+          <div className="loading-spinner">
+            <p>Loading your notes...</p>
+          </div>
+        </div>
+      )}
     </div>
+
   );
 });
 
