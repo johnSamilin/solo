@@ -130,15 +130,26 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
   const getNoteDisplayContent = (note: Note, query: string): { content: string; isPartial: boolean } => {
     const filteredContent = getFilteredContent(note);
     
-    if (!query.trim() || noteFullyMatches(note, query)) {
+    // Check if we have tag filters that match paragraphs
+    const matchingTagParagraphs = getMatchingParagraphs(filteredContent, tagFilters);
+    
+    if (!query.trim() && tagFilters.length === 0) {
       return { content: filteredContent, isPartial: false };
     }
     
-    // Get matching paragraphs
-    const matchingParagraphs = getTextMatchingParagraphs(filteredContent, query);
-    if (matchingParagraphs.length > 0) {
+    if (query.trim() && noteFullyMatches(note, query) && tagFilters.length === 0) {
+      return { content: filteredContent, isPartial: false };
+    }
+    
+    // Combine text and tag matching paragraphs
+    const textMatchingParagraphs = query.trim() ? getTextMatchingParagraphs(filteredContent, query) : [];
+    
+    // Merge both types of matching paragraphs (remove duplicates)
+    const allMatchingParagraphs = [...new Set([...textMatchingParagraphs, ...matchingTagParagraphs])];
+    
+    if (allMatchingParagraphs.length > 0) {
       // Join matching paragraphs with separators
-      const partialContent = matchingParagraphs
+      const partialContent = allMatchingParagraphs
         .map(paragraph => `...${paragraph}...`)
         .join('<br/><br/>');
       return { content: partialContent, isPartial: true };
