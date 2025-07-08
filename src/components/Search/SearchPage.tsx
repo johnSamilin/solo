@@ -1,6 +1,6 @@
 import { FC, useState, useEffect, useMemo } from 'react';
 import { observer } from 'mobx-react-lite';
-import { Search, X, Tag as TagIcon, Filter, ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, X, Tag as TagIcon, Filter, ArrowLeft, ChevronDown, ChevronUp, MoreHorizontal } from 'lucide-react';
 import { useStore } from '../../stores/StoreProvider';
 import { Note, TagNode } from '../../types';
 import { buildTagTree, generateUniqueId } from '../../utils';
@@ -55,6 +55,61 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
     return queryIndex === normalizedQuery.length;
   };
 
+  // Extract matching paragraphs from note content
+  const getMatchingParagraphs = (content: string, query: string): string[] => {
+    if (!query.trim()) return [];
+    
+    // Create a temporary div to parse HTML content
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = content;
+    
+    // Get all paragraph-like elements
+    const elements = tempDiv.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li');
+    const matchingParagraphs: string[] = [];
+    
+    elements.forEach(element => {
+      const text = element.textContent || '';
+      if (fuzzyMatch(text, query)) {
+        matchingParagraphs.push(element.outerHTML);
+      }
+    });
+    
+    return matchingParagraphs;
+  };
+
+  // Check if note title or full content matches query
+  const noteFullyMatches = (note: Note, query: string): boolean => {
+    if (!query.trim()) return true;
+    
+    const titleMatches = fuzzyMatch(note.title, query);
+    if (titleMatches) return true;
+    
+    // Check if a significant portion of the content matches
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = note.content;
+    const fullText = tempDiv.textContent || '';
+    
+    // If the full text matches, consider it a full match
+    return fuzzyMatch(fullText, query);
+  };
+
+  // Get content to display for a note (either full content or matching paragraphs)
+  const getNoteDisplayContent = (note: Note, query: string): { content: string; isPartial: boolean } => {
+    const filteredContent = getFilteredContent(note);
+    
+    if (!query.trim() || noteFullyMatches(note, query)) {
+      return { content: filteredContent, isPartial: false };
+    }
+    
+    // Get matching paragraphs
+    const matchingParagraphs = getMatchingParagraphs(filteredContent, query);
+    if (matchingParagraphs.length > 0) {
+      return { content: matchingParagraphs.join(''), isPartial: true };
+    }
+    
+    return { content: filteredContent, isPartial: false };
+  };
+
   // Filter notes based on search query and tag filters
   const filteredNotes = useMemo(() => {
     let notes = notesStore.getVisibleNotes(settingsStore.isCensorshipEnabled());
@@ -62,8 +117,14 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
     // Apply text search
     if (searchQuery.trim()) {
       notes = notes.filter(note => {
-        const searchableText = `${note.title} ${note.content}`.toLowerCase();
-        return fuzzyMatch(searchableText, searchQuery.trim());
+        // Check title match
+        if (fuzzyMatch(note.title, searchQuery.trim())) {
+          return true;
+        }
+        
+        // Check if any paragraphs match
+        const matchingParagraphs = getMatchingParagraphs(note.content, searchQuery.trim());
+        return matchingParagraphs.length > 0;
       });
     }
 
@@ -199,7 +260,8 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
   const renderNoteContent = (note: Note) => {
     const notebook = notesStore.notebooks.find(nb => nb.id === note.notebookId);
     const isLoading = loadingNotes.has(note.id);
-    const filteredContent = getFilteredContent(note);
+    const { content: displayContent, isPartial } = getNoteDisplayContent(note, searchQuery);
+    
     
     // Apply note-specific theme styles
     const noteTheme = note.theme ? themes[note.theme]?.settings : settingsStore.settings;
@@ -211,6 +273,14 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
 
     return (
       <div key={note.id} className="search-note-item">
+        {isPartial && (
+          <div className="partial-match-indicator">
+            <MoreHorizontal className="h-4 w-4" />
+            <span>Showing matching paragraphs</span>
+            <MoreHorizontal className="h-4 w-4" />
+          </div>
+        )}
+        
         <div 
           className="search-note-header" 
           onClick={() => handleNoteClick(note)}
@@ -233,9 +303,13 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
               <div className="loading-spinner-small"></div>
               <span>Loading content...</span>
             </div>
-          ) : filteredContent ? (
+          ) : displayContent ? (
             <div 
-              dangerouslySetInnerHTML={{ __html: filteredContent }}
+              dangerouslySetInnerHTML={{ 
+                __html: isPartial 
+                  ? `<div class="partial-content">...${displayContent}...</div>`
+                  : displayContent 
+              }}
               onClick={(e) => {
                 // Prevent event bubbling to note header
                 e.stopPropagation();
