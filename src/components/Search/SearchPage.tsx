@@ -137,7 +137,11 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
     // Get matching paragraphs
     const matchingParagraphs = getTextMatchingParagraphs(filteredContent, query);
     if (matchingParagraphs.length > 0) {
-      return { content: matchingParagraphs.join(''), isPartial: true };
+      // Join matching paragraphs with separators
+      const partialContent = matchingParagraphs
+        .map(paragraph => `...${paragraph}...`)
+        .join('<br/><br/>');
+      return { content: partialContent, isPartial: true };
     }
     
     return { content: filteredContent, isPartial: false };
@@ -346,9 +350,7 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
           ) : displayContent ? (
             <div 
               dangerouslySetInnerHTML={{ 
-                __html: isPartial 
-                  ? `<div class="partial-content">...${displayContent}...</div>`
-                  : displayContent 
+                __html: displayContent
               }}
               onClick={(e) => {
                 // Prevent event bubbling to note header
