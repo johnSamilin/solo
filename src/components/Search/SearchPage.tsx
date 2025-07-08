@@ -69,7 +69,15 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
     
     elements.forEach(element => {
       const text = element.textContent || '';
-      if (fuzzyMatch(text, query)) {
+      const dataTags = element.getAttribute('data-tags') || '';
+      
+      // Check if text content matches
+      const textMatches = fuzzyMatch(text, query);
+      
+      // Check if any paragraph tags match
+      const tagsMatch = dataTags && fuzzyMatch(dataTags.replace(/,/g, ' '), query);
+      
+      if (textMatches || tagsMatch) {
         matchingParagraphs.push(element.outerHTML);
       }
     });
