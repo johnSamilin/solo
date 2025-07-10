@@ -80,7 +80,11 @@ const App = observer(() => {
           const currentWords = currentContent.split(/\s+/).filter(word => word.length > 0).length;
           const newWords = currentWords - initialWords;
 
-          if (newWords > 5 && !settingsStore.isZenMode && !autoZenDisabled) {
+          const currentSettings = notesStore.selectedNote?.theme ? 
+            themes[notesStore.selectedNote.theme].settings : 
+            settingsStore.settings;
+
+          if (newWords > 5 && !settingsStore.isZenMode && !autoZenDisabled && currentSettings.autoZenMode) {
             settingsStore.toggleZenMode();
           }
         }

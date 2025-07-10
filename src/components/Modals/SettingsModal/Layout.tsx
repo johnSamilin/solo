@@ -53,6 +53,14 @@ export const Layout: FC<LayoutProps> = ({ settings, setSettings }) => {
 				/>
 			</div>
 			<div className="setting-item">
+				<label>Auto Zen Mode</label>
+				<input
+					type="checkbox"
+					checked={settings.autoZenMode}
+					onChange={(e) => setSettings({ ...settings, autoZenMode: e.target.checked })}
+				/>
+			</div>
+			<div className="setting-item">
 				<label>Enable Drop Caps</label>
 				<input
 					type="checkbox"
