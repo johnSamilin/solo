@@ -52,14 +52,10 @@ const App = observer(() => {
       }),
       FullWidthImage.configure({}),
       Link.configure({
-        openOnClick: false,
+        openOnClick: true,
         HTMLAttributes: {
           rel: 'noopener noreferrer',
           class: 'text-blue-600 hover:text-blue-800 underline cursor-pointer',
-        },
-        onModifyLink: (link) => {
-          const url = window.prompt('Edit link URL:', link);
-          return url;
         },
       }),
       Censored,
