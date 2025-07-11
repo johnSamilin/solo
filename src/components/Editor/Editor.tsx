@@ -70,7 +70,7 @@ export const Editor: FC<EditorProps> = observer(({
       volume: 1,
       rate: 2.0
     });
-  }, [settingsStore.settings.typewriterSound, notesStore.selectedNote?.theme]);
+  }, [settingsStore.settings.typewriterSound, notesStore.selectedNote?.theme, settingsStore.settings]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {

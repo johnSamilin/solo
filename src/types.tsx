@@ -48,6 +48,7 @@ export interface TypographySettings {
   maxEditorWidth: string;
   sidebarPinned: boolean;
   typewriterSound: string;
+  autoZenMode: boolean;
 }
 
 export interface CensorshipSettings {

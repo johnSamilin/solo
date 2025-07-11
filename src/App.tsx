@@ -52,14 +52,10 @@ const App = observer(() => {
       }),
       FullWidthImage.configure({}),
       Link.configure({
-        openOnClick: false,
+        openOnClick: true,
         HTMLAttributes: {
           rel: 'noopener noreferrer',
           class: 'text-blue-600 hover:text-blue-800 underline cursor-pointer',
-        },
-        onModifyLink: (link) => {
-          const url = window.prompt('Edit link URL:', link);
-          return url;
         },
       }),
       Censored,
@@ -84,7 +80,11 @@ const App = observer(() => {
           const currentWords = currentContent.split(/\s+/).filter(word => word.length > 0).length;
           const newWords = currentWords - initialWords;
 
-          if (newWords > 5 && !settingsStore.isZenMode && !autoZenDisabled) {
+          const currentSettings = notesStore.selectedNote?.theme ? 
+            themes[notesStore.selectedNote.theme].settings : 
+            settingsStore.settings;
+
+          if (newWords > 5 && !settingsStore.isZenMode && !autoZenDisabled && currentSettings.autoZenMode) {
             settingsStore.toggleZenMode();
           }
         }

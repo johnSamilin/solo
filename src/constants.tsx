@@ -15,7 +15,8 @@ export const defaultSettings: TypographySettings = {
   dropCapLineHeight: '3.5',
   maxEditorWidth: '75%',
   sidebarPinned: true,
-  typewriterSound: 'typewriter-1'
+  typewriterSound: 'typewriter-1',
+  autoZenMode: true
 };
 
 export const themes: Record<string, { name: string; settings: TypographySettings }> = {
@@ -36,7 +37,8 @@ export const themes: Record<string, { name: string; settings: TypographySettings
       dropCapLineHeight: '4.5',
       maxEditorWidth: '90%',
       sidebarPinned: true,
-      typewriterSound: 'typewriter-1'
+      typewriterSound: 'typewriter-1',
+      autoZenMode: true
     },
   },
   typewriter: {
@@ -56,7 +58,8 @@ export const themes: Record<string, { name: string; settings: TypographySettings
       dropCapLineHeight: '3.5',
       maxEditorWidth: '85%',
       sidebarPinned: true,
-      typewriterSound: 'typewriter-1'
+      typewriterSound: 'typewriter-1',
+      autoZenMode: true
     },
   },
   narrow: {
@@ -76,7 +79,8 @@ export const themes: Record<string, { name: string; settings: TypographySettings
       dropCapLineHeight: '2.5',
       maxEditorWidth: '70%',
       sidebarPinned: true,
-      typewriterSound: 'typewriter-1'
+      typewriterSound: 'typewriter-1',
+      autoZenMode: true
     },
   },
   fbi: {
@@ -96,7 +100,8 @@ export const themes: Record<string, { name: string; settings: TypographySettings
       dropCapLineHeight: '3.5',
       maxEditorWidth: '90%',
       sidebarPinned: true,
-      typewriterSound: 'typewriter'
+      typewriterSound: 'typewriter',
+      autoZenMode: true
     },
   },
 };
