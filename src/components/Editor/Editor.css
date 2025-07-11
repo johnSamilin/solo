@@ -365,3 +365,27 @@
 .zen-mode .language-selector {
   left: 8rem;
 }
+
+.note-loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.note-loading-message {
+  padding: 1rem 2rem;
+  background: var(--color-white);
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  font-family: 'Outfit', system-ui, sans-serif;
+  font-size: 0.875rem;
+}

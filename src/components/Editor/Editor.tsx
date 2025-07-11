@@ -385,6 +385,13 @@ export const Editor: FC<EditorProps> = observer(({
             {new Date(notesStore.selectedNote.createdAt).toLocaleDateString()}
           </p>}
           <EditorContent editor={editor} className="editor-body" />
+          {notesStore.isLoadingNoteContent && (
+            <div className="note-loading-overlay">
+              <div className="note-loading-message">
+                Loading note content...
+              </div>
+            </div>
+          )}
           <TagsDisplay />
           <div className="note-navigation" style={{ clear: 'both' }}>
             <button
@@ -399,13 +406,25 @@ export const Editor: FC<EditorProps> = observer(({
               onClick={handleCreateNote}
               className="button-icon"
               title="Create new note"
-            >
+              {notesStore.isLoadingNoteContent ? (
+                <p className="empty-state-text">Loading note content...</p>
+              ) : (
+                <p className="empty-state-text">Select a note or create a new one</p>
+              )}
               <Plus className="h-4 w-4" />
-            </button>
+                <button 
+                  onClick={handleCreateNote} 
+                  className="button-primary"
+                  disabled={notesStore.isLoadingNoteContent}
+                >
             <button
               onClick={handleNextNote}
               className="button-icon"
-              disabled={!hasNext}
+                <a 
+                  href="/about" 
+                  target="_blank" 
+                  className={`button-primary ${notesStore.isLoadingNoteContent ? 'disabled' : ''}`}
+                >
               title="Next note"
             >
               <ArrowRight className="h-4 w-4" />
