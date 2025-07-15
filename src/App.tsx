@@ -176,11 +176,7 @@ const App = observer(() => {
       } else {
         if (content !== editor.getHTML()) {
           // Ensure content is properly parsed with all attributes
-          editor.commands.setContent(content);
-          // Force a re-render to ensure decorations are applied
-          setTimeout(() => {
-            editor.view.updateState(editor.state);
-          }, 100);
+          editor.commands.setContent(content, false, { preserveWhitespace: 'full' });
           setInitialContent(editor.state.doc.textContent);
         }
       }
