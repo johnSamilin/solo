@@ -18,6 +18,7 @@ export class NotesStore {
   focusedNotebookId: string | null = null;
   isEditing = false;
   isLoading = false;
+  isLoadingNoteContent = false;
   private notebooksByParentId = new Map<string | null, Notebook[]>();
   private notesByNotebookId = new Map<string | null, Note[]>();
 
@@ -29,6 +30,7 @@ export class NotesStore {
       focusedNotebookId: observable,
       isEditing: observable,
       isLoading: observable,
+      isLoadingNoteContent: observable,
     });
     this.loadFromStorage();
   }
@@ -426,6 +428,8 @@ export class NotesStore {
   async loadNoteContent(note: Note): Promise<void> {
     if (note.content) return; // Already loaded
     
+    this.isLoadingNoteContent = true;
+    
     try {
       const dbNote = await db.getNote(note.id);
       if (dbNote) {
@@ -433,6 +437,8 @@ export class NotesStore {
       }
     } catch (error) {
       console.error('Error loading note content:', error);
+    } finally {
+      this.isLoadingNoteContent = false;
     }
   }
 

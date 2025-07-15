@@ -405,7 +405,6 @@ export const Editor: FC<EditorProps> = observer(({
             <button
               onClick={handleNextNote}
               className="button-icon"
-              disabled={!hasNext}
               title="Next note"
             >
               <ArrowRight className="h-4 w-4" />

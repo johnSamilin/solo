@@ -149,10 +149,11 @@ const App = observer(() => {
   }, [settingsStore.syncMode, settingsStore.server, settingsStore.webDAV]);
 
   useEffect(() => {
-    if (editor && notesStore.selectedNote) {
+    if (editor && notesStore.selectedNote && !notesStore.isLoadingNoteContent) {
       // Load note content if not already loaded
       if (!notesStore.selectedNote.content) {
         notesStore.loadNoteContent(notesStore.selectedNote);
+        return; // Don't set content until loading is complete
       }
       
       if (notesStore.selectedNote.isCensored && settingsStore.isCensorshipEnabled()) {
@@ -180,7 +181,7 @@ const App = observer(() => {
       }
       setAutoZenDisabled(false);
     }
-  }, [editor, notesStore.selectedNote, settingsStore.isCensorshipEnabled()]);
+  }, [editor, notesStore.selectedNote, settingsStore.isCensorshipEnabled(), notesStore.isLoadingNoteContent]);
 
   useEffect(() => {
     if (!settingsStore.isZenMode) {
