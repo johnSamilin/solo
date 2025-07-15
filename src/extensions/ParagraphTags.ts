@@ -142,6 +142,9 @@ export const ParagraphTags = Extension.create({
                       tagContainer.appendChild(tagEl);
                     });
                     return tagContainer;
+                  }, {
+                    side: 1,
+                    marks: [],
                   })
                 );
               }
@@ -150,6 +153,14 @@ export const ParagraphTags = Extension.create({
             return DecorationSet.create(doc, decorations);
           },
         },
+        view: () => ({
+          update: (view, prevState) => {
+            // Force decoration update when document changes
+            if (!view.state.doc.eq(prevState.doc)) {
+              view.updateState(view.state);
+            }
+          },
+        }),
         appendTransaction: (transactions, oldState, newState) => {
           // Handle the case where a new paragraph is created from a tagged paragraph
           let tr = null;
