@@ -49,8 +49,6 @@ export interface TypographySettings {
   sidebarPinned: boolean;
   typewriterSound: string;
   autoZenMode: boolean;
-  storeImagesOnDevice: boolean;
-  imageStoragePath: string;
 }
 
 export interface CensorshipSettings {
