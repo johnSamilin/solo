@@ -11,6 +11,7 @@ import { TextRecognitionModal } from "../Modals/TextRecognitionModal";
 import { ArrowLeft, Plus, ArrowRight, Maximize2, Trash2, ScanText } from "lucide-react";
 import { themes } from "../../constants";
 import { analytics } from "../../utils/analytics";
+import { FC } from 'react';
 
 import './Editor.css';
 
@@ -158,7 +159,8 @@ export const Editor: FC<EditorProps> = observer(({
     if (editorContent) {
       editorContent.addEventListener('contextmenu', handleImageContextMenu);
       editorContent.addEventListener('click', handleImageClick);
-      return () => editorContent.removeEventListener('contextmenu', handleImageContextMenu);
+      return () => {
+        editorContent.removeEventListener('contextmenu', handleImageContextMenu);
         editorContent.removeEventListener('click', handleImageClick);
       };
     }
