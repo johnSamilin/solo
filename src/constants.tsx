@@ -16,7 +16,9 @@ export const defaultSettings: TypographySettings = {
   maxEditorWidth: '75%',
   sidebarPinned: true,
   typewriterSound: 'typewriter-1',
-  autoZenMode: true
+  autoZenMode: true,
+  storeImagesLocally: false,
+  localImageStoragePath: ''
 };
 
 export const themes: Record<string, { name: string; settings: TypographySettings }> = {
@@ -38,7 +40,9 @@ export const themes: Record<string, { name: string; settings: TypographySettings
       maxEditorWidth: '90%',
       sidebarPinned: true,
       typewriterSound: 'typewriter-1',
-      autoZenMode: true
+      autoZenMode: true,
+      storeImagesLocally: false,
+      localImageStoragePath: ''
     },
   },
   typewriter: {
@@ -59,7 +63,9 @@ export const themes: Record<string, { name: string; settings: TypographySettings
       maxEditorWidth: '85%',
       sidebarPinned: true,
       typewriterSound: 'typewriter-1',
-      autoZenMode: true
+      autoZenMode: true,
+      storeImagesLocally: false,
+      localImageStoragePath: ''
     },
   },
   narrow: {
@@ -80,7 +86,9 @@ export const themes: Record<string, { name: string; settings: TypographySettings
       maxEditorWidth: '70%',
       sidebarPinned: true,
       typewriterSound: 'typewriter-1',
-      autoZenMode: true
+      autoZenMode: true,
+      storeImagesLocally: false,
+      localImageStoragePath: ''
     },
   },
   fbi: {
@@ -101,7 +109,9 @@ export const themes: Record<string, { name: string; settings: TypographySettings
       maxEditorWidth: '90%',
       sidebarPinned: true,
       typewriterSound: 'typewriter',
-      autoZenMode: true
+      autoZenMode: true,
+      storeImagesLocally: false,
+      localImageStoragePath: ''
     },
   },
 };

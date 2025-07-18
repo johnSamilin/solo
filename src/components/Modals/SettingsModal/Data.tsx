@@ -1,4 +1,5 @@
 import { FC, useRef, useState } from "react";
+import { FolderOpen } from "lucide-react";
 import { useStore } from "../../../stores/StoreProvider";
 import { isPlugin } from "../../../config";
 import { observer } from "mobx-react-lite";
@@ -9,6 +10,12 @@ export const Data: FC = observer(() => {
   const { notesStore, settingsStore } = useStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importMode, setImportMode] = useState<ImportMode>('merge');
+  const [folderPickerSupported, setFolderPickerSupported] = useState(false);
+
+  // Check if File System API is supported
+  useState(() => {
+    setFolderPickerSupported('showDirectoryPicker' in window);
+  });
 
   const handleExport = async () => {
     const data = {
@@ -87,9 +94,79 @@ export const Data: FC = observer(() => {
     }
   };
 
+  const handlePickFolder = async () => {
+    if (!('showDirectoryPicker' in window)) {
+      settingsStore.setToast('File System API not supported in this browser', 'error');
+      return;
+    }
+
+    try {
+      // @ts-ignore - File System API types might not be available
+      const directoryHandle = await window.showDirectoryPicker({
+        mode: 'readwrite',
+        startIn: 'documents'
+      });
+      
+      settingsStore.updateSettings({
+        localImageStoragePath: directoryHandle.name
+      });
+      
+      settingsStore.setToast('Folder selected successfully', 'success');
+    } catch (error) {
+      if (error.name !== 'AbortError') {
+        console.error('Error picking folder:', error);
+        settingsStore.setToast('Failed to select folder', 'error');
+      }
+    }
+  };
+
   return (
     <div className="settings-group">
       <h3>Data Management</h3>
+      <div className="setting-item">
+        <label>Store Images Locally</label>
+        <input
+          type="checkbox"
+          checked={settingsStore.settings.storeImagesLocally}
+          onChange={(e) => settingsStore.updateSettings({ 
+            storeImagesLocally: e.target.checked 
+          })}
+          disabled={!folderPickerSupported}
+        />
+      </div>
+      {settingsStore.settings.storeImagesLocally && (
+        <>
+          <div className="setting-item">
+            <label>Storage Folder</label>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <input
+                type="text"
+                value={settingsStore.settings.localImageStoragePath || 'No folder selected'}
+                readOnly
+                style={{ 
+                  flex: 1, 
+                  backgroundColor: '#f5f5f5',
+                  color: settingsStore.settings.localImageStoragePath ? '#333' : '#999'
+                }}
+              />
+              <button 
+                onClick={handlePickFolder}
+                className="button-primary"
+                disabled={!folderPickerSupported}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+              >
+                <FolderOpen className="h-4 w-4" />
+                Pick Folder
+              </button>
+            </div>
+          </div>
+          {!folderPickerSupported && (
+            <div className="import-status error">
+              File System API is not supported in this browser. Local image storage is only available in Chrome, Edge, and other Chromium-based browsers.
+            </div>
+          )}
+        </>
+      )}
       <div className="setting-item">
         <label>Export Data</label>
         <button onClick={handleExport} className="button-primary">
