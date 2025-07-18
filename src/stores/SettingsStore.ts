@@ -158,11 +158,64 @@ export class SettingsStore {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
         localStorage.setItem(SECURE_STORAGE_KEY, JSON.stringify(secureData));
       }
+
+      // Start or stop background sync based on local storage settings
+      this.manageBackgroundSync();
     } catch (error) {
       console.error('Error saving settings:', error);
     }
   };
 
+  private backgroundSyncInterval: NodeJS.Timeout | null = null;
+
+  private manageBackgroundSync = () => {
+    // Clear existing interval
+    if (this.backgroundSyncInterval) {
+      clearInterval(this.backgroundSyncInterval);
+      this.backgroundSyncInterval = null;
+    }
+
+    // Start background sync if conditions are met
+    if (this.settings.storeImagesLocally && 
+        this.settings.localImageStoragePath && 
+        this.syncMode === 'server' && 
+        this.server.url) {
+      this.startBackgroundSync();
+    }
+  };
+
+  private startBackgroundSync = () => {
+    // Ping server every 5 minutes
+    this.backgroundSyncInterval = setInterval(async () => {
+      try {
+        const response = await fetch(`${this.server.url}/api/ping`, {
+          method: 'GET',
+          headers: {
+            'Authorization': this.server.token ? `Bearer ${this.server.token}` : '',
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Background sync ping successful:', data.timestamp);
+        } else {
+          console.warn('Background sync ping failed:', response.status);
+        }
+      } catch (error) {
+        console.error('Background sync ping error:', error);
+      }
+    }, 5 * 60 * 1000); // 5 minutes
+
+    console.log('Background sync started for local image storage');
+  };
+
+  // Clean up interval when store is destroyed
+  destroy = () => {
+    if (this.backgroundSyncInterval) {
+      clearInterval(this.backgroundSyncInterval);
+      this.backgroundSyncInterval = null;
+    }
+  };
   updateSettings = (newSettings: Partial<TypographySettings>) => {
     this.settings = { ...this.settings, ...newSettings };
     this.saveToStorage();
