@@ -169,52 +169,104 @@ export class SettingsStore {
   private backgroundSyncInterval: NodeJS.Timeout | null = null;
 
   private manageBackgroundSync = () => {
-    // Clear existing interval
-    if (this.backgroundSyncInterval) {
-      clearInterval(this.backgroundSyncInterval);
-      this.backgroundSyncInterval = null;
-    }
-
-    // Start background sync if conditions are met
+    // Register or unregister background sync based on settings
     if (this.settings.storeImagesLocally && 
         this.settings.localImageStoragePath && 
         this.syncMode === 'server' && 
         this.server.url) {
-      this.startBackgroundSync();
+      this.registerBackgroundSync();
+    } else {
+      this.unregisterBackgroundSync();
     }
   };
 
-  private startBackgroundSync = () => {
-    // Ping server every 5 minutes
-    this.backgroundSyncInterval = setInterval(async () => {
-      try {
-        const response = await fetch(`${this.server.url}/api/ping`, {
-          method: 'GET',
-          headers: {
-            'Authorization': this.server.token ? `Bearer ${this.server.token}` : '',
-          },
+  private registerBackgroundSync = async () => {
+    try {
+      // Check if service worker and periodic background sync are supported
+      if ('serviceWorker' in navigator && 'periodicSync' in window.ServiceWorkerRegistration.prototype) {
+        const registration = await navigator.serviceWorker.ready;
+        
+        // Register periodic background sync
+        await registration.periodicSync.register('image-storage-sync', {
+          minInterval: 5 * 60 * 1000, // 5 minutes minimum interval
         });
-
-        if (response.ok) {
-          const data = await response.json();
-          console.log('Background sync ping successful:', data.timestamp);
-        } else {
-          console.warn('Background sync ping failed:', response.status);
-        }
-      } catch (error) {
-        console.error('Background sync ping error:', error);
+        
+        console.log('Periodic background sync registered for local image storage');
+      } else {
+        console.warn('Periodic Background Sync not supported, falling back to visibility-based sync');
+        this.setupVisibilityBasedSync();
       }
-    }, 5 * 60 * 1000); // 5 minutes
+    } catch (error) {
+      console.error('Failed to register periodic background sync:', error);
+      // Fallback to visibility-based sync
+      this.setupVisibilityBasedSync();
+    }
+  };
 
-    console.log('Background sync started for local image storage');
+  private unregisterBackgroundSync = async () => {
+    try {
+      if ('serviceWorker' in navigator && 'periodicSync' in window.ServiceWorkerRegistration.prototype) {
+        const registration = await navigator.serviceWorker.ready;
+        const tags = await registration.periodicSync.getTags();
+        
+        if (tags.includes('image-storage-sync')) {
+          await registration.periodicSync.unregister('image-storage-sync');
+          console.log('Periodic background sync unregistered');
+        }
+      }
+      
+      // Clean up visibility-based sync
+      this.cleanupVisibilityBasedSync();
+    } catch (error) {
+      console.error('Failed to unregister periodic background sync:', error);
+    }
+  };
+
+  private visibilityChangeHandler: (() => void) | null = null;
+
+  private setupVisibilityBasedSync = () => {
+    // Fallback: sync when page becomes visible
+    this.visibilityChangeHandler = () => {
+      if (!document.hidden) {
+        this.performBackgroundSync();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', this.visibilityChangeHandler);
+    console.log('Visibility-based sync setup as fallback');
+  };
+
+  private cleanupVisibilityBasedSync = () => {
+    if (this.visibilityChangeHandler) {
+      document.removeEventListener('visibilitychange', this.visibilityChangeHandler);
+      this.visibilityChangeHandler = null;
+    }
+  };
+
+  private performBackgroundSync = async () => {
+    try {
+      const response = await fetch(`${this.server.url}/api/ping`, {
+        method: 'GET',
+        headers: {
+          'Authorization': this.server.token ? `Bearer ${this.server.token}` : '',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Background sync ping successful:', data.timestamp);
+      } else {
+        console.warn('Background sync ping failed:', response.status);
+      }
+    } catch (error) {
+      console.error('Background sync ping error:', error);
+    }
   };
 
   // Clean up interval when store is destroyed
   destroy = () => {
-    if (this.backgroundSyncInterval) {
-      clearInterval(this.backgroundSyncInterval);
-      this.backgroundSyncInterval = null;
-    }
+    this.unregisterBackgroundSync();
+    this.cleanupVisibilityBasedSync();
   };
   updateSettings = (newSettings: Partial<TypographySettings>) => {
     this.settings = { ...this.settings, ...newSettings };
