@@ -95,11 +95,30 @@ export const Editor: FC<EditorProps> = observer(({
     }
   };
 
+  const handleImageClick = (e: MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'IMG') {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const img = target as HTMLImageElement;
+      if (img.requestFullscreen) {
+        img.requestFullscreen().catch(err => {
+          console.error('Error attempting to enable fullscreen:', err);
+        });
+      }
+    }
+  };
+
   useEffect(() => {
     const editorContent = editorContentRef.current;
     if (editorContent) {
       editorContent.addEventListener('contextmenu', handleImageContextMenu);
-      return () => editorContent.removeEventListener('contextmenu', handleImageContextMenu);
+      editorContent.addEventListener('click', handleImageClick);
+      return () => {
+        editorContent.removeEventListener('contextmenu', handleImageContextMenu);
+        editorContent.removeEventListener('click', handleImageClick);
+      };
     }
   }, []);
 
