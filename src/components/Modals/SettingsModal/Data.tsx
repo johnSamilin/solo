@@ -5,17 +5,15 @@ import { isPlugin } from "../../../config";
 import { observer } from "mobx-react-lite";
 import { ImportMode } from "../../../types";
 import { analytics } from "../../../utils/analytics";
+import { isFilesystemStoringAvailable } from "../../../Features";
 
 export const Data: FC = observer(() => {
   const { notesStore, settingsStore } = useStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importMode, setImportMode] = useState<ImportMode>('merge');
-  const [folderPickerSupported, setFolderPickerSupported] = useState(false);
-
-  // Check if File System API is supported
-  useState(() => {
-    setFolderPickerSupported('showDirectoryPicker' in window);
-  });
+  
+  // Check if filesystem storing is available
+  const filesystemStoringAvailable = isFilesystemStoringAvailable(settingsStore.syncMode);
 
   const handleExport = async () => {
     const data = {
@@ -95,11 +93,6 @@ export const Data: FC = observer(() => {
   };
 
   const handlePickFolder = async () => {
-    if (!('showDirectoryPicker' in window)) {
-      settingsStore.setToast('File System API not supported in this browser', 'error');
-      return;
-    }
-
     try {
       // @ts-ignore - File System API types might not be available
       const directoryHandle = await window.showDirectoryPicker({
@@ -123,49 +116,54 @@ export const Data: FC = observer(() => {
   return (
     <div className="settings-group">
       <h3>Data Management</h3>
-      <div className="setting-item">
-        <label>Store Images Locally</label>
-        <input
-          type="checkbox"
-          checked={settingsStore.settings.storeImagesLocally}
-          onChange={(e) => settingsStore.updateSettings({ 
-            storeImagesLocally: e.target.checked 
-          })}
-          disabled={!folderPickerSupported}
-        />
-      </div>
-      {settingsStore.settings.storeImagesLocally && (
+      {filesystemStoringAvailable && (
         <>
           <div className="setting-item">
-            <label>Storage Folder</label>
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <input
-                type="text"
-                value={settingsStore.settings.localImageStoragePath || 'No folder selected'}
-                readOnly
-                style={{ 
-                  flex: 1, 
-                  backgroundColor: '#f5f5f5',
-                  color: settingsStore.settings.localImageStoragePath ? '#333' : '#999'
-                }}
-              />
-              <button 
-                onClick={handlePickFolder}
-                className="button-primary"
-                disabled={!folderPickerSupported}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-              >
-                <FolderOpen className="h-4 w-4" />
-                Pick Folder
-              </button>
-            </div>
+            <label>Store Images Locally</label>
+            <input
+              type="checkbox"
+              checked={settingsStore.settings.storeImagesLocally}
+              onChange={(e) => settingsStore.updateSettings({ 
+                storeImagesLocally: e.target.checked 
+              })}
+            />
           </div>
-          {!folderPickerSupported && (
-            <div className="import-status error">
-              File System API is not supported in this browser. Local image storage is only available in Chrome, Edge, and other Chromium-based browsers.
+          {settingsStore.settings.storeImagesLocally && (
+            <div className="setting-item">
+              <label>Storage Folder</label>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <input
+                  type="text"
+                  value={settingsStore.settings.localImageStoragePath || 'No folder selected'}
+                  readOnly
+                  style={{ 
+                    flex: 1, 
+                    backgroundColor: '#f5f5f5',
+                    color: settingsStore.settings.localImageStoragePath ? '#333' : '#999'
+                  }}
+                />
+                <button 
+                  onClick={handlePickFolder}
+                  className="button-primary"
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                >
+                  <FolderOpen className="h-4 w-4" />
+                  Pick Folder
+                </button>
+              </div>
             </div>
           )}
         </>
+      )}
+      {!filesystemStoringAvailable && settingsStore.syncMode === 'server' && (
+        <div className="import-status error">
+          Local image storage is not available when server sync is enabled to avoid conflicts.
+        </div>
+      )}
+      {!filesystemStoringAvailable && settingsStore.syncMode !== 'server' && (
+        <div className="import-status error">
+          File System API is not supported in this browser. Local image storage is only available in Chrome, Edge, and other Chromium-based browsers.
+        </div>
       )}
       <div className="setting-item">
         <label>Export Data</label>
