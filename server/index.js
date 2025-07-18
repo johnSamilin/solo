@@ -490,6 +490,16 @@ http2Server.on('stream', async (stream, headers) => {
     }
   }
 
+  // Handle ping endpoint for background sync
+  if (path === '/api/ping' && method === 'GET') {
+    stream.respond({ ':status': 200, ...responseHeaders });
+    stream.end(JSON.stringify({ 
+      timestamp: new Date().toISOString(),
+      status: 'ok'
+    }));
+    return;
+  }
+
   // Serve static files
   if (method === 'GET') {
     try {
