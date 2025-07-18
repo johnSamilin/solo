@@ -1,10 +1,9 @@
 import { makeObservable, observable } from 'mobx';
 import { Note, Tag, Notebook, ImportMode } from '../types';
 import { generateUniqueId } from '../utils';
+import { db } from '../utils/database';
+import { migrationManager } from '../utils/migration';
 import { analytics } from '../utils/analytics';
-import { isPlugin } from '../config';
-
-const STORAGE_KEY = 'solo-notes-data';
 
 export class NotesStore {
   notes: Note[] = [];
@@ -61,77 +60,17 @@ export class NotesStore {
   loadFromStorage = async () => {
     this.isLoading = true;
     try {
-      let storedData = {
-        notes: [],
-        notebooks: [{
-          id: 'default',
-          name: 'Main notebook',
-          parentId: null,
-          isExpanded: true,
-          isCensored: false
-        }],
-        selectedNoteId: null,
-        focusedNotebookId: null
-      };
-
-      if (isPlugin) {
-        if (window.bridge?.loadFromStorage) {
-          const data = await window.bridge.loadFromStorage(STORAGE_KEY);
-          if (data) {
-            if (typeof data === 'string') {
-              storedData = JSON.parse(data);
-            } else {
-              storedData = data;
-            }
-          }
-        }
-      } else {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-          storedData = JSON.parse(stored);
-        }
-      }
-
-      // Load notebooks
-      this.notebooks = storedData.notebooks.map(notebook => ({
-        ...notebook,
-        isExpanded: notebook.isExpanded !== false
-      }));
-
-      // Ensure default notebook exists
-      if (this.notebooks.length === 0) {
-        this.notebooks = [{
-          id: 'default',
-          name: 'Main notebook',
-          parentId: null,
-          isExpanded: true,
-          isCensored: false
-        }];
-      }
-
-      // Load notes with date conversion
-      this.notes = storedData.notes.map(note => ({
-        ...note,
-        createdAt: new Date(note.createdAt),
-        tags: note.tags || []
-      }));
-
-      this.cacheNotebooks();
-      this.cacheNotes();
-
-      // Set selected note and focused notebook
-      if (storedData.selectedNoteId) {
-        const note = this.notes.find(n => n.id === storedData.selectedNoteId);
-        if (note) {
-          this.selectedNote = note;
-        }
-      }
-
-      if (storedData.focusedNotebookId) {
-        this.focusedNotebookId = storedData.focusedNotebookId;
-      }
+      // Check and perform migration if needed
+      await migrationManager.checkAndMigrate();
+      
+      // Initialize database
+      await db.initialize();
+      
+      // Load data from IndexedDB
+      await this.loadFromDatabase();
     } catch (error) {
       console.error('Error loading data:', error);
+      // Fallback to default data
       this.notebooks = [{
         id: 'default',
         name: 'Main notebook',
@@ -144,6 +83,66 @@ export class NotesStore {
       this.isLoading = false;
     }
   };
+
+  private async loadFromDatabase() {
+    // Load notebooks
+    const dbNotebooks = await db.getAllNotebooks();
+    this.notebooks = dbNotebooks.map(notebook => ({
+      id: notebook.id,
+      name: notebook.name,
+      parentId: notebook.parentId,
+      isExpanded: notebook.isExpanded,
+      isCensored: notebook.isCensored
+    }));
+
+    // Ensure default notebook exists
+    if (this.notebooks.length === 0) {
+      const defaultNotebook = {
+        id: 'default',
+        name: 'Main notebook',
+        parentId: null,
+        isExpanded: true,
+        isCensored: false
+      };
+      this.notebooks = [defaultNotebook];
+      await db.saveNotebook(defaultNotebook);
+    }
+
+    // Load note metadata (without content for performance)
+    const dbNotes = await db.getAllNotes();
+    this.notes = dbNotes.map(note => ({
+      id: note.id,
+      title: note.title,
+      content: '', // Content will be loaded on demand
+      createdAt: new Date(note.createdAt),
+      notebookId: note.notebookId,
+      isCensored: note.isCensored,
+      theme: note.theme,
+      tags: JSON.parse(note.tags || '[]')
+    }));
+
+    this.cacheNotebooks();
+    this.cacheNotes();
+
+    // Load selected note and focused notebook from settings
+    try {
+      const selectedNoteId = await db.getSetting('selectedNoteId');
+      if (selectedNoteId) {
+        const note = this.notes.find(n => n.id === selectedNoteId);
+        if (note) {
+          await this.loadNoteContent(note);
+          this.selectedNote = note;
+        }
+      }
+
+      const focusedNotebookId = await db.getSetting('focusedNotebookId');
+      if (focusedNotebookId) {
+        this.focusedNotebookId = focusedNotebookId;
+      }
+    } catch (error) {
+      console.error('Error loading settings:', error);
+    }
+  }
 
   freshStart = () => {
     this.notes = [];
@@ -159,7 +158,7 @@ export class NotesStore {
     this.selectedNote = null;
     this.focusedNotebookId = null;
     this.isEditing = false;
-    this.saveToStorage();
+    this.saveToDatabase();
   };
 
   importData = (data: { notes: Note[], notebooks: Notebook[] }, mode: ImportMode) => {
@@ -205,7 +204,7 @@ export class NotesStore {
     }
     this.cacheNotebooks();
     this.cacheNotes();
-    this.saveToStorage();
+    this.saveToDatabase();
     analytics.dataImported(mode);
   };
 
@@ -230,7 +229,7 @@ export class NotesStore {
       notebook.isExpanded = true;
     }
 
-    this.saveToStorage();
+    this.saveNote(newNote);
     this.cacheNotes();
     analytics.noteCreated();
     return newNote;
@@ -243,7 +242,7 @@ export class NotesStore {
       if (this.selectedNote?.id === noteId) {
         this.selectedNote = this.notes[noteIndex];
       }
-      this.saveToStorage();
+      this.saveNote(this.notes[noteIndex]);
       this.cacheNotes();
       
       // Track theme changes
@@ -257,7 +256,7 @@ export class NotesStore {
     const notebookIndex = this.notebooks.findIndex(notebook => notebook.id === notebookId);
     if (notebookIndex !== -1) {
       this.notebooks[notebookIndex] = { ...this.notebooks[notebookIndex], ...updates };
-      this.saveToStorage();
+      this.saveNotebook(this.notebooks[notebookIndex]);
       this.cacheNotebooks();
     }
   };
@@ -269,7 +268,7 @@ export class NotesStore {
       if (this.selectedNote?.id === noteId) {
         this.selectedNote = note;
       }
-      this.saveToStorage();
+      this.saveNote(note);
       this.cacheNotes();
       analytics.censorshipToggled(note.isCensored);
     }
@@ -279,7 +278,7 @@ export class NotesStore {
     const notebook = this.notebooks.find(n => n.id === notebookId);
     if (notebook) {
       notebook.isCensored = !notebook.isCensored;
-      this.saveToStorage();
+      this.saveNotebook(notebook);
       this.cacheNotebooks();
       analytics.censorshipToggled(notebook.isCensored);
     }
@@ -291,7 +290,8 @@ export class NotesStore {
       this.selectedNote = null;
       this.isEditing = false;
     }
-    this.saveToStorage();
+    this.deleteNoteFromDatabase(noteId);
+    this.saveToDatabase();
     this.cacheNotes();
     analytics.noteDeleted();
   };
@@ -302,19 +302,19 @@ export class NotesStore {
       this.setFocusedNotebook(note.notebookId);
     }
     this.isEditing = !!note;
-    this.saveToStorage();
+    this.saveToDatabase();
   };
 
   setFocusedNotebook = (notebookId: string | null) => {
     this.focusedNotebookId = notebookId;
-    this.saveToStorage();
+    this.saveToDatabase();
   };
 
   addTagToNote = (noteId: string, tag: Tag) => {
     const note = this.notes.find(n => n.id === noteId);
     if (note) {
       note.tags.push(tag);
-      this.saveToStorage();
+      this.saveNote(note);
       this.cacheNotes();
     }
   };
@@ -323,7 +323,7 @@ export class NotesStore {
     const note = this.notes.find(n => n.id === noteId);
     if (note) {
       note.tags = note.tags.filter(tag => tag.id !== tagId);
-      this.saveToStorage();
+      this.saveNote(note);
       this.cacheNotes();
     }
   };
@@ -337,7 +337,7 @@ export class NotesStore {
       isCensored: false
     };
     this.notebooks.push(newNotebook);
-    this.saveToStorage();
+    this.saveNotebook(newNotebook);
     this.cacheNotebooks();
     this.cacheNotes();
     analytics.notebookCreated();
@@ -348,7 +348,7 @@ export class NotesStore {
     const notebook = this.notebooks.find(n => n.id === notebookId);
     if (notebook) {
       notebook.isExpanded = !notebook.isExpanded;
-      this.saveToStorage();
+      this.saveNotebook(notebook);
     }
   };
 
@@ -414,47 +414,89 @@ export class NotesStore {
     };
   }
 
-  private async saveToStorage() {
+  // Database operations
+  private async saveToDatabase() {
     try {
-      const data = {
-        notes: this.notes,
-        notebooks: this.notebooks,
-        selectedNoteId: this.selectedNote?.id || null,
-        focusedNotebookId: this.focusedNotebookId
-      };
-
-      if (isPlugin) {
-        if (window.bridge?.saveToStorage) {
-          try {
-            await window.bridge.saveToStorage(STORAGE_KEY, data);
-          } catch (er) {
-            await window.bridge.saveToStorage(STORAGE_KEY, JSON.stringify(data));
-          }
-        }
-      } else {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-      }
+      // Save current state to database
+      await db.saveSetting('selectedNoteId', this.selectedNote?.id || null);
+      await db.saveSetting('focusedNotebookId', this.focusedNotebookId);
     } catch (error) {
-      console.error('Error saving to storage:', error);
+      console.error('Error saving to database:', error);
     }
   }
 
   async loadNoteContent(note: Note): Promise<void> {
-    // In the simplified version, content is always loaded with the note
-    // This method is kept for compatibility but doesn't need to do anything
-    return Promise.resolve();
+    if (note.content) return; // Already loaded
+    
+    this.isLoadingNoteContent = true;
+    
+    try {
+      const dbNote = await db.getNote(note.id);
+      if (dbNote) {
+        note.content = dbNote.content;
+      }
+    } catch (error) {
+      console.error('Error loading note content:', error);
+    } finally {
+      this.isLoadingNoteContent = false;
+    }
+  }
+
+  async saveNote(note: Note): Promise<void> {
+    try {
+      const dbNote = {
+        id: note.id,
+        title: note.title,
+        content: note.content,
+        createdAt: note.createdAt.toISOString(),
+        notebookId: note.notebookId,
+        isCensored: note.isCensored,
+        theme: note.theme,
+        tags: JSON.stringify(note.tags)
+      };
+      await db.saveNote(dbNote);
+    } catch (error) {
+      console.error('Error saving note:', error);
+    }
+  }
+
+  async saveNotebook(notebook: Notebook): Promise<void> {
+    try {
+      await db.saveNotebook({
+        id: notebook.id,
+        name: notebook.name,
+        parentId: notebook.parentId,
+        isExpanded: notebook.isExpanded,
+        isCensored: notebook.isCensored
+      });
+    } catch (error) {
+      console.error('Error saving notebook:', error);
+    }
+  }
+
+  async deleteNoteFromDatabase(noteId: string): Promise<void> {
+    try {
+      await db.deleteNote(noteId);
+    } catch (error) {
+      console.error('Error deleting note from database:', error);
+    }
+  }
+
+  async deleteNotebookFromDatabase(notebookId: string): Promise<void> {
+    try {
+      await db.deleteNotebook(notebookId);
+    } catch (error) {
+      console.error('Error deleting notebook from database:', error);
+    }
   }
 
   // Sync operations - export data as JSON for sync
   async exportForSync(): Promise<{ notes: any[], notebooks: any[] }> {
-    return {
-      notes: this.notes,
-      notebooks: this.notebooks
-    };
+    return await db.exportData();
   }
 
   async importFromSync(data: { notes: any[], notebooks: any[] }): Promise<void> {
-    this.importData(data, 'replace');
+    await db.importData(data);
+    await this.loadFromDatabase();
   }
 }
-    
