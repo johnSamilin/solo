@@ -7,8 +7,30 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      manifest: false,
+      manifest: {
+        name: 'Solo',
+        short_name: 'Solo',
+        description: 'Minimalistic private note-taking app',
+        theme_color: '#ffffff',
+        background_color: '#ffffff',
+        display: 'standalone',
+        start_url: '/',
+        icons: [
+          {
+            src: '/assets/icons/png/192x192.png',
+            sizes: '192x192',
+            type: 'image/png'
+          },
+          {
+            src: '/assets/icons/png/512x512.png',
+            sizes: '512x512',
+            type: 'image/png'
+          }
+        ]
+      },
       workbox: {
+        swSrc: 'public/sw.js',
+        swDest: 'sw.js',
         globPatterns: ['**/*.{js,css,html,ico,png,svg,ttf,woff,woff2,otf,mp3}'],
         navigateFallbackDenylist: [/^\/about/], // Don't fallback /about to index.html
         runtimeCaching: [
