@@ -13,7 +13,7 @@ export const Data: FC = observer(() => {
   const [importMode, setImportMode] = useState<ImportMode>('merge');
   
   // Check if filesystem storing is available
-  const filesystemStoringAvailable = isFilesystemStoringAvailable();
+  const filesystemStoringAvailable = isFilesystemStoringAvailable(settingsStore.syncMode === 'server');
 
   const handleExport = async () => {
     const data = {
@@ -157,7 +157,7 @@ export const Data: FC = observer(() => {
       )}
       {!filesystemStoringAvailable && (
         <div className="import-status error">
-          File System API is not supported in this browser. Local image storage is only available in Chrome, Edge, and other Chromium-based browsers.
+          File System API is not supported in this browser OR sync with server is off. Local image storage is only available in Chrome, Edge, and other Chromium-based browsers.
         </div>
       )}
       <div className="setting-item">

@@ -9,9 +9,6 @@ export default defineConfig({
       strategies: 'injectManifest',
       srcDir: 'public',
       filename: 'sw.js',
-      devOptions: {
-        enabled: false
-      },
       manifest: {
         name: 'Solo',
         short_name: 'Solo',

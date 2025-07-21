@@ -16,8 +16,8 @@ export const isFilesystemStoringEnabled = () => {
  * (Now always available when browser supports it - works as additional security layer)
  * @returns {boolean}
  */
-export const isFilesystemStoringAvailable = () => {
-  const hasFileSystemSupport = isFilesystemStoringEnabled();
+export const isFilesystemStoringAvailable = (isSyncWithServerEnabled) => {
+  const hasFileSystemSupport = isFilesystemStoringEnabled() && isSyncWithServerEnabled;
   
   return hasFileSystemSupport;
 };
