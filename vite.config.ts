@@ -31,8 +31,6 @@ export default defineConfig({
       workbox: {
         swSrc: 'public/sw.js',
         swDest: 'sw.js',
-      },
-      workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,ttf,woff,woff2,otf,mp3}'],
         navigateFallbackDenylist: [/^\/about/], // Don't fallback /about to index.html
         runtimeCaching: [
