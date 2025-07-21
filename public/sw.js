@@ -1,11 +1,15 @@
 // Service Worker for Solo App
 // Handles periodic background sync and background fetch for local image storage
 
+// Workbox manifest injection point
+const precacheManifest = self.__WB_MANIFEST || [];
+
 const CACHE_NAME = 'solo-v1';
 const urlsToCache = [
   '/',
   '/static/js/bundle.js',
   '/static/css/main.css',
+  ...precacheManifest.map(entry => entry.url)
 ];
 
 // Install event
