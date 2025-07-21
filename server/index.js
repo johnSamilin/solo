@@ -490,6 +490,100 @@ http2Server.on('stream', async (stream, headers) => {
     }
   }
 
+  // Handle image sync endpoint
+  if (path === '/api/sync/images' && method === 'POST') {
+    const session = verifyToken(headers);
+    if (!session) {
+      stream.respond({ ':status': 401, ...responseHeaders });
+      stream.end(JSON.stringify({ error: 'Unauthorized' }));
+      return;
+    }
+
+    let data = '';
+    let hasEnded = false;
+    
+    stream.setEncoding('utf8');
+    stream.on('data', chunk => {
+      if (!hasEnded) {
+        data += chunk;
+      }
+    });
+    
+    stream.on('end', async () => {
+      if (hasEnded) return;
+      hasEnded = true;
+      
+      try {
+        const { localFiles } = JSON.parse(data);
+        const serverFiles = await getServerImageList(session.user_id);
+        
+        // Compare local and server files
+        const filesToDownload = serverFiles.filter(serverFile => {
+          return !localFiles.some(localFile => 
+            localFile.name === serverFile.name && 
+            localFile.size === serverFile.size
+          );
+        });
+        
+        stream.respond({ ':status': 200, ...responseHeaders });
+        stream.end(JSON.stringify({ filesToDownload }));
+      } catch (error) {
+        console.error('Image sync error:', error);
+        if (!hasEnded) {
+          stream.respond({ ':status': 500, ...responseHeaders });
+          stream.end(JSON.stringify({ error: 'Internal server error' }));
+        }
+      }
+    });
+
+    stream.on('error', (error) => {
+      console.error('Stream error:', error);
+      if (!hasEnded) {
+        hasEnded = true;
+        stream.respond({ ':status': 500, ...responseHeaders });
+        stream.end(JSON.stringify({ error: 'Stream error occurred' }));
+      }
+    });
+    
+    return;
+  }
+
+  // Handle image download endpoint for background fetch
+  if (path.startsWith('/api/images/download/') && method === 'GET') {
+    const session = verifyToken(headers);
+    if (!session) {
+      stream.respond({ ':status': 401, ...responseHeaders });
+      stream.end(JSON.stringify({ error: 'Unauthorized' }));
+      return;
+    }
+
+    const imageId = path.split('/').pop();
+    
+    try {
+      const imagePath = _path.join(USER_DATA_DIR, session.user_id, 'images', imageId);
+      if (!fs.existsSync(imagePath)) {
+        stream.respond({ ':status': 404, ...responseHeaders });
+        stream.end('Image not found');
+        return;
+      }
+
+      const stat = await fs.promises.stat(imagePath);
+      const contentType = 'image/' + _path.extname(imageId).slice(1);
+      
+      stream.respondWithFile(imagePath, {
+        'content-type': contentType,
+        'content-length': stat.size,
+        'cache-control': 'public, max-age=31536000',
+        ...responseHeaders
+      });
+    } catch (error) {
+      console.error('Image download error:', error);
+      stream.respond({ ':status': 500, ...responseHeaders });
+      stream.end('Internal server error');
+    }
+    return;
+  }
+
   // Handle ping endpoint for background sync
   if (path === '/api/ping' && method === 'GET') {
     stream.respond({ ':status': 200, ...responseHeaders });
@@ -565,6 +659,38 @@ function getContentType(filePath) {
     '.wasm': 'application/wasm'
   };
   return types[ext] || 'application/octet-stream';
+}
+
+// Helper function to get server image list
+async function getServerImageList(userId) {
+  try {
+    const userImagesDir = _path.join(USER_DATA_DIR, userId, 'images');
+    if (!fs.existsSync(userImagesDir)) {
+      return [];
+    }
+    
+    const files = await fs.promises.readdir(userImagesDir);
+    const imageFiles = [];
+    
+    for (const file of files) {
+      const filePath = _path.join(userImagesDir, file);
+      const stat = await fs.promises.stat(filePath);
+      
+      if (stat.isFile() && file.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+        imageFiles.push({
+          id: file,
+          name: file,
+          size: stat.size,
+          lastModified: stat.mtime.getTime(),
+        });
+      }
+    }
+    
+    return imageFiles;
+  } catch (error) {
+    console.error('Error getting server image list:', error);
+    return [];
+  }
 }
 
 // Export functions for ACME challenge management

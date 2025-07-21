@@ -186,6 +186,9 @@ export class SettingsStore {
       if ('serviceWorker' in navigator && 'periodicSync' in window.ServiceWorkerRegistration.prototype) {
         const registration = await navigator.serviceWorker.ready;
         
+        // Store directory handle in IndexedDB for service worker access
+        await this.storeDirectoryHandle();
+        
         // Register periodic background sync
         await registration.periodicSync.register('image-storage-sync', {
           minInterval: 5 * 60 * 1000, // 5 minutes minimum interval
@@ -201,6 +204,38 @@ export class SettingsStore {
       // Fallback to visibility-based sync
       this.setupVisibilityBasedSync();
     }
+  };
+
+  private storeDirectoryHandle = async () => {
+    try {
+      // Note: In a real implementation, you'd store the actual directory handle
+      // For now, we'll just store a placeholder since we can't serialize handles
+      const db = await this.openSettingsDB();
+      const transaction = db.transaction(['settings'], 'readwrite');
+      const store = transaction.objectStore('settings');
+      await store.put({ 
+        key: 'storage-directory-handle', 
+        value: { path: this.settings.localImageStoragePath } 
+      });
+    } catch (error) {
+      console.error('Failed to store directory handle:', error);
+    }
+  };
+
+  private openSettingsDB = (): Promise<IDBDatabase> => {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open('solo-settings', 1);
+      
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result);
+      
+      request.onupgradeneeded = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result;
+        if (!db.objectStoreNames.contains('settings')) {
+          db.createObjectStore('settings', { keyPath: 'key' });
+        }
+      };
+    });
   };
 
   private unregisterBackgroundSync = async () => {
