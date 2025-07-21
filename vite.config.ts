@@ -7,8 +7,6 @@ export default defineConfig({
     react(),
     VitePWA({
       strategies: 'injectManifest',
-      srcDir: 'public',
-      filename: 'sw.js',
       manifest: {
         name: 'Solo',
         short_name: 'Solo',
@@ -31,7 +29,7 @@ export default defineConfig({
         ]
       },
       injectManifest: {
-        swSrc: 'public/sw.js',
+        swSrc: 'sw.js',
         swDest: 'sw.js',
         globPatterns: ['**/*.{js,css,html,ico,png,svg,ttf,woff,woff2,otf,mp3}'],
       }
