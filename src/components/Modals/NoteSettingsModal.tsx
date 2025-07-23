@@ -57,7 +57,7 @@ export const NoteSettingsModal: FC<NoteSettingsModalProps> = ({
             <select
               value={currentTheme}
               onChange={(e) => onThemeChange(e.target.value)}
-              className="theme-select"
+              className="notebook-select"
             >
               <option value="">Use Global Theme</option>
               {Object.entries(themes).map(([key, theme]) => (

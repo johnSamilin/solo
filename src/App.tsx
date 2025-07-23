@@ -215,6 +215,14 @@ const App = observer(() => {
   useEffect(() => {
     const root = document.documentElement;
     const globalSettings = settingsStore.settings;
+    
+    // Apply theme-specific color scheme
+    const currentTheme = notesStore.selectedNote?.theme;
+    if (currentTheme && themes[currentTheme]) {
+      document.documentElement.setAttribute('data-theme', currentTheme);
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+    }
 
     root.style.setProperty('--sidebar-font-family', globalSettings.sidebarFontFamily);
     root.style.setProperty('--sidebar-font-size', globalSettings.sidebarFontSize);

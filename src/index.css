@@ -27,6 +27,38 @@
   --editor-width: 75%;
 }
 
+/* Corporate theme colors */
+[data-theme="corporate"] {
+  --color-bg: #f8fafc;
+  --color-white: #ffffff;
+  --color-border: #e2e8f0;
+  --color-text: #1e293b;
+  --color-text-light: #64748b;
+  --color-button: #3b82f6;
+  --color-button-hover: #2563eb;
+  --color-danger: #dc2626;
+  --color-danger-hover: #fee2e2;
+  --color-disabled: #cbd5e1;
+  --color-checkbox: #3b82f6;
+  --color-checkbox-bg: #dbeafe;
+}
+
+/* Journalism theme colors */
+[data-theme="journalism"] {
+  --color-bg: #fffef7;
+  --color-white: #ffffff;
+  --color-border: #e5e7eb;
+  --color-text: #111827;
+  --color-text-light: #6b7280;
+  --color-button: #374151;
+  --color-button-hover: #1f2937;
+  --color-danger: #b91c1c;
+  --color-danger-hover: #fecaca;
+  --color-disabled: #d1d5db;
+  --color-checkbox: #059669;
+  --color-checkbox-bg: #d1fae5;
+}
+
 @font-face {
   font-family: 'GNU Typewriter';
   src: url('./assets/fonts/gtw.ttf') format('truetype');
