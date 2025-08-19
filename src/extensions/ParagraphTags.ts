@@ -35,11 +35,14 @@ export const ParagraphTags = Extension.create({
             default: [],
             parseHTML: element => {
               const tags = element.getAttribute('data-tags');
-              return tags ? tags.split(',') : [];
+              return tags ? tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
             },
             renderHTML: attributes => {
               if (!attributes.tags?.length) return {};
-              return { 'data-tags': attributes.tags.join(',') };
+              return { 
+                'data-tags': attributes.tags.join(','),
+                'class': 'has-tags'
+              };
             },
           },
         },
