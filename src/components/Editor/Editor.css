@@ -389,3 +389,7 @@
   font-family: 'Outfit', system-ui, sans-serif;
   font-size: 0.875rem;
 }
+
+.editor-body p[data-tags]:after {
+  content: attr('data-tags');
+}
