@@ -35,6 +35,7 @@ export const ParagraphTags = Extension.create({
             default: [],
             parseHTML: element => {
               const tags = element.getAttribute('data-tags');
+              console.log({tags})
               return tags ? tags.split(',') : [];
             },
             renderHTML: attributes => {
