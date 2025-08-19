@@ -309,23 +309,6 @@ const App = observer(() => {
       // If tags is empty string, remove all tags; otherwise process the input
       const tagArray = tags.trim() === '' ? [] : tags.split(',').map(t => t.trim()).filter(t => t);
       editor.chain().focus().setParagraphTags(tagArray).run();
-      
-      // Add new paragraph tags to the note's tags collection
-      if (notesStore.selectedNote && tagArray.length > 0) {
-        const existingTagPaths = notesStore.selectedNote.tags.map(tag => tag.path);
-        const newTags = tagArray
-          .filter(tagPath => !existingTagPaths.includes(tagPath))
-          .map(tagPath => ({
-            id: generateUniqueId(),
-            path: tagPath
-          }));
-        
-        if (newTags.length > 0) {
-          notesStore.updateNote(notesStore.selectedNote.id, {
-            tags: [...notesStore.selectedNote.tags, ...newTags]
-          });
-        }
-      }
     }
   };
 
