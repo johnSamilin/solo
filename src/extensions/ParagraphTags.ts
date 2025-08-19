@@ -38,6 +38,7 @@ export const ParagraphTags = Extension.create({
               return { tags: tags ? tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [] };
             },
             renderHTML: attributes => {
+              console.log({attributes})
               if (!attributes.tags?.tags?.length) return {};
               return { 
                 'data-tags': attributes.tags?.tags.join(','),
@@ -127,8 +128,8 @@ export const ParagraphTags = Extension.create({
             const decorations: Decoration[] = [];
 
             doc.descendants((node, pos) => {
-              if (node.type.name === 'paragraph' && node.attrs.tags?.tags?.length) {
-                const tags = node.attrs.tags.tags as string[];
+              if (node.type.name === 'paragraph' && node.attrs.tags?.length) {
+                const tags = node.attrs.tags as string[];
                 decorations.push(
                   Decoration.widget(pos + node.nodeSize, () => {
                     const tagContainer = document.createElement('div');
@@ -173,21 +174,21 @@ export const ParagraphTags = Extension.create({
                 const stepData = step as any;
                 if (stepData.slice && stepData.slice.content && stepData.slice.content.content) {
                   stepData.slice.content.content.forEach((node: any, index: number) => {
-                    if (node.type && node.type.name === 'paragraph' && node.attrs && node.attrs.tags?.tags && node.attrs.tags?.tags.length > 0) {
+                    if (node.type && node.type.name === 'paragraph' && node.attrs && node.attrs.tags && node.attrs.tags.length > 0) {
                       // Find the position of this new paragraph in the new state
                       newState.doc.descendants((newNode, pos) => {
                         if (newNode.type.name === 'paragraph' && 
-                            newNode.attrs.tags?.tags && 
-                            newNode.attrs.tags?.tags.length > 0 &&
-                            JSON.stringify(newNode.attrs.tags?.tags) === JSON.stringify(node.attrs.tags?.tags)) {
+                            newNode.attrs.tags && 
+                            newNode.attrs.tags.length > 0 &&
+                            JSON.stringify(newNode.attrs.tags) === JSON.stringify(node.attrs.tags)) {
                           
                           // Check if this is a newly created paragraph (not the original one)
                           let isNewParagraph = true;
                           oldState.doc.descendants((oldNode, oldPos) => {
                             if (oldPos === pos && 
                                 oldNode.type.name === 'paragraph' && 
-                                oldNode.attrs.tags?.tags &&
-                                JSON.stringify(oldNode.attrs.tags?.tags) === JSON.stringify(node.attrs.tags?.tags)) {
+                                oldNode.attrs.tags &&
+                                JSON.stringify(oldNode.attrs.tags) === JSON.stringify(node.attrs.tags)) {
                               isNewParagraph = false;
                             }
                           });
