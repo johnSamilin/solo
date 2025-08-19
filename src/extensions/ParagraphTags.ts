@@ -32,10 +32,10 @@ export const ParagraphTags = Extension.create({
         types: ['paragraph'],
         attributes: {
           tags: {
-            default: null,
+            default: [],
             parseHTML: element => {
               const tags = element.getAttribute('data-tags');
-              return tags ? tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
+              return { tags: tags ? tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [] };
             },
             renderHTML: attributes => {
               console.log({attributes})
