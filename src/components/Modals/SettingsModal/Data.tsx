@@ -81,9 +81,15 @@ export const Data: FC = observer(() => {
   };
 
   const handleFreshStart = () => {
-    if (confirm('Are you sure you want to erase all data? This action cannot be undone!')) {
-      notesStore.freshStart();
-      settingsStore.setSettingsOpen(false);
+    if (confirm('Are you sure you want to erase all data? This will clear everything from IndexedDB and cannot be undone!')) {
+      try {
+        notesStore.freshStart();
+        settingsStore.setSettingsOpen(false);
+        settingsStore.setToast('All data has been erased successfully', 'success');
+      } catch (error) {
+        console.error('Error erasing data:', error);
+        settingsStore.setToast('Failed to erase all data', 'error');
+      }
     }
   };
 
