@@ -135,14 +135,27 @@ export const ParagraphTags = Extension.create({
                   Decoration.widget(pos + node.nodeSize, () => {
                     const tagContainer = document.createElement('div');
                     tagContainer.className = 'paragraph-tags';
+                    tagContainer.style.display = 'flex';
+                    tagContainer.style.flexWrap = 'wrap';
+                    tagContainer.style.gap = '0.25rem';
+                    tagContainer.style.marginTop = '-0.75rem';
+                    tagContainer.style.marginBottom = '0.75rem';
                     tags.forEach(tag => {
                       const tagEl = document.createElement('span');
                       tagEl.className = 'paragraph-tag';
                       tagEl.textContent = tag;
+                      tagEl.style.fontSize = '0.75rem';
+                      tagEl.style.padding = '0.125rem 0.375rem';
+                      tagEl.style.backgroundColor = 'var(--color-bg)';
+                      tagEl.style.borderRadius = '0.25rem';
+                      tagEl.style.color = 'var(--color-text-light)';
+                      tagEl.style.whiteSpace = 'nowrap';
+                      tagEl.style.border = '1px solid var(--color-border)';
+                      tagEl.style.marginRight = '0.25rem';
                       tagContainer.appendChild(tagEl);
                     });
                     return tagContainer;
-                  })
+                  }, { side: 1 })
                 );
               }
             });
@@ -188,26 +201,13 @@ export const ParagraphTags = Extension.create({
                             tr.setNodeMarkup(pos, undefined, {
                               ...newNode.attrs,
                               tags: [],
-                  tagContainer.style.display = 'flex';
-                  tagContainer.style.flexWrap = 'wrap';
-                  tagContainer.style.gap = '0.25rem';
-                  tagContainer.style.marginTop = '-0.75rem';
-                  tagContainer.style.marginBottom = '0.75rem';
                             });
                           }
                         }
-                    tagEl.style.fontSize = '0.75rem';
-                    tagEl.style.padding = '0.125rem 0.375rem';
-                    tagEl.style.backgroundColor = 'var(--color-bg)';
-                    tagEl.style.borderRadius = '0.25rem';
-                    tagEl.style.color = 'var(--color-text-light)';
-                    tagEl.style.whiteSpace = 'nowrap';
-                    tagEl.style.border = '1px solid var(--color-border)';
-                    tagEl.style.marginRight = '0.25rem';
                       });
                     }
                   });
-                }, { side: 1 })
+                }
               }
             });
           });
