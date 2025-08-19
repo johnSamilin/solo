@@ -34,14 +34,15 @@ export const ParagraphTags = Extension.create({
           tags: {
             default: [],
             parseHTML: element => {
+              console.log('___', {element})
               const tags = element.getAttribute('data-tags');
               return tags ? tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
             },
             renderHTML: attributes => {
-              console.log('___', {attributes})
               if (!attributes.tags || !Array.isArray(attributes.tags) || attributes.tags.length === 0) {
                 return {};
               }
+              console.log('___', {attributes})
               return { 
                 'data-tags': attributes.tags.join(','),
                 'data-paragraph-tags': 'true' // Add marker for easier identification
