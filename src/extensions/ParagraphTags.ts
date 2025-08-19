@@ -38,6 +38,7 @@ export const ParagraphTags = Extension.create({
               return tags ? tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
             },
             renderHTML: attributes => {
+              console.log('___', {attributes})
               if (!attributes.tags || !Array.isArray(attributes.tags) || attributes.tags.length === 0) {
                 return {};
               }
