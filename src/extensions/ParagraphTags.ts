@@ -127,33 +127,44 @@ export const ParagraphTags = Extension.create({
             const decorations: Decoration[] = [];
 
             doc.descendants((node, pos) => {
-              if (node.type.name === 'paragraph' && node.attrs.tags?.length) {
-                const tags = node.attrs.tags as string[];
+              if (node.type.name === 'paragraph' && node.attrs.tags && node.attrs.tags.length > 0) {
+                const tags = node.attrs.tags;
                 decorations.push(
-                  Decoration.widget(pos + node.nodeSize, () => {
+                  Decoration.widget(pos + node.nodeSize - 1, () => {
                     const tagContainer = document.createElement('div');
                     tagContainer.className = 'paragraph-tags';
-                    tagContainer.style.display = 'flex';
-                    tagContainer.style.flexWrap = 'wrap';
-                    tagContainer.style.gap = '0.25rem';
-                    tagContainer.style.marginTop = '-0.75rem';
-                    tagContainer.style.marginBottom = '0.75rem';
+                    tagContainer.style.cssText = `
+                      display: flex;
+                      flex-wrap: wrap;
+                      gap: 0.25rem;
+                      margin: 0.5rem 0;
+                      padding: 0;
+                      position: relative;
+                      z-index: 1;
+                    `;
+                    
                     tags.forEach(tag => {
                       const tagEl = document.createElement('span');
                       tagEl.className = 'paragraph-tag';
                       tagEl.textContent = tag;
-                      tagEl.style.fontSize = '0.75rem';
-                      tagEl.style.padding = '0.125rem 0.375rem';
-                      tagEl.style.backgroundColor = 'var(--color-bg)';
-                      tagEl.style.borderRadius = '0.25rem';
-                      tagEl.style.color = 'var(--color-text-light)';
-                      tagEl.style.whiteSpace = 'nowrap';
-                      tagEl.style.border = '1px solid var(--color-border)';
-                      tagEl.style.marginRight = '0.25rem';
+                      tagEl.style.cssText = `
+                        font-size: 0.75rem;
+                        padding: 0.125rem 0.375rem;
+                        background-color: var(--color-bg);
+                        border-radius: 0.25rem;
+                        color: var(--color-text-light);
+                        white-space: nowrap;
+                        border: 1px solid var(--color-border);
+                        display: inline-block;
+                      `;
                       tagContainer.appendChild(tagEl);
                     });
+                    
                     return tagContainer;
-                  }, { side: 1 })
+                  }, { 
+                    side: 1,
+                    marks: []
+                  })
                 );
               }
             });
