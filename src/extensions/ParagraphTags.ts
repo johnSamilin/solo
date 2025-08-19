@@ -26,7 +26,7 @@ export const ParagraphTags = Extension.create({
     };
   },
 
-  addGlobalAttributes() {
+  addAttributes() {
     return [
       {
         types: ['paragraph'],
