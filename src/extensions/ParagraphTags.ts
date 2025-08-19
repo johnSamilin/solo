@@ -127,7 +127,7 @@ export const ParagraphTags = Extension.create({
             const decorations: Decoration[] = [];
 
             doc.descendants((node, pos) => {
-              console.log(node.attrs)
+              console.log({ a: node.attrs })
               if (node.type.name === 'paragraph' && node.attrs.tags?.length) {
                 const tags = node.attrs.tags as string[];
                 decorations.push(
