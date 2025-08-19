@@ -26,13 +26,13 @@ export const ParagraphTags = Extension.create({
     };
   },
 
-  addAttributes() {
+  addGlobalAttributes() {
     return [
       {
         types: ['paragraph'],
         attributes: {
           tags: {
-            default: [],
+            default: null,
             parseHTML: element => {
               const tags = element.getAttribute('data-tags');
               return tags ? tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
