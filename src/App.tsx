@@ -175,8 +175,7 @@ const App = observer(() => {
         }
       } else {
         if (content !== editor.getHTML()) {
-          // Ensure content is properly parsed with all attributes
-          editor.commands.setContent(content, false, { preserveWhitespace: 'full' });
+          editor.commands.setContent(content);
           setInitialContent(editor.state.doc.textContent);
         }
       }
