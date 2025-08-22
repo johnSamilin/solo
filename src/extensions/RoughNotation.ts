@@ -63,7 +63,73 @@ export const RoughNotation = Mark.create({
   },
 
   renderHTML({ HTMLAttributes }) {
-    return ['span', mergeAttributes(this.options.HTMLAttributes, HTMLAttributes), 0];
+    const { type = 'underline', color = '#ff6b6b' } = HTMLAttributes;
+    
+    // Create SVG based on rough-notation logic
+    const createSVG = (type: string, color: string) => {
+      const strokeWidth = 2;
+      const padding = 4;
+      
+      let svgContent = '';
+      const viewBox = '0 0 100 20';
+      
+      switch (type) {
+        case 'underline':
+          // Rough underline path
+          svgContent = `<path d="M2,16 Q25,14 50,16 T98,16" stroke="${color}" stroke-width="${strokeWidth}" fill="none" opacity="0.8"/>`;
+          break;
+        case 'box':
+          // Rough rectangle
+          svgContent = `<path d="M2,2 L98,2 L98,18 L2,18 Z" stroke="${color}" stroke-width="${strokeWidth}" fill="none" opacity="0.8"/>`;
+          break;
+        case 'circle':
+          // Rough circle/ellipse
+          svgContent = `<ellipse cx="50" cy="10" rx="48" ry="8" stroke="${color}" stroke-width="${strokeWidth}" fill="none" opacity="0.8"/>`;
+          break;
+        case 'highlight':
+          // Background highlight
+          svgContent = `<rect x="0" y="2" width="100" height="16" fill="${color}" opacity="0.3"/>`;
+          break;
+        case 'strike-through':
+          // Strike through line
+          svgContent = `<path d="M2,10 Q25,8 50,10 T98,10" stroke="${color}" stroke-width="${strokeWidth}" fill="none" opacity="0.8"/>`;
+          break;
+        case 'crossed-off':
+          // Multiple crossing lines
+          svgContent = `
+            <path d="M2,10 Q25,8 50,10 T98,10" stroke="${color}" stroke-width="${strokeWidth}" fill="none" opacity="0.8"/>
+            <path d="M5,5 L95,15" stroke="${color}" stroke-width="${strokeWidth}" fill="none" opacity="0.6"/>
+            <path d="M5,15 L95,5" stroke="${color}" stroke-width="${strokeWidth}" fill="none" opacity="0.6"/>
+          `;
+          break;
+        default:
+          svgContent = `<path d="M2,16 Q25,14 50,16 T98,16" stroke="${color}" stroke-width="${strokeWidth}" fill="none" opacity="0.8"/>`;
+      }
+      
+      return `<svg viewBox="${viewBox}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: -1;">${svgContent}</svg>`;
+    };
+    
+    const svg = createSVG(type, color);
+    
+    return [
+      'span', 
+      mergeAttributes(
+        this.options.HTMLAttributes, 
+        HTMLAttributes,
+        {
+          style: 'position: relative; display: inline-block;'
+        }
+      ), 
+      [
+        'span',
+        {
+          innerHTML: svg,
+          style: 'position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;'
+        }
+      ],
+      0
+    ];
+  },
   },
 
   addCommands() {
