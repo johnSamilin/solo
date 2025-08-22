@@ -13,7 +13,7 @@ export const TagsDisplay: FC = observer(() => {
 
 	if (!notesStore.selectedNote) return null;
 
-	const handleApplyTags = (selectedTags: Tag[]) => {
+	const handleApplyTags = (selectedTags: TagType[]) => {
 		if (notesStore.selectedNote) {
 			notesStore.updateNote(notesStore.selectedNote.id, {
 				tags: selectedTags
@@ -53,3 +53,4 @@ export const TagsDisplay: FC = observer(() => {
 			/>
 		</>
 	);
+});
