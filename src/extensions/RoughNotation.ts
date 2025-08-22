@@ -89,6 +89,7 @@ export const RoughNotation = Mark.create({
   addProseMirrorPlugins() {
     const key = new PluginKey('roughNotation');
     const annotations = new Map<Element, RoughAnnotation>();
+    let updateTimeout: NodeJS.Timeout | null = null;
 
     return [
       new Plugin({
@@ -96,8 +97,8 @@ export const RoughNotation = Mark.create({
         view: () => ({
           update: (view) => {
             // Debounce updates to prevent constant re-rendering
-            clearTimeout(this.updateTimeout);
-            this.updateTimeout = setTimeout(() => {
+            if (updateTimeout) clearTimeout(updateTimeout);
+            updateTimeout = setTimeout(() => {
               // Only update if the document has actually changed
               const currentElements = view.dom.querySelectorAll('span[data-notation-type]');
               
@@ -136,10 +137,10 @@ export const RoughNotation = Mark.create({
                   console.warn('Failed to create rough notation:', e);
                 }
               });
-            }, 100);
+            }, 200); // Increased timeout for better stability
           },
           destroy: () => {
-            clearTimeout(this.updateTimeout);
+            if (updateTimeout) clearTimeout(updateTimeout);
             // Clean up all annotations
             annotations.forEach((annotation) => {
               try {
@@ -151,7 +152,6 @@ export const RoughNotation = Mark.create({
             annotations.clear();
           },
         }),
-        updateTimeout: null as any,
       }),
     ];
   },
