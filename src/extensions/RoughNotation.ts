@@ -8,14 +8,19 @@ export const createRoughNotationPlugin = () => {
   const key = new PluginKey('roughNotation');
   const annotations = new Map<Element, RoughAnnotation>();
   let updateTimeout: NodeJS.Timeout | null = null;
+  let isThrottled = false;
 
   return new Plugin({
     key,
     view: () => ({
       update: (view) => {
-        // Debounce updates to prevent constant re-rendering
-        if (updateTimeout) clearTimeout(updateTimeout);
+        // Throttle updates to prevent constant re-rendering
+        if (isThrottled) return;
+        
+        isThrottled = true;
         updateTimeout = setTimeout(() => {
+          isThrottled = false;
+          
           // Only update if the document has actually changed
           const currentElements = view.dom.querySelectorAll('span[data-notation-type]');
           
@@ -57,6 +62,7 @@ export const createRoughNotationPlugin = () => {
       },
       destroy: () => {
         if (updateTimeout) clearTimeout(updateTimeout);
+        isThrottled = false;
         // Clean up all annotations
         annotations.forEach((annotation) => {
           try {
