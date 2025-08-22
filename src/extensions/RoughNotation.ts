@@ -54,7 +54,7 @@ export const createRoughNotationPlugin = () => {
               console.warn('Failed to create rough notation:', e);
             }
           });
-        }, 200); // Increased timeout for better stability
+        }, 10000); // Increased timeout for better stability
       },
       destroy: () => {
         if (updateTimeout) clearTimeout(updateTimeout);
