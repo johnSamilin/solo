@@ -95,20 +95,29 @@ export const RoughNotation = Mark.create({
         key,
         view: () => ({
           update: (view) => {
-            // Clean up old annotations
-            annotations.forEach((annotation) => {
-              try {
-                annotation.remove();
-              } catch (e) {
-                // Ignore errors when removing annotations
-              }
-            });
-            annotations.clear();
+            // Debounce updates to prevent constant re-rendering
+            clearTimeout(this.updateTimeout);
+            this.updateTimeout = setTimeout(() => {
+              // Only update if the document has actually changed
+              const currentElements = view.dom.querySelectorAll('span[data-notation-type]');
+              
+              // Remove annotations for elements that no longer exist
+              annotations.forEach((annotation, element) => {
+                if (!document.contains(element)) {
+                  try {
+                    annotation.remove();
+                  } catch (e) {
+                    // Ignore errors
+                  }
+                  annotations.delete(element);
+                }
+              });
 
-            // Add new annotations
-            setTimeout(() => {
-              const elements = view.dom.querySelectorAll('span[data-notation-type]');
-              elements.forEach((element) => {
+              // Add annotations for new elements
+              currentElements.forEach((element) => {
+                // Skip if already annotated
+                if (annotations.has(element)) return;
+                
                 const type = element.getAttribute('data-notation-type') || 'underline';
                 const color = element.getAttribute('data-notation-color') || '#ff6b6b';
                 
@@ -118,6 +127,7 @@ export const RoughNotation = Mark.create({
                     color,
                     strokeWidth: 2,
                     padding: 4,
+                    animationDuration: 0, // Disable animation to prevent re-rendering
                   });
                   
                   annotation.show();
@@ -126,9 +136,10 @@ export const RoughNotation = Mark.create({
                   console.warn('Failed to create rough notation:', e);
                 }
               });
-            }, 50);
+            }, 100);
           },
           destroy: () => {
+            clearTimeout(this.updateTimeout);
             // Clean up all annotations
             annotations.forEach((annotation) => {
               try {
@@ -140,6 +151,7 @@ export const RoughNotation = Mark.create({
             annotations.clear();
           },
         }),
+        updateTimeout: null as any,
       }),
     ];
   },
