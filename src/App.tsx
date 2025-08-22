@@ -27,6 +27,7 @@ import { TagNode } from './types';
 import { themes } from './constants';
 import { Plus } from 'lucide-react';
 import { analytics } from './utils/analytics';
+import { applyRoughNotations, applyRoughNotationsAfterTyping, clearAllRoughNotations } from './utils/roughNotationUtil';
 
 const App = observer(() => {
   const { notesStore, settingsStore, tagsStore } = useStore();
@@ -89,6 +90,9 @@ const App = observer(() => {
           if (newWords > 5 && !settingsStore.isZenMode && !autoZenDisabled && currentSettings.autoZenMode) {
             settingsStore.toggleZenMode();
           }
+          
+          // Apply rough notations after typing stops
+          applyRoughNotationsAfterTyping();
         }
       }
     },
@@ -161,6 +165,7 @@ const App = observer(() => {
       if (notesStore.selectedNote.isCensored && settingsStore.isCensorshipEnabled()) {
         editor.commands.setContent('');
         setInitialContent('');
+        clearAllRoughNotations();
         return;
       }
 
@@ -182,6 +187,14 @@ const App = observer(() => {
         }
       }
       setAutoZenDisabled(false);
+      
+      // Apply rough notations when note is opened/switched
+      setTimeout(() => {
+        applyRoughNotations();
+      }, 100); // Small delay to ensure DOM is updated
+    } else if (!notesStore.selectedNote) {
+      // Clear annotations when no note is selected
+      clearAllRoughNotations();
     }
   }, [editor, notesStore.selectedNote, settingsStore.isCensorshipEnabled(), notesStore.isLoadingNoteContent]);
 
