@@ -49,7 +49,6 @@ export const createRoughNotationPlugin = () => {
               });
               
               annotation.show();
-              annotations.set(element, annotation);
             } catch (e) {
               console.warn('Failed to create rough notation:', e);
             }
