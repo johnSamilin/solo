@@ -3,17 +3,21 @@ import { annotate, RoughAnnotation } from 'rough-notation';
 // Store active annotations to manage cleanup
 const activeAnnotations = new Map<Element, RoughAnnotation>();
 
-// Throttle function to prevent excessive calls
-let isThrottled = false;
-const THROTTLE_DELAY = 200;
+// Debounce function to prevent excessive calls
+let debounceTimeout: NodeJS.Timeout | null = null;
+const DEBOUNCE_DELAY = 300;
 
 export const applyRoughNotations = () => {
-  if (isThrottled) return;
+  if (debounceTimeout) {
+    clearTimeout(debounceTimeout);
+  }
   
-  isThrottled = true;
-  setTimeout(() => {
-    isThrottled = false;
-  }, THROTTLE_DELAY);
+  debounceTimeout = setTimeout(() => {
+    performRoughNotations();
+  }, DEBOUNCE_DELAY);
+};
+
+const performRoughNotations = () => {
 
   // Find all elements with rough notation attributes
   const elements = document.querySelectorAll('[data-notation-type][data-notation-color]');
@@ -79,7 +83,7 @@ export const clearAllRoughNotations = () => {
   activeAnnotations.clear();
 };
 
-// Debounced version for typing events
+// Debounced version for typing events (same delay)
 let typingTimeout: NodeJS.Timeout | null = null;
 export const applyRoughNotationsAfterTyping = () => {
   if (typingTimeout) {
@@ -87,6 +91,6 @@ export const applyRoughNotationsAfterTyping = () => {
   }
   
   typingTimeout = setTimeout(() => {
-    applyRoughNotations();
-  }, 1000); // 1 second after stopping typing
+    performRoughNotations();
+  }, DEBOUNCE_DELAY);
 };
