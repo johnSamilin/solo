@@ -6,54 +6,35 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
-      manifest: false,
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,ttf,woff,woff2,otf,mp3}'],
-        navigateFallbackDenylist: [/^\/about/], // Don't fallback /about to index.html
-        runtimeCaching: [
+      strategies: 'injectManifest',
+      srcDir: 'public',
+      filename: 'sw.js',
+      manifest: {
+        name: 'Solo',
+        short_name: 'Solo',
+        description: 'Minimalistic private note-taking app',
+        theme_color: '#ffffff',
+        background_color: '#ffffff',
+        display: 'standalone',
+        start_url: '/',
+        icons: [
           {
-            urlPattern: /^https:\/\/fonts\.googleapis\.com/,
-            handler: 'StaleWhileRevalidate',
-            options: {
-              cacheName: 'google-fonts-stylesheets',
-            },
+            src: '/icons/192x192.png',
+            sizes: '192x192',
+            type: 'image/png'
           },
           {
-            urlPattern: /^https:\/\/fonts\.gstatic\.com/,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'google-fonts-webfonts',
-              expiration: {
-                maxEntries: 30,
-                maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
-              },
-            },
-          },
-          {
-            urlPattern: /\.(ttf|otf|woff|woff2)$/,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'local-fonts',
-              expiration: {
-                maxEntries: 20,
-                maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
-              },
-            },
-          },
-          {
-            urlPattern: /\.(mp3|wav)$/,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'audio-files',
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
-              },
-            },
-          },
-        ],
+            src: '/icons/512x512.png',
+            sizes: '512x512',
+            type: 'image/png'
+          }
+        ]
       },
+      injectManifest: {
+        swSrc: 'public/sw.js',
+        swDest: 'dist/sw.js',
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,ttf,woff,woff2,otf,mp3}'],
+      }
     }),
   ],
   optimizeDeps: {

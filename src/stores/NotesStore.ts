@@ -158,8 +158,17 @@ export class NotesStore {
     this.selectedNote = null;
     this.focusedNotebookId = null;
     this.isEditing = false;
-    this.saveToDatabase();
+    this.clearAllData();
   };
+
+  private async clearAllData() {
+    try {
+      await db.clearAllData();
+      await this.saveToDatabase();
+    } catch (error) {
+      console.error('Error clearing all data:', error);
+    }
+  }
 
   importData = (data: { notes: Note[], notebooks: Notebook[] }, mode: ImportMode) => {
     if (mode === 'replace') {
