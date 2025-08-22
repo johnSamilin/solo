@@ -110,9 +110,33 @@ export class TagsStore {
   // Initialize tags from notes if tag tree is empty
   initializeFromNotes = (notes: any[]) => {
     if (this.tagTree.length === 0) {
-      const allTags = Array.from(new Set(
-        notes.flatMap(note => note.tags?.map((tag: any) => tag.path) || [])
-      )).map(path => ({ id: generateUniqueId(), path }));
+      // Collect tags from note-level tags
+      const noteTagPaths = notes.flatMap(note => note.tags?.map((tag: any) => tag.path) || []);
+      
+      // Collect tags from paragraph tags
+      const paragraphTagPaths = notes.flatMap(note => {
+        if (!note.content) return [];
+        
+        // Parse HTML content to find paragraph tags
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = note.content;
+        
+        const taggedElements = tempDiv.querySelectorAll('[data-tags]');
+        const paragraphTags: string[] = [];
+        
+        taggedElements.forEach(element => {
+          const tags = element.getAttribute('data-tags');
+          if (tags) {
+            paragraphTags.push(...tags.split(',').map(tag => tag.trim()).filter(tag => tag));
+          }
+        });
+        
+        return paragraphTags;
+      });
+      
+      // Combine all tags and remove duplicates
+      const allTags = Array.from(new Set([...noteTagPaths, ...paragraphTagPaths]))
+        .map(path => ({ id: generateUniqueId(), path }));
 
       if (allTags.length > 0) {
         const tree = this.buildTagTree(allTags);
