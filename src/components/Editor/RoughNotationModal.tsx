@@ -1,7 +1,5 @@
 import { FC, useState } from 'react';
 import { X } from 'lucide-react';
-import { useEffect, useRef } from 'react';
-import { annotate } from 'rough-notation';
 import '../Modals/Modals.css';
 
 interface RoughNotationModalProps {
@@ -35,47 +33,7 @@ export const RoughNotationModal: FC<RoughNotationModalProps> = ({
 }) => {
   const [selectedType, setSelectedType] = useState('underline');
   const [selectedColor, setSelectedColor] = useState('#ff6b6b');
-  const previewRef = useRef<HTMLSpanElement>(null);
-  const annotationRef = useRef<any>(null);
 
-  useEffect(() => {
-    if (previewRef.current) {
-      // Remove previous annotation
-      if (annotationRef.current) {
-        try {
-          annotationRef.current.remove();
-        } catch (e) {
-          // Ignore errors
-        }
-      }
-
-      // Create new annotation
-      try {
-        const annotation = annotate(previewRef.current, {
-          type: selectedType as any,
-          color: selectedColor,
-          strokeWidth: 2,
-          padding: 4,
-          animationDuration: 0, // Disable animation for preview
-        });
-        annotation.show();
-        annotationRef.current = annotation;
-      } catch (e) {
-        console.warn('Failed to create preview annotation:', e);
-      }
-    }
-
-    // Cleanup on unmount
-    return () => {
-      if (annotationRef.current) {
-        try {
-          annotationRef.current.remove();
-        } catch (e) {
-          // Ignore errors
-        }
-      }
-    };
-  }, [selectedType, selectedColor]);
   const handleApply = () => {
     onApply(selectedType, selectedColor);
   };
@@ -130,13 +88,11 @@ export const RoughNotationModal: FC<RoughNotationModalProps> = ({
             <h3>Preview</h3>
             <div className="notation-preview">
               <span 
-                ref={previewRef}
                 className="preview-text"
                 style={{ 
                   position: 'relative',
                   display: 'inline-block',
                   padding: '4px 8px',
-                  margin: '10px',
                 }}
               >
                 Sample text with {selectedType} annotation

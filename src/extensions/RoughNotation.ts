@@ -63,14 +63,7 @@ export const RoughNotation = Mark.create({
   },
 
   renderHTML({ HTMLAttributes }) {
-    return [
-      'span', 
-      mergeAttributes(
-        this.options.HTMLAttributes, 
-        HTMLAttributes
-      ),
-      0
-    ];
+    return ['span', mergeAttributes(this.options.HTMLAttributes, HTMLAttributes), 0];
   },
 
   addCommands() {
@@ -94,7 +87,87 @@ export const RoughNotation = Mark.create({
   },
 
   addProseMirrorPlugins() {
-    // Only return plugins if we have content with rough notations
-    return [];
+    const key = new PluginKey('roughNotation');
+    const annotations = new Map<Element, RoughAnnotation>();
+
+    return [
+      new Plugin({
+        key,
+        props: {
+          decorations: (state) => {
+            const { doc } = state;
+            const decorations: Decoration[] = [];
+
+            doc.descendants((node, pos) => {
+              if (node.isText && node.marks) {
+                node.marks.forEach((mark) => {
+                  if (mark.type.name === this.name) {
+                    const from = pos;
+                    const to = pos + node.nodeSize;
+                    
+                    decorations.push(
+                      Decoration.inline(from, to, {
+                        class: 'rough-notation-mark',
+                        'data-notation-type': mark.attrs.type,
+                        'data-notation-color': mark.attrs.color,
+                      })
+                    );
+                  }
+                });
+              }
+            });
+
+            return DecorationSet.create(doc, decorations);
+          },
+        },
+        view: () => ({
+          update: (view) => {
+            // Clean up old annotations
+            annotations.forEach((annotation) => {
+              try {
+                annotation.remove();
+              } catch (e) {
+                // Ignore errors when removing annotations
+              }
+            });
+            annotations.clear();
+
+            // Add new annotations
+            setTimeout(() => {
+              const elements = view.dom.querySelectorAll('.rough-notation-mark');
+              elements.forEach((element) => {
+                const type = element.getAttribute('data-notation-type') || 'underline';
+                const color = element.getAttribute('data-notation-color') || '#ff6b6b';
+                
+                try {
+                  const annotation = annotate(element as HTMLElement, {
+                    type: type as any,
+                    color,
+                    strokeWidth: 2,
+                    padding: 2,
+                  });
+                  
+                  annotation.show();
+                  annotations.set(element, annotation);
+                } catch (e) {
+                  console.warn('Failed to create rough notation:', e);
+                }
+              });
+            }, 100);
+          },
+          destroy: () => {
+            // Clean up all annotations
+            annotations.forEach((annotation) => {
+              try {
+                annotation.remove();
+              } catch (e) {
+                // Ignore errors
+              }
+            });
+            annotations.clear();
+          },
+        }),
+      }),
+    ];
   },
 });
