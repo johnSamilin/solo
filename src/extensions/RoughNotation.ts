@@ -87,72 +87,76 @@ export const RoughNotation = Mark.create({
   },
 
   addProseMirrorPlugins() {
+    // Only return plugins if we have content with rough notations
+    return [];
+  },
+
+  // Add a method to create the plugin when needed
+  createRoughNotationPlugin() {
     const key = new PluginKey('roughNotation');
     const annotations = new Map<Element, RoughAnnotation>();
     let updateTimeout: NodeJS.Timeout | null = null;
 
-    return [
-      new Plugin({
-        key,
-        view: () => ({
-          update: (view) => {
-            // Debounce updates to prevent constant re-rendering
-            if (updateTimeout) clearTimeout(updateTimeout);
-            updateTimeout = setTimeout(() => {
-              // Only update if the document has actually changed
-              const currentElements = view.dom.querySelectorAll('span[data-notation-type]');
-              
-              // Remove annotations for elements that no longer exist
-              annotations.forEach((annotation, element) => {
-                if (!document.contains(element)) {
-                  try {
-                    annotation.remove();
-                  } catch (e) {
-                    // Ignore errors
-                  }
-                  annotations.delete(element);
-                }
-              });
-
-              // Add annotations for new elements
-              currentElements.forEach((element) => {
-                // Skip if already annotated
-                if (annotations.has(element)) return;
-                
-                const type = element.getAttribute('data-notation-type') || 'underline';
-                const color = element.getAttribute('data-notation-color') || '#ff6b6b';
-                
+    return new Plugin({
+      key,
+      view: () => ({
+        update: (view) => {
+          // Debounce updates to prevent constant re-rendering
+          if (updateTimeout) clearTimeout(updateTimeout);
+          updateTimeout = setTimeout(() => {
+            // Only update if the document has actually changed
+            const currentElements = view.dom.querySelectorAll('span[data-notation-type]');
+            
+            // Remove annotations for elements that no longer exist
+            annotations.forEach((annotation, element) => {
+              if (!document.contains(element)) {
                 try {
-                  const annotation = annotate(element as HTMLElement, {
-                    type: type as any,
-                    color,
-                    strokeWidth: 2,
-                    padding: 4,
-                    animationDuration: 0, // Disable animation to prevent re-rendering
-                  });
-                  
-                  annotation.show();
-                  annotations.set(element, annotation);
+                  annotation.remove();
                 } catch (e) {
-                  console.warn('Failed to create rough notation:', e);
+                  // Ignore errors
                 }
-              });
-            }, 1000); // Increased timeout for better stability
-          },
-          destroy: () => {
-            if (updateTimeout) clearTimeout(updateTimeout);
-            // Clean up all annotations
-            annotations.forEach((annotation) => {
-              try {
-                annotation.remove();
-              } catch (e) {
-                // Ignore errors
+                annotations.delete(element);
               }
             });
-            annotations.clear();
-          },
-        }),
+
+            // Add annotations for new elements
+            currentElements.forEach((element) => {
+              // Skip if already annotated
+              if (annotations.has(element)) return;
+              
+              const type = element.getAttribute('data-notation-type') || 'underline';
+              const color = element.getAttribute('data-notation-color') || '#ff6b6b';
+              
+              try {
+                const annotation = annotate(element as HTMLElement, {
+                  type: type as any,
+                  color,
+                  strokeWidth: 2,
+                  padding: 4,
+                  animationDuration: 0, // Disable animation to prevent re-rendering
+                });
+                
+                annotation.show();
+                annotations.set(element, annotation);
+              } catch (e) {
+                console.warn('Failed to create rough notation:', e);
+              }
+            });
+          }, 200); // Increased timeout for better stability
+        },
+        destroy: () => {
+          if (updateTimeout) clearTimeout(updateTimeout);
+          // Clean up all annotations
+          annotations.forEach((annotation) => {
+            try {
+              annotation.remove();
+            } catch (e) {
+              // Ignore errors
+            }
+          });
+          annotations.clear();
+        },
       }),
-    ];
+    });
   },
 });
