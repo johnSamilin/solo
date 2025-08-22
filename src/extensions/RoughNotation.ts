@@ -7,30 +7,39 @@ import { annotate, RoughAnnotation } from 'rough-notation';
 export const createRoughNotationPlugin = () => {
   const key = new PluginKey('roughNotation');
   const annotations = new Map<Element, RoughAnnotation>();
-  let updateTimeout: NodeJS.Timeout | null = null;
   let isThrottled = false;
+  let lastDocSize = 0;
 
   return new Plugin({
     key,
     view: () => ({
       update: (view) => {
+        // Only update if document actually changed
+        const currentDocSize = view.state.doc.nodeSize;
+        if (currentDocSize === lastDocSize && annotations.size > 0) {
+          return;
+        }
+        lastDocSize = currentDocSize;
+
         // Throttle updates to prevent constant re-rendering
         if (isThrottled) return;
         
         isThrottled = true;
-        updateTimeout = setTimeout(() => {
+        setTimeout(() => {
           isThrottled = false;
           
-          // Only update if the document has actually changed
           const currentElements = view.dom.querySelectorAll('span[data-notation-type]');
           
-          // Remove annotations for elements that no longer exist
+          // Create a Set of current elements for faster lookup
+          const currentElementsSet = new Set(currentElements);
+          
+          // Remove annotations for elements that no longer exist in the DOM
           annotations.forEach((annotation, element) => {
-            if (!document.contains(element)) {
+            if (!currentElementsSet.has(element)) {
               try {
                 annotation.remove();
               } catch (e) {
-                // Ignore errors
+                console.warn('Failed to remove annotation:', e);
               }
               annotations.delete(element);
             }
@@ -38,8 +47,12 @@ export const createRoughNotationPlugin = () => {
 
           // Add annotations for new elements
           currentElements.forEach((element) => {
-            // Skip if already annotated
+            // Skip if already annotated or if element is not visible
             if (annotations.has(element)) return;
+            
+            // Check if element is actually visible and has content
+            const rect = element.getBoundingClientRect();
+            if (rect.width === 0 || rect.height === 0) return;
             
             const type = element.getAttribute('data-notation-type') || 'underline';
             const color = element.getAttribute('data-notation-color') || '#ff6b6b';
@@ -50,7 +63,8 @@ export const createRoughNotationPlugin = () => {
                 color,
                 strokeWidth: 2,
                 padding: 4,
-                animationDuration: 0, // Disable animation to prevent re-rendering
+                animationDuration: 0,
+                iterations: 1,
               });
               
               annotation.show();
@@ -59,17 +73,17 @@ export const createRoughNotationPlugin = () => {
               console.warn('Failed to create rough notation:', e);
             }
           });
-        }, 10000); // Increased timeout for better stability
+        }, 100);
       },
       destroy: () => {
-        if (updateTimeout) clearTimeout(updateTimeout);
         isThrottled = false;
+        lastDocSize = 0;
         // Clean up all annotations
         annotations.forEach((annotation) => {
           try {
             annotation.remove();
           } catch (e) {
-            // Ignore errors
+            console.warn('Failed to remove annotation on destroy:', e);
           }
         });
         annotations.clear();
