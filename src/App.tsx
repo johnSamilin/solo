@@ -25,12 +25,15 @@ import { TagNode } from './types';
 import { themes } from './constants';
 import { Plus } from 'lucide-react';
 import { analytics } from './utils/analytics';
+import { TagModal } from './components/Modals/TagModal/TagModal';
 
 const App = observer(() => {
   const { notesStore, settingsStore, tagsStore } = useStore();
   const [initialContent, setInitialContent] = useState('');
   const [autoZenDisabled, setAutoZenDisabled] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isParagraphTagModalOpen, setIsParagraphTagModalOpen] = useState(false);
+  const [currentParagraphTags, setCurrentParagraphTags] = useState<Tag[]>([]);
 
   const editor = useEditor({
     extensions: [
@@ -262,22 +265,28 @@ const App = observer(() => {
   const handleParagraphTagging = () => {
     if (!editor) return;
 
-    // Get current paragraph and its tags
     const { selection } = editor.state;
     const { $from } = selection;
     const node = $from.node();
     
-    let currentTags = '';
+    let currentTags: Tag[] = [];
     if (node.type.name === 'paragraph' && node.attrs.tags?.length) {
-      currentTags = node.attrs.tags.join(', ');
+      currentTags = node.attrs.tags.map((tagPath: string) => ({
+        id: generateUniqueId(),
+        path: tagPath
+      }));
     }
 
-    const tags = prompt('Enter tags for this paragraph (comma-separated):', currentTags);
-    if (tags !== null) { // Check for null to handle cancel button
-      // If tags is empty string, remove all tags; otherwise process the input
-      const tagArray = tags.trim() === '' ? [] : tags.split(',').map(t => t.trim()).filter(t => t);
-      editor.chain().focus().setParagraphTags(tagArray).run();
-    }
+    setCurrentParagraphTags(currentTags);
+    setIsParagraphTagModalOpen(true);
+  };
+
+  const handleParagraphTagsApply = (selectedTags: Tag[]) => {
+    if (!editor) return;
+    
+    const tagPaths = selectedTags.map(tag => tag.path);
+    editor.chain().focus().setParagraphTags(tagPaths).run();
+    setIsParagraphTagModalOpen(false);
   };
 
   const handleCreateNote = () => {
@@ -383,6 +392,16 @@ const App = observer(() => {
             <p>Loading your notes...</p>
           </div>
         </div>
+      )}
+
+      {isParagraphTagModalOpen && (
+        <TagModal
+          isOpen={isParagraphTagModalOpen}
+          onClose={() => setIsParagraphTagModalOpen(false)}
+          appliedTags={currentParagraphTags}
+          onApply={handleParagraphTagsApply}
+          title="Add Tags to Paragraph"
+        />
       )}
     </div>
 
