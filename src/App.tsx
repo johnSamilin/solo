@@ -13,7 +13,6 @@ import { ParagraphTags } from './extensions/ParagraphTags';
 import { FullWidthImage } from './extensions/FullWidthImage';
 import { CutIn } from './extensions/CutIn';
 import { RoughNotation } from './extensions/RoughNotation';
-import { createRoughNotationPlugin } from './extensions/RoughNotation';
 import { buildTagTree } from './utils';
 import { useStore } from './stores/StoreProvider';
 import { SettingsModal } from './components/Modals/SettingsModal/SettingsModal';
@@ -34,7 +33,6 @@ const App = observer(() => {
   const [initialContent, setInitialContent] = useState('');
   const [autoZenDisabled, setAutoZenDisabled] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [roughNotationPlugin, setRoughNotationPlugin] = useState<any>(null);
 
   const editor = useEditor({
     extensions: [
@@ -68,7 +66,7 @@ const App = observer(() => {
       }),
       ParagraphTags,
       CutIn,
-      ...(roughNotationPlugin ? [RoughNotation.configure({ plugin: roughNotationPlugin })] : [RoughNotation]),
+      RoughNotation,
     ],
     content: '',
     onUpdate: ({ editor }) => {
@@ -151,40 +149,6 @@ const App = observer(() => {
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [settingsStore.syncMode, settingsStore.server, settingsStore.webDAV]);
-
-  // Create rough notation plugin when a note is selected
-  useEffect(() => {
-    if (notesStore.selectedNote && editor) {
-      // Check if the note content has rough notations
-      const hasRoughNotations = notesStore.selectedNote.content.includes('data-notation-type');
-      
-      if (hasRoughNotations && !roughNotationPlugin) {
-        const plugin = createRoughNotationPlugin();
-        setRoughNotationPlugin(plugin);
-        
-        // Add the plugin to the editor
-        setTimeout(() => {
-          if (editor && !editor.isDestroyed) {
-            const currentPlugins = editor.state.plugins;
-            const newState = editor.state.reconfigure({
-              plugins: [...currentPlugins, plugin]
-            });
-            editor.view.updateState(newState);
-          }
-        }, 100);
-      }
-    } else if (!notesStore.selectedNote && roughNotationPlugin) {
-      // Remove plugin when no note is selected
-      setRoughNotationPlugin(null);
-      if (editor && !editor.isDestroyed) {
-        const currentPlugins = editor.state.plugins.filter(p => p.key !== 'roughNotation$');
-        const newState = editor.state.reconfigure({
-          plugins: currentPlugins
-        });
-        editor.view.updateState(newState);
-      }
-    }
-  }, [notesStore.selectedNote, editor]);
 
   useEffect(() => {
     if (editor && notesStore.selectedNote && !notesStore.isLoadingNoteContent) {
