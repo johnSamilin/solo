@@ -130,7 +130,6 @@ export const RoughNotation = Mark.create({
       0
     ];
   },
-  },
 
   addCommands() {
     return {
