@@ -16,7 +16,6 @@ import { buildTagTree } from './utils';
 import { useStore } from './stores/StoreProvider';
 import { SettingsModal } from './components/Modals/SettingsModal/SettingsModal';
 import { NewNotebookModal } from './components/Modals/NewNoteBookModal';
-import { TagModal } from './components/Modals/TagModal';
 import { Sidebar } from './components/Sidebar/Sidebar';
 import { Editor } from './components/Editor/Editor';
 import { SearchPage } from './components/Search/SearchPage';
@@ -190,28 +189,6 @@ const App = observer(() => {
   }, [settingsStore.isZenMode]);
 
   useEffect(() => {
-    if (settingsStore.isTagModalOpen) {
-      const allTags = Array.from(new Set(
-        notesStore.notes.flatMap(note => note.tags.map(tag => tag.path))
-      )).map(path => ({ id: generateUniqueId(), path }));
-
-      const tree = buildTagTree(allTags);
-
-      const markSelectedTags = (nodes: TagNode[]) => {
-        nodes.forEach(node => {
-          node.isChecked = notesStore.selectedNote?.tags.some(tag => tag.path.includes(node.name)) || false;
-          if (node.children.length > 0) {
-            markSelectedTags(node.children);
-          }
-        });
-      };
-
-      markSelectedTags(tree);
-      tagsStore.setTagTree(tree);
-    }
-  }, [settingsStore.isTagModalOpen, notesStore.notes, notesStore.selectedNote]);
-
-  useEffect(() => {
     const root = document.documentElement;
     const globalSettings = settingsStore.settings;
 
@@ -353,12 +330,6 @@ const App = observer(() => {
       {settingsStore.isNewNotebookModalOpen && (
         <NewNotebookModal
           onClose={() => settingsStore.setNewNotebookModalOpen(false)}
-        />
-      )}
-
-      {settingsStore.isTagModalOpen && (
-        <TagModal
-          onClose={() => settingsStore.setTagModalOpen(false)}
         />
       )}
 

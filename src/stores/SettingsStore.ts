@@ -32,7 +32,6 @@ export class SettingsStore {
   isToolbarExpanded = false;
   isSettingsOpen = false;
   isNewNotebookModalOpen = false;
-  isTagModalOpen = false;
   isNoteSettingsOpen = false;
   exportPath = '';
   importStatus: 'idle' | 'success' | 'error' = 'idle';
@@ -257,10 +256,6 @@ export class SettingsStore {
 
   setNewNotebookModalOpen = (isOpen: boolean) => {
     this.isNewNotebookModalOpen = isOpen;
-  };
-
-  setTagModalOpen = (isOpen: boolean) => {
-    this.isTagModalOpen = isOpen;
   };
 
   setNoteSettingsOpen = (isOpen: boolean) => {
