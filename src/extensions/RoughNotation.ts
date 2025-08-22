@@ -64,7 +64,6 @@ export const RoughNotation = Mark.create({
   },
 
   renderHTML({ HTMLAttributes }) {
-    applyRoughNotations();
     return ['span', mergeAttributes(this.options.HTMLAttributes, HTMLAttributes), 0];
   },
 
