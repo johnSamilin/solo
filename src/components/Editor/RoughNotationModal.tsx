@@ -56,6 +56,7 @@ export const RoughNotationModal: FC<RoughNotationModalProps> = ({
           color: selectedColor,
           strokeWidth: 2,
           padding: 4,
+          animationDuration: 0, // Disable animation for preview
         });
         annotation.show();
         annotationRef.current = annotation;
