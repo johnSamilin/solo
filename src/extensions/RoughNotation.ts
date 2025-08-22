@@ -2,6 +2,7 @@ import { Mark, mergeAttributes } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { annotate, RoughAnnotation } from 'rough-notation';
+import { applyRoughNotations } from '../utils/roughNotationUtil';
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
@@ -63,6 +64,7 @@ export const RoughNotation = Mark.create({
   },
 
   renderHTML({ HTMLAttributes }) {
+    applyRoughNotations();
     return ['span', mergeAttributes(this.options.HTMLAttributes, HTMLAttributes), 0];
   },
 
