@@ -12,6 +12,7 @@ import { Censored } from './extensions/Censored';
 import { ParagraphTags } from './extensions/ParagraphTags';
 import { FullWidthImage } from './extensions/FullWidthImage';
 import { CutIn } from './extensions/CutIn';
+import { RoughNotation } from './extensions/RoughNotation';
 import { buildTagTree } from './utils';
 import { useStore } from './stores/StoreProvider';
 import { SettingsModal } from './components/Modals/SettingsModal/SettingsModal';
@@ -65,6 +66,7 @@ const App = observer(() => {
       }),
       ParagraphTags,
       CutIn,
+      RoughNotation,
     ],
     content: '',
     onUpdate: ({ editor }) => {
