@@ -13,6 +13,7 @@ import { ParagraphTags } from './extensions/ParagraphTags';
 import { FullWidthImage } from './extensions/FullWidthImage';
 import { CutIn } from './extensions/CutIn';
 import { RoughNotation } from './extensions/RoughNotation';
+import { createRoughNotationPlugin } from './extensions/RoughNotation';
 import { buildTagTree } from './utils';
 import { useStore } from './stores/StoreProvider';
 import { SettingsModal } from './components/Modals/SettingsModal/SettingsModal';
@@ -158,7 +159,7 @@ const App = observer(() => {
       const hasRoughNotations = notesStore.selectedNote.content.includes('data-notation-type');
       
       if (hasRoughNotations && !roughNotationPlugin) {
-        const plugin = RoughNotation.createRoughNotationPlugin();
+        const plugin = createRoughNotationPlugin();
         setRoughNotationPlugin(plugin);
         
         // Add the plugin to the editor
