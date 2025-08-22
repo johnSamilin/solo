@@ -93,33 +93,6 @@ export const RoughNotation = Mark.create({
     return [
       new Plugin({
         key,
-        props: {
-          decorations: (state) => {
-            const { doc } = state;
-            const decorations: Decoration[] = [];
-
-            doc.descendants((node, pos) => {
-              if (node.isText && node.marks) {
-                node.marks.forEach((mark) => {
-                  if (mark.type.name === this.name) {
-                    const from = pos;
-                    const to = pos + node.nodeSize;
-                    
-                    decorations.push(
-                      Decoration.inline(from, to, {
-                        class: 'rough-notation-mark',
-                        'data-notation-type': mark.attrs.type,
-                        'data-notation-color': mark.attrs.color,
-                      })
-                    );
-                  }
-                });
-              }
-            });
-
-            return DecorationSet.create(doc, decorations);
-          },
-        },
         view: () => ({
           update: (view) => {
             // Clean up old annotations
@@ -134,7 +107,7 @@ export const RoughNotation = Mark.create({
 
             // Add new annotations
             setTimeout(() => {
-              const elements = view.dom.querySelectorAll('.rough-notation-mark');
+              const elements = view.dom.querySelectorAll('span[data-notation-type]');
               elements.forEach((element) => {
                 const type = element.getAttribute('data-notation-type') || 'underline';
                 const color = element.getAttribute('data-notation-color') || '#ff6b6b';
@@ -144,7 +117,7 @@ export const RoughNotation = Mark.create({
                     type: type as any,
                     color,
                     strokeWidth: 2,
-                    padding: 2,
+                    padding: 4,
                   });
                   
                   annotation.show();
@@ -153,7 +126,7 @@ export const RoughNotation = Mark.create({
                   console.warn('Failed to create rough notation:', e);
                 }
               });
-            }, 100);
+            }, 50);
           },
           destroy: () => {
             // Clean up all annotations
