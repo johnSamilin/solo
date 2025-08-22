@@ -11,6 +11,7 @@ import { TextRecognitionModal } from "../Modals/TextRecognitionModal";
 import { ArrowLeft, Plus, ArrowRight, Maximize2, Trash2, ScanText } from "lucide-react";
 import { themes } from "../../constants";
 import { analytics } from "../../utils/analytics";
+import { DateEditDialog } from "./DateEditDialog";
 
 import './Editor.css';
 
@@ -57,6 +58,7 @@ export const Editor: FC<EditorProps> = observer(({
   const [dictationLang, setDictationLang] = useState<'en-US' | 'ru-RU'>('ru-RU');
   const [isOcrModalOpen, setIsOcrModalOpen] = useState(false);
   const [selectedImageUrl, setSelectedImageUrl] = useState<string>('');
+  const [isDateDialogOpen, setIsDateDialogOpen] = useState(false);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const isLanguageSwitchPending = useRef(false);
   
@@ -302,6 +304,19 @@ export const Editor: FC<EditorProps> = observer(({
     }
   };
 
+  const handleDateClick = () => {
+    setIsDateDialogOpen(true);
+  };
+
+  const handleDateChange = (newDate: Date) => {
+    if (notesStore.selectedNote) {
+      notesStore.updateNote(notesStore.selectedNote.id, {
+        createdAt: newDate
+      });
+    }
+    setIsDateDialogOpen(false);
+  };
+
   const handleDictation = () => {
     if (isDictating) {
       recognitionRef.current?.stop();
@@ -401,7 +416,13 @@ export const Editor: FC<EditorProps> = observer(({
             placeholder="Note Title"
           />
           {!settingsStore.isZenMode && <p className="note-item-date">
-            {new Date(notesStore.selectedNote.createdAt).toLocaleDateString()}
+            <span 
+              className="note-date-clickable"
+              onClick={handleDateClick}
+              title="Click to edit date"
+            >
+              {new Date(notesStore.selectedNote.createdAt).toLocaleDateString()}
+            </span>
           </p>}
           <EditorContent editor={editor} className="editor-body" />
           <TagsDisplay />
@@ -500,6 +521,14 @@ export const Editor: FC<EditorProps> = observer(({
         <TextRecognitionModal
           onClose={() => setIsOcrModalOpen(false)}
           imageUrl={selectedImageUrl}
+        />
+      )}
+
+      {isDateDialogOpen && notesStore.selectedNote && (
+        <DateEditDialog
+          currentDate={notesStore.selectedNote.createdAt}
+          onDateChange={handleDateChange}
+          onClose={() => setIsDateDialogOpen(false)}
         />
       )}
     </div>
