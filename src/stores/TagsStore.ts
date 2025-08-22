@@ -106,4 +106,50 @@ export class TagsStore {
       path: path.trim()
     };
   };
+
+  // Initialize tags from notes if tag tree is empty
+  initializeFromNotes = (notes: any[]) => {
+    if (this.tagTree.length === 0) {
+      const allTags = Array.from(new Set(
+        notes.flatMap(note => note.tags?.map((tag: any) => tag.path) || [])
+      )).map(path => ({ id: generateUniqueId(), path }));
+
+      if (allTags.length > 0) {
+        const tree = this.buildTagTree(allTags);
+        this.setTagTree(tree);
+      }
+    }
+  };
+
+  private buildTagTree = (tags: { id: string; path: string }[]): TagNode[] => {
+    const root: { [key: string]: TagNode } = {};
+
+    tags.forEach(tag => {
+      const parts = tag.path.split('/');
+      let currentLevel = root;
+      let currentPath = '';
+
+      parts.forEach((part, index) => {
+        currentPath = currentPath ? `${currentPath}/${part}` : part;
+        if (!currentLevel[currentPath]) {
+          currentLevel[currentPath] = {
+            id: generateUniqueId(),
+            name: part,
+            children: [],
+            isChecked: false,
+            isExpanded: false
+          };
+        }
+        
+        if (index < parts.length - 1) {
+          currentLevel = currentLevel[currentPath].children.reduce((acc, child) => {
+            acc[child.name] = child;
+            return acc;
+          }, {} as { [key: string]: TagNode });
+        }
+      });
+    });
+
+    return Object.values(root);
+  };
 }
