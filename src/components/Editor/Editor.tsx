@@ -12,7 +12,6 @@ import { ArrowLeft, Plus, ArrowRight, Maximize2, Trash2, ScanText } from "lucide
 import { themes } from "../../constants";
 import { analytics } from "../../utils/analytics";
 import { DateEditDialog } from "./DateEditDialog";
-import { RoughNotationModal } from "./RoughNotationModal";
 
 import './Editor.css';
 
@@ -60,7 +59,6 @@ export const Editor: FC<EditorProps> = observer(({
   const [isOcrModalOpen, setIsOcrModalOpen] = useState(false);
   const [selectedImageUrl, setSelectedImageUrl] = useState<string>('');
   const [isDateDialogOpen, setIsDateDialogOpen] = useState(false);
-  const [isRoughNotationModalOpen, setIsRoughNotationModalOpen] = useState(false);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const isLanguageSwitchPending = useRef(false);
   
@@ -319,17 +317,6 @@ export const Editor: FC<EditorProps> = observer(({
     setIsDateDialogOpen(false);
   };
 
-  const handleRoughNotation = () => {
-    setIsRoughNotationModalOpen(true);
-  };
-
-  const applyRoughNotation = (type: string, color: string) => {
-    if (editor) {
-      editor.chain().focus().toggleRoughNotation({ type, color }).run();
-    }
-    setIsRoughNotationModalOpen(false);
-  };
-
   const handleDictation = () => {
     if (isDictating) {
       recognitionRef.current?.stop();
@@ -490,7 +477,6 @@ export const Editor: FC<EditorProps> = observer(({
           handleDictation={handleDictation}
           isDictating={isDictating}
           handleCutIn={handleCutIn}
-          handleRoughNotation={handleRoughNotation}
         />
       </div>
 
@@ -543,13 +529,6 @@ export const Editor: FC<EditorProps> = observer(({
           currentDate={notesStore.selectedNote.createdAt}
           onDateChange={handleDateChange}
           onClose={() => setIsDateDialogOpen(false)}
-        />
-      )}
-
-      {isRoughNotationModalOpen && (
-        <RoughNotationModal
-          onClose={() => setIsRoughNotationModalOpen(false)}
-          onApply={applyRoughNotation}
         />
       )}
     </div>
