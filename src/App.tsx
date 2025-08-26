@@ -19,6 +19,7 @@ import { NewNotebookModal } from './components/Modals/NewNoteBookModal';
 import { Sidebar } from './components/Sidebar/Sidebar';
 import { Editor } from './components/Editor/Editor';
 import { SearchPage } from './components/Search/SearchPage';
+import { Timeline } from './components/Timeline/Timeline';
 import { Toast } from './components/Toast/Toast';
 import { generateUniqueId } from './utils';
 import { TagNode } from './types';
@@ -32,6 +33,7 @@ const App = observer(() => {
   const [initialContent, setInitialContent] = useState('');
   const [autoZenDisabled, setAutoZenDisabled] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isTimelineOpen, setIsTimelineOpen] = useState(false);
   const [isParagraphTagModalOpen, setIsParagraphTagModalOpen] = useState(false);
   const [currentParagraphTags, setCurrentParagraphTags] = useState<Tag[]>([]);
 
@@ -355,9 +357,20 @@ const App = observer(() => {
         />
       )}
 
+      {isTimelineOpen && (
+        <Timeline
+          onClose={() => setIsTimelineOpen(false)}
+          onNoteSelect={(note) => {
+            notesStore.setSelectedNote(note);
+            setIsTimelineOpen(false);
+          }}
+        />
+      )}
+
       <Sidebar 
         editor={editor} 
         onOpenSearch={() => setIsSearchOpen(true)}
+        onOpenTimeline={() => setIsTimelineOpen(true)}
       />
 
       <div className="main-content">
