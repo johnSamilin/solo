@@ -109,6 +109,9 @@ export class TagsStore {
 
   // Initialize tags from notes if tag tree is empty
   initializeFromNotes = (notes: any[]) => {
+    // Always ensure special timeline tags are available
+    const specialTags = ['Main events', 'Главные события'];
+    
     if (this.tagTree.length === 0) {
       // Collect tags from note-level tags
       const noteTagPaths = notes.flatMap(note => note.tags?.map((tag: any) => tag.path) || []);
@@ -135,10 +138,21 @@ export class TagsStore {
       });
       
       // Combine all tags and remove duplicates
-      const allTags = Array.from(new Set([...noteTagPaths, ...paragraphTagPaths]))
+      const allTags = Array.from(new Set([...noteTagPaths, ...paragraphTagPaths, ...specialTags]))
         .map(path => ({ id: generateUniqueId(), path }));
 
       if (allTags.length > 0) {
+        const tree = this.buildTagTree(allTags);
+        this.setTagTree(tree);
+      }
+    } else {
+      // Ensure special tags exist in existing tree
+      const existingPaths = this.getAllTagPaths(this.tagTree);
+      const missingTags = specialTags.filter(tag => !existingPaths.includes(tag));
+      
+      if (missingTags.length > 0) {
+        const newTags = missingTags.map(path => ({ id: generateUniqueId(), path }));
+        const allTags = [...this.getAllTags(this.tagTree), ...newTags];
         const tree = this.buildTagTree(allTags);
         this.setTagTree(tree);
       }
@@ -175,5 +189,30 @@ export class TagsStore {
     });
 
     return Object.values(root);
+  };
+
+  private getAllTagPaths = (nodes: TagNode[]): string[] => {
+    return nodes.flatMap(node => {
+      const paths = [node.name];
+      if (node.children.length > 0) {
+        const childPaths = this.getAllTagPaths(node.children);
+        paths.push(...childPaths.map(childPath => `${node.name}/${childPath}`));
+      }
+      return paths;
+    });
+  };
+
+  private getAllTags = (nodes: TagNode[]): { id: string; path: string }[] => {
+    return nodes.flatMap(node => {
+      const tags = [{ id: node.id, path: node.name }];
+      if (node.children.length > 0) {
+        const childTags = this.getAllTags(node.children);
+        tags.push(...childTags.map(childTag => ({
+          id: childTag.id,
+          path: `${node.name}/${childTag.path}`
+        })));
+      }
+      return tags;
+    });
   };
 }

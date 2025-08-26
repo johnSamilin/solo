@@ -30,7 +30,36 @@ export const Timeline: FC<TimelinePageProps> = observer(({ onClose, onNoteSelect
   const generateTimelineItems = useCallback(() => {
     const now = new Date();
     const items: TimelineItem[] = [];
-    const visibleNotes = notesStore.getVisibleNotes(settingsStore.isCensorshipEnabled());
+    
+    // Filter notes that have special timeline tags or paragraphs with timeline tags
+    const timelineTags = ['Main events', 'Главные события'];
+    const visibleNotes = notesStore.getVisibleNotes(settingsStore.isCensorshipEnabled())
+      .filter(note => {
+        // Check note-level tags
+        const hasTimelineTag = note.tags.some(tag => 
+          timelineTags.some(timelineTag => tag.path.includes(timelineTag))
+        );
+        
+        if (hasTimelineTag) return true;
+        
+        // Check paragraph-level tags
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = note.content;
+        const taggedElements = tempDiv.querySelectorAll('[data-tags]');
+        
+        for (const element of taggedElements) {
+          const tags = element.getAttribute('data-tags') || '';
+          const paragraphTags = tags.split(',').map(tag => tag.trim());
+          
+          if (paragraphTags.some(tag => 
+            timelineTags.some(timelineTag => tag.includes(timelineTag))
+          )) {
+            return true;
+          }
+        }
+        
+        return false;
+      });
     
     // Group notes by year and month
     const notesByDate = new Map<string, Note[]>();
