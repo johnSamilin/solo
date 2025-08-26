@@ -143,35 +143,53 @@
 }
 
 .timeline-note {
-  padding: 0.75rem 1rem;
-  background: var(--color-white);
-  border: 1px solid var(--color-border);
-  border-radius: 0.5rem;
+  padding: 1rem 1.25rem;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: none;
+  border-left: 4px solid var(--color-accent);
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   cursor: pointer;
   transition: all 0.2s ease;
   font-family: var(--editor-font-family), Georgia, serif;
+  position: relative;
+  overflow: hidden;
+}
+
+.timeline-note::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--color-accent), transparent);
+  opacity: 0.6;
 }
 
 .timeline-note:hover {
-  border-color: var(--color-text-light);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.15), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  border-left-color: var(--color-text);
 }
 
 .timeline-note-title {
-  font-size: 0.875rem;
-  font-weight: 500;
+  font-size: 1rem;
+  font-weight: 600;
   color: var(--color-text);
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.5rem;
+  font-family: var(--title-font-family), Georgia, serif;
 }
 
 .timeline-note-preview {
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   color: var(--color-text-light);
-  line-height: 1.4;
+  line-height: 1.5;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  font-style: italic;
 }
 
 .timeline-empty {
