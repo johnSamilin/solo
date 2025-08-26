@@ -72,33 +72,15 @@ export const Timeline: FC<TimelinePageProps> = observer(({ onClose, onNoteSelect
       notesByDate.get(yearMonth)!.push(note);
     });
 
-    // Generate timeline with even intervals
+    // Generate timeline with months only at even intervals
     const startYear = now.getFullYear() - 5;
     const endYear = now.getFullYear() + 5;
     
     const totalYears = endYear - startYear + 1;
     const totalMonths = totalYears * 12;
-    const timelineHeight = totalMonths * 120; // 120px per month
     
     for (let year = startYear; year <= endYear; year++) {
-      // Add year marker at calculated position
-      const yearDate = new Date(year, 0, 1);
-      const yearNotes = Array.from(notesByDate.entries())
-        .filter(([key]) => key.startsWith(year.toString()))
-        .flatMap(([, notes]) => notes);
-      
-      const yearPosition = (year - startYear) * 12 * 120; // Position based on year offset
-      
-      items.push({
-        type: 'year',
-        date: yearDate,
-        label: year.toString(),
-        notes: yearNotes,
-        isLeft: (year - startYear) % 2 === 0,
-        position: yearPosition
-      });
-
-      // Add months for this year at even intervals
+      // Add months at even intervals
       for (let month = 0; month < 12; month++) {
         const monthDate = new Date(year, month, 1);
         const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`;

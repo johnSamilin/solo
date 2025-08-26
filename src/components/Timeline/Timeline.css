@@ -82,9 +82,6 @@
   padding: 0 2rem;
 }
 
-.timeline-item.year {
-  margin-bottom: 3rem;
-}
 
 .timeline-item.current {
   background: rgba(41, 37, 36, 0.05);
@@ -105,12 +102,6 @@
   z-index: 2;
 }
 
-.timeline-marker.year {
-  width: 16px;
-  height: 16px;
-  background: var(--color-button);
-  border-color: var(--color-button);
-}
 
 .timeline-marker.current {
   background: var(--color-accent);
@@ -140,10 +131,6 @@
   margin-bottom: 0.5rem;
 }
 
-.timeline-date.year {
-  font-size: 1.5rem;
-  color: var(--color-button);
-}
 
 .timeline-date.current {
   color: var(--color-accent);
