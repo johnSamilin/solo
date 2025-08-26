@@ -16,6 +16,7 @@ interface TimelineItem {
   label: string;
   notes: Note[];
   isLeft: boolean;
+  position: number;
 }
 
 export const Timeline: FC<TimelinePageProps> = observer(({ onClose, onNoteSelect }) => {
@@ -42,29 +43,33 @@ export const Timeline: FC<TimelinePageProps> = observer(({ onClose, onNoteSelect
       notesByDate.get(yearMonth)!.push(note);
     });
 
-    // Generate timeline from 5 years ago to 5 years in the future
+    // Generate timeline with even intervals
     const startYear = now.getFullYear() - 5;
     const endYear = now.getFullYear() + 5;
     
-    let itemIndex = 0;
+    const totalYears = endYear - startYear + 1;
+    const totalMonths = totalYears * 12;
+    const timelineHeight = totalMonths * 120; // 120px per month
     
     for (let year = startYear; year <= endYear; year++) {
-      // Add year marker
+      // Add year marker at calculated position
       const yearDate = new Date(year, 0, 1);
       const yearNotes = Array.from(notesByDate.entries())
         .filter(([key]) => key.startsWith(year.toString()))
         .flatMap(([, notes]) => notes);
+      
+      const yearPosition = (year - startYear) * 12 * 120; // Position based on year offset
       
       items.push({
         type: 'year',
         date: yearDate,
         label: year.toString(),
         notes: yearNotes,
-        isLeft: itemIndex % 2 === 0
+        isLeft: (year - startYear) % 2 === 0,
+        position: yearPosition
       });
-      itemIndex++;
 
-      // Add months for this year
+      // Add months for this year at even intervals
       for (let month = 0; month < 12; month++) {
         const monthDate = new Date(year, month, 1);
         const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
@@ -73,14 +78,16 @@ export const Timeline: FC<TimelinePageProps> = observer(({ onClose, onNoteSelect
         // Check if this is the current month
         const isCurrent = year === now.getFullYear() && month === now.getMonth();
         
+        const monthPosition = ((year - startYear) * 12 + month) * 120;
+        
         items.push({
           type: isCurrent ? 'current' : 'month',
           date: monthDate,
           label: monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
           notes: monthNotes,
-          isLeft: itemIndex % 2 === 0
+          isLeft: ((year - startYear) * 12 + month) % 2 === 0,
+          position: monthPosition
         });
-        itemIndex++;
       }
     }
 
@@ -98,9 +105,7 @@ export const Timeline: FC<TimelinePageProps> = observer(({ onClose, onNoteSelect
     setTimeout(() => {
       const currentItem = items.find(item => item.type === 'current');
       if (currentItem && containerRef.current) {
-        const currentIndex = items.indexOf(currentItem);
-        const itemHeight = 120; // Approximate height per item
-        const scrollPosition = currentIndex * itemHeight - window.innerHeight / 2;
+        const scrollPosition = currentItem.position - window.innerHeight / 2;
         containerRef.current.scrollTop = Math.max(0, scrollPosition);
       }
     }, 100);
@@ -113,16 +118,22 @@ export const Timeline: FC<TimelinePageProps> = observer(({ onClose, onNoteSelect
     const container = containerRef.current;
     const scrollTop = container.scrollTop;
     const containerHeight = container.clientHeight;
-    const itemHeight = 120;
     
-    const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - 10);
-    const endIndex = Math.min(
-      timelineItems.length,
-      Math.ceil((scrollTop + containerHeight) / itemHeight) + 10
+    // Find visible items based on their positions
+    const buffer = 1200; // 10 items * 120px
+    const visibleItems = timelineItems.filter(item => 
+      item.position >= scrollTop - buffer && 
+      item.position <= scrollTop + containerHeight + buffer
     );
     
-    setVisibleRange({ start: startIndex, end: endIndex });
-  }, [timelineItems.length]);
+    const startIndex = timelineItems.findIndex(item => visibleItems.includes(item));
+    const endIndex = startIndex + visibleItems.length;
+    
+    setVisibleRange({ 
+      start: Math.max(0, startIndex), 
+      end: Math.min(timelineItems.length, endIndex) 
+    });
+  }, [timelineItems]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -175,18 +186,17 @@ export const Timeline: FC<TimelinePageProps> = observer(({ onClose, onNoteSelect
           <div className="timeline-content">
             <div className="timeline-line"></div>
             
-            {/* Spacer for items before visible range */}
-            {visibleRange.start > 0 && (
-              <div style={{ height: `${visibleRange.start * 120}px` }}></div>
-            )}
-            
             {visibleItems.map((item, index) => {
-              const actualIndex = visibleRange.start + index;
               return (
                 <div
                   key={`${item.date.getTime()}-${item.type}`}
                   className={`timeline-item ${item.type}`}
-                  style={{ top: `${actualIndex * 120}px` }}
+                  style={{ 
+                    position: 'absolute',
+                    top: `${item.position}px`,
+                    left: 0,
+                    right: 0
+                  }}
                 >
                   <div className={`timeline-marker ${item.type}`}></div>
                   
@@ -262,11 +272,6 @@ export const Timeline: FC<TimelinePageProps> = observer(({ onClose, onNoteSelect
                 </div>
               );
             })}
-            
-            {/* Spacer for items after visible range */}
-            {visibleRange.end < timelineItems.length && (
-              <div style={{ height: `${(timelineItems.length - visibleRange.end) * 120}px` }}></div>
-            )}
           </div>
         )}
       </div>

@@ -60,7 +60,7 @@
 .timeline-content {
   position: relative;
   width: 100%;
-  min-height: 200vh;
+  height: 14400px; /* 120 years * 12 months * 120px */
   padding: 2rem 0;
 }
 
