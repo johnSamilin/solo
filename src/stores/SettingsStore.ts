@@ -301,28 +301,6 @@ export class SettingsStore {
       console.error('Error checking sync status:', error);
     }
   };
-      
-      // Get server timestamp
-      const response = await fetch(`${this.server.url}/api/data`, {
-        method: 'HEAD',
-        headers: {
-          'Authorization': `Bearer ${this.server.token}`,
-        },
-      });
-
-      if (response.ok) {
-        const lastModified = response.headers.get('Last-Modified');
-        const serverTimestamp = lastModified ? new Date(lastModified).getTime() : 0;
-        
-        // Compare with local changes
-        if (store.syncMetadata.lastLocalChange > Math.max(serverTimestamp, store.syncMetadata.lastServerSync)) {
-          this.showSyncReminder();
-        }
-      }
-    } catch (error) {
-      console.error('Error checking sync status:', error);
-    }
-  };
 
   private showSyncReminder = () => {
     // Create a persistent toast that doesn't auto-dismiss
