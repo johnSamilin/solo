@@ -115,7 +115,6 @@ const App = observer(() => {
 
             if (response.ok) {
               settingsStore.setToast('Changes saved to server', 'success');
-              notesStore.updateLastServerSync();
               analytics.syncCompleted('server');
             } else {
               settingsStore.setToast('Failed to save changes', 'error');
@@ -135,7 +134,6 @@ const App = observer(() => {
               success ? 'success' : 'error'
             );
             if (success) {
-              notesStore.updateLastServerSync();
               analytics.syncCompleted('webdav');
             } else {
               analytics.syncFailed('webdav');
