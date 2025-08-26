@@ -1,0 +1,103 @@
+.tag-tree {
+  margin-bottom: 1.5rem;
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  padding: 0.5rem;
+}
+
+.tag-tree-item {
+  margin: 0.25rem 0;
+}
+
+.tag-tree-item-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tag-tree-toggle {
+  padding: 0.25rem;
+  background: none;
+  border: none;
+  color: var(--color-text-light);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tag-tree-toggle:hover {
+  color: var(--color-text);
+}
+
+.tag-tree-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem;
+  cursor: pointer;
+  border-radius: 0.25rem;
+  flex: 1;
+}
+
+.tag-tree-label:hover {
+  background-color: var(--color-bg);
+}
+
+.tag-tree-checkbox {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 0.25rem;
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+}
+
+.tag-tree-children {
+  margin-left: 1rem;
+}
+
+.tag-input-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.tag-input {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  color: var(--color-text);
+}
+
+.tag-input:focus {
+  outline: none;
+  border-color: var(--color-text-light);
+}
+
+.tag-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+}
+
+.tag-apply-button {
+  padding: 0.5rem 1rem;
+  background-color: var(--color-button);
+  color: var(--color-white);
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tag-apply-button:hover {
+  background-color: var(--color-button-hover);
+}

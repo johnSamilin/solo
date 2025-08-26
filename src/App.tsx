@@ -16,22 +16,26 @@ import { buildTagTree } from './utils';
 import { useStore } from './stores/StoreProvider';
 import { SettingsModal } from './components/Modals/SettingsModal/SettingsModal';
 import { NewNotebookModal } from './components/Modals/NewNoteBookModal';
-import { TagModal } from './components/Modals/TagModal';
 import { Sidebar } from './components/Sidebar/Sidebar';
 import { Editor } from './components/Editor/Editor';
 import { SearchPage } from './components/Search/SearchPage';
+import { Timeline } from './components/Timeline/Timeline';
 import { Toast } from './components/Toast/Toast';
 import { generateUniqueId } from './utils';
 import { TagNode } from './types';
 import { themes } from './constants';
 import { Plus } from 'lucide-react';
 import { analytics } from './utils/analytics';
+import { TagModal } from './components/Modals/TagModal/TagModal';
 
 const App = observer(() => {
   const { notesStore, settingsStore, tagsStore } = useStore();
   const [initialContent, setInitialContent] = useState('');
   const [autoZenDisabled, setAutoZenDisabled] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isTimelineOpen, setIsTimelineOpen] = useState(false);
+  const [isParagraphTagModalOpen, setIsParagraphTagModalOpen] = useState(false);
+  const [currentParagraphTags, setCurrentParagraphTags] = useState<Tag[]>([]);
 
   const editor = useEditor({
     extensions: [
@@ -125,6 +129,7 @@ const App = observer(() => {
           }
         } else if (settingsStore.syncMode === 'webdav' && window.bridge?.syncWebDAV) {
           try {
+            const syncData = await notesStore.exportForSync();
             const success = await window.bridge.syncWebDAV(JSON.stringify(settingsStore.webDAV));
             settingsStore.setToast(
               success ? 'Changes saved to WebDAV' : 'Failed to save changes',
@@ -146,7 +151,7 @@ const App = observer(() => {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [settingsStore.syncMode, settingsStore.server, settingsStore.webDAV]);
+  }, [settingsStore.syncMode, settingsStore.server, settingsStore.webDAV, notesStore]);
 
   useEffect(() => {
     if (editor && notesStore.selectedNote && !notesStore.isLoadingNoteContent) {
@@ -188,28 +193,6 @@ const App = observer(() => {
       setAutoZenDisabled(true);
     }
   }, [settingsStore.isZenMode]);
-
-  useEffect(() => {
-    if (settingsStore.isTagModalOpen) {
-      const allTags = Array.from(new Set(
-        notesStore.notes.flatMap(note => note.tags.map(tag => tag.path))
-      )).map(path => ({ id: generateUniqueId(), path }));
-
-      const tree = buildTagTree(allTags);
-
-      const markSelectedTags = (nodes: TagNode[]) => {
-        nodes.forEach(node => {
-          node.isChecked = notesStore.selectedNote?.tags.some(tag => tag.path.includes(node.name)) || false;
-          if (node.children.length > 0) {
-            markSelectedTags(node.children);
-          }
-        });
-      };
-
-      markSelectedTags(tree);
-      tagsStore.setTagTree(tree);
-    }
-  }, [settingsStore.isTagModalOpen, notesStore.notes, notesStore.selectedNote]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -285,22 +268,28 @@ const App = observer(() => {
   const handleParagraphTagging = () => {
     if (!editor) return;
 
-    // Get current paragraph and its tags
     const { selection } = editor.state;
     const { $from } = selection;
     const node = $from.node();
     
-    let currentTags = '';
+    let currentTags: Tag[] = [];
     if (node.type.name === 'paragraph' && node.attrs.tags?.length) {
-      currentTags = node.attrs.tags.join(', ');
+      currentTags = node.attrs.tags.map((tagPath: string) => ({
+        id: generateUniqueId(),
+        path: tagPath
+      }));
     }
 
-    const tags = prompt('Enter tags for this paragraph (comma-separated):', currentTags);
-    if (tags !== null) { // Check for null to handle cancel button
-      // If tags is empty string, remove all tags; otherwise process the input
-      const tagArray = tags.trim() === '' ? [] : tags.split(',').map(t => t.trim()).filter(t => t);
-      editor.chain().focus().setParagraphTags(tagArray).run();
-    }
+    setCurrentParagraphTags(currentTags);
+    setIsParagraphTagModalOpen(true);
+  };
+
+  const handleParagraphTagsApply = (selectedTags: Tag[]) => {
+    if (!editor) return;
+    
+    const tagPaths = selectedTags.map(tag => tag.path);
+    editor.chain().focus().setParagraphTags(tagPaths).run();
+    setIsParagraphTagModalOpen(false);
   };
 
   const handleCreateNote = () => {
@@ -356,12 +345,6 @@ const App = observer(() => {
         />
       )}
 
-      {settingsStore.isTagModalOpen && (
-        <TagModal
-          onClose={() => settingsStore.setTagModalOpen(false)}
-        />
-      )}
-
       <Toast />
 
       {isSearchOpen && (
@@ -374,9 +357,20 @@ const App = observer(() => {
         />
       )}
 
+      {isTimelineOpen && (
+        <Timeline
+          onClose={() => setIsTimelineOpen(false)}
+          onNoteSelect={(note) => {
+            notesStore.setSelectedNote(note);
+            setIsTimelineOpen(false);
+          }}
+        />
+      )}
+
       <Sidebar 
         editor={editor} 
         onOpenSearch={() => setIsSearchOpen(true)}
+        onOpenTimeline={() => setIsTimelineOpen(true)}
       />
 
       <div className="main-content">
@@ -413,8 +407,17 @@ const App = observer(() => {
           </div>
         </div>
       )}
-    </div>
 
+      {isParagraphTagModalOpen && (
+        <TagModal
+          isOpen={isParagraphTagModalOpen}
+          onClose={() => setIsParagraphTagModalOpen(false)}
+          appliedTags={currentParagraphTags}
+          onApply={handleParagraphTagsApply}
+          title="Add Tags to Paragraph"
+        />
+      )}
+    </div>
   );
 });
 

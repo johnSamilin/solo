@@ -105,7 +105,7 @@ export function getUserData(userId) {
   if (files.length === 0) return null;
   
   // Get the latest file
-  const latestFile = files.pop();
+  const latestFile = files[0];
   const filePath = path.join(USER_DATA_DIR, userId, latestFile);
 
   try {
@@ -117,6 +117,22 @@ export function getUserData(userId) {
   }
 }
 
+export function getUserDataTimestamp(userId) {
+  const files = getDataFiles(userId);
+  if (files.length === 0) return 0;
+  
+  // Get the latest file
+  const latestFile = files[0];
+  const filePath = path.join(USER_DATA_DIR, userId, latestFile);
+  
+  try {
+    const stats = fs.statSync(filePath);
+    return stats.mtime.getTime();
+  } catch (error) {
+    console.error('Error getting file timestamp:', error);
+    return 0;
+  }
+}
 export function saveUserData(userId, data) {
   const userDir = path.join(USER_DATA_DIR, userId);
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');

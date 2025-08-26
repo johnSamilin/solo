@@ -3,7 +3,7 @@ import { observer } from 'mobx-react-lite';
 import { Search, X, Tag as TagIcon, Filter, ArrowLeft, ChevronDown, ChevronUp, MoreHorizontal } from 'lucide-react';
 import { useStore } from '../../stores/StoreProvider';
 import { Note, TagNode } from '../../types';
-import { buildTagTree, generateUniqueId } from '../../utils';
+import { generateUniqueId } from '../../utils';
 import { TagTreeItem } from '../Sidebar/TagTreeItem';
 import { themes } from '../../constants';
 import './SearchPage.css';
@@ -19,24 +19,13 @@ interface TagFilter {
 }
 
 export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect }) => {
-  const { notesStore, settingsStore } = useStore();
+  const { notesStore, settingsStore, tagsStore } = useStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [tagFilters, setTagFilters] = useState<TagFilter[]>([]);
-  const [availableTags, setAvailableTags] = useState<TagNode[]>([]);
   const [isTagSelectorOpen, setIsTagSelectorOpen] = useState(false);
   const [selectedTagOperator, setSelectedTagOperator] = useState<'AND' | 'OR' | 'NOT'>('AND');
   const [isFiltersCollapsed, setIsFiltersCollapsed] = useState(false);
   const [loadingNotes, setLoadingNotes] = useState<Set<string>>(new Set());
-
-  // Get all available tags from notes
-  useEffect(() => {
-    const allTags = Array.from(new Set(
-      notesStore.notes.flatMap(note => note.tags.map(tag => tag.path))
-    )).map(path => ({ id: path, path }));
-
-    const tree = buildTagTree(allTags);
-    setAvailableTags(tree);
-  }, [notesStore.notes]);
 
   // Fuzzy search function
   const fuzzyMatch = (text: string, query: string): boolean => {
@@ -491,8 +480,8 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
               {isTagSelectorOpen && (
                 <div className="tag-selector-dropdown">
                   <div className="tag-selector-content">
-                    {availableTags.length > 0 ? (
-                      renderTagTree(availableTags)
+                    {tagsStore.tagTree.length > 0 ? (
+                      renderTagTree(tagsStore.tagTree)
                     ) : (
                       <p className="no-tags-message">No tags available</p>
                     )}

@@ -74,6 +74,24 @@ Added a new "Censorship" tab to settings modal with:
 - Prevented sensitive data from being synced to WebDAV
 - Enhanced security for censorship and WebDAV credentials
 
+## Feature: Timeline View (v2.3.0)
+- Added chronological timeline visualization for important events
+- Notes tagged with "Main events" or "Главные события" appear in timeline
+- Beautiful callout-style connections between notes and timeline markers
+- Smooth curved connector lines for visual appeal
+- Date picker in header for quick navigation to any month/year
+- Automatic scrolling to current month on timeline open
+- Virtual scrolling for performance with large date ranges
+- Year separators for better visual organization
+
+## Feature: Smart Sync Notifications (v2.3.0)
+- Intelligent detection of unsynced local changes
+- Automatic notifications when server data is older than local changes
+- Quick sync button in notification toast
+- Ctrl+S keyboard shortcut for instant sync
+- Non-intrusive reminder system that auto-dismisses
+- Server timestamp comparison for accurate sync status
+
 ## Bug Fixes
 ### Editor Improvements
 - Fixed cursor jumping issue when typing in the editor

@@ -1,6 +1,7 @@
 import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
+import { Node as ProseMirrorNode } from '@tiptap/pm/model';
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
@@ -126,75 +127,42 @@ export const ParagraphTags = Extension.create({
             doc.descendants((node, pos) => {
               if (node.type.name === 'paragraph' && node.attrs.tags?.length) {
                 const tags = node.attrs.tags as string[];
+                const tagContainer = document.createElement('div');
+                tagContainer.className = 'paragraph-tags';
+                tagContainer.style.cssText = `
+                  display: flex;
+                  flex-wrap: wrap;
+                  gap: 0.25rem;
+                  margin: 0.5rem 0;
+                  position: relative;
+                  z-index: 1;
+                `;
+                
+                tags.forEach(tag => {
+                  const tagEl = document.createElement('span');
+                  tagEl.className = 'paragraph-tag';
+                  tagEl.textContent = tag;
+                  tagEl.style.cssText = `
+                    font-size: 0.75rem;
+                    padding: 0.125rem 0.375rem;
+                    background-color: var(--color-bg);
+                    border: 1px solid var(--color-border);
+                    border-radius: 0.25rem;
+                    color: var(--color-text-light);
+                    white-space: nowrap;
+                    display: inline-block;
+                  `;
+                  tagContainer.appendChild(tagEl);
+                });
+                
                 decorations.push(
-                  Decoration.widget(pos + node.nodeSize, () => {
-                    const tagContainer = document.createElement('div');
-                    tagContainer.className = 'paragraph-tags';
-                    tags.forEach(tag => {
-                      const tagEl = document.createElement('span');
-                      tagEl.className = 'paragraph-tag';
-                      tagEl.textContent = tag;
-                      tagContainer.appendChild(tagEl);
-                    });
-                    return tagContainer;
-                  })
+                  Decoration.widget(pos + node.nodeSize, tagContainer, { side: 1 })
                 );
               }
             });
 
             return DecorationSet.create(doc, decorations);
           },
-        },
-        appendTransaction: (transactions, oldState, newState) => {
-          // Handle the case where a new paragraph is created from a tagged paragraph
-          let tr = null;
-          
-          transactions.forEach(transaction => {
-            if (!transaction.docChanged) return;
-            
-            transaction.steps.forEach(step => {
-              if (step.jsonID === 'replace') {
-                const stepData = step as any;
-                if (stepData.slice && stepData.slice.content && stepData.slice.content.content) {
-                  stepData.slice.content.content.forEach((node: any, index: number) => {
-                    if (node.type && node.type.name === 'paragraph' && node.attrs && node.attrs.tags && node.attrs.tags.length > 0) {
-                      // Find the position of this new paragraph in the new state
-                      newState.doc.descendants((newNode, pos) => {
-                        if (newNode.type.name === 'paragraph' && 
-                            newNode.attrs.tags && 
-                            newNode.attrs.tags.length > 0 &&
-                            JSON.stringify(newNode.attrs.tags) === JSON.stringify(node.attrs.tags)) {
-                          
-                          // Check if this is a newly created paragraph (not the original one)
-                          let isNewParagraph = true;
-                          oldState.doc.descendants((oldNode, oldPos) => {
-                            if (oldPos === pos && 
-                                oldNode.type.name === 'paragraph' && 
-                                oldNode.attrs.tags &&
-                                JSON.stringify(oldNode.attrs.tags) === JSON.stringify(node.attrs.tags)) {
-                              isNewParagraph = false;
-                            }
-                          });
-                          
-                          if (isNewParagraph) {
-                            if (!tr) {
-                              tr = newState.tr;
-                            }
-                            tr.setNodeMarkup(pos, undefined, {
-                              ...newNode.attrs,
-                              tags: [],
-                            });
-                          }
-                        }
-                      });
-                    }
-                  });
-                }
-              }
-            });
-          });
-          
-          return tr;
         },
       }),
     ];

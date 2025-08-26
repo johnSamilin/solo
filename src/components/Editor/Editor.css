@@ -389,3 +389,130 @@
   font-family: 'Outfit', system-ui, sans-serif;
   font-size: 0.875rem;
 }
+
+/* Date editing styles */
+.note-date-clickable {
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  transition: background-color 0.2s ease;
+}
+
+.note-date-clickable:hover {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}
+
+.date-edit-dialog {
+  border: none;
+  border-radius: 1rem;
+  padding: 0;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  max-width: 400px;
+  width: 90vw;
+}
+
+.date-edit-dialog::backdrop {
+  background-color: rgba(0, 0, 0, 0.4);
+}
+
+.date-edit-content {
+  padding: 1.5rem;
+  background: var(--color-white);
+  border-radius: 1rem;
+}
+
+.date-edit-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.date-edit-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-text);
+  font-family: 'Outfit', system-ui, sans-serif;
+}
+
+.date-edit-close {
+  padding: 0.5rem;
+  background: none;
+  border: none;
+  border-radius: 0.375rem;
+  color: var(--color-text-light);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.date-edit-close:hover {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}
+
+.date-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.date-edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.date-edit-field label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text);
+  font-family: 'Outfit', system-ui, sans-serif;
+}
+
+.date-edit-field input {
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  color: var(--color-text);
+  background: var(--color-white);
+  font-family: 'Outfit', system-ui, sans-serif;
+  transition: border-color 0.2s ease;
+}
+
+.date-edit-field input:focus {
+  outline: none;
+  border-color: var(--color-text);
+  box-shadow: 0 0 0 2px rgba(41, 37, 36, 0.1);
+}
+
+.date-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.button-secondary {
+  padding: 0.625rem 1.25rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-white);
+  color: var(--color-text);
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  font-family: 'Outfit', system-ui, sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.button-secondary:hover {
+  background: var(--color-bg);
+  border-color: var(--color-text-light);
+}

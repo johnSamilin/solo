@@ -5,6 +5,10 @@ import { db } from '../utils/database';
 import { migrationManager } from '../utils/migration';
 import { analytics } from '../utils/analytics';
 
+interface SyncMetadata {
+  lastLocalChange: number;
+}
+
 export class NotesStore {
   notes: Note[] = [];
   notebooks: Notebook[] = [{
@@ -19,8 +23,12 @@ export class NotesStore {
   isEditing = false;
   isLoading = false;
   isLoadingNoteContent = false;
+  syncMetadata: SyncMetadata = {
+    lastLocalChange: 0,
+  };
   private notebooksByParentId = new Map<string | null, Notebook[]>();
   private notesByNotebookId = new Map<string | null, Note[]>();
+  private _rootStore: any = null;
 
   constructor() {
     makeObservable(this, {
@@ -31,9 +39,14 @@ export class NotesStore {
       isEditing: observable,
       isLoading: observable,
       isLoadingNoteContent: observable,
+      syncMetadata: observable,
     });
     this.loadFromStorage();
   }
+
+  setRootStore = (rootStore: any) => {
+    this._rootStore = rootStore;
+  };
 
   private cacheNotebooks = () => {
     this.notebooksByParentId = this.notebooks.reduce((agr, notebook) => {
@@ -126,6 +139,12 @@ export class NotesStore {
 
     // Load selected note and focused notebook from settings
     try {
+      // Load sync metadata
+      const syncMeta = await db.getSetting('syncMetadata');
+      if (syncMeta) {
+        this.syncMetadata = syncMeta;
+      }
+
       const selectedNoteId = await db.getSetting('selectedNoteId');
       if (selectedNoteId) {
         const note = this.notes.find(n => n.id === selectedNoteId);
@@ -217,6 +236,30 @@ export class NotesStore {
     analytics.dataImported(mode);
   };
 
+  updateLastLocalChange = () => {
+    // Only track changes when server sync is properly configured
+    if (!this._rootStore || !this._rootStore.settingsStore) {
+      return;
+    }
+    
+    const settingsStore = this._rootStore.settingsStore;
+    if (settingsStore.syncMode !== 'server' || !settingsStore.server.enabled || !settingsStore.server.token) {
+      return;
+    }
+    
+    this.syncMetadata.lastLocalChange = Date.now();
+    this.saveSyncMetadata();
+  };
+
+
+  private async saveSyncMetadata() {
+    try {
+      await db.saveSetting('syncMetadata', this.syncMetadata);
+    } catch (error) {
+      console.error('Error saving sync metadata:', error);
+    }
+  }
+
   createNote = (notebookId?: string) => {
     const targetNotebookId = notebookId || this.focusedNotebookId || 'default';
     const newNote: Note = {
@@ -238,6 +281,7 @@ export class NotesStore {
       notebook.isExpanded = true;
     }
 
+    this.updateLastLocalChange();
     this.saveNote(newNote);
     this.cacheNotes();
     analytics.noteCreated();
@@ -251,6 +295,7 @@ export class NotesStore {
       if (this.selectedNote?.id === noteId) {
         this.selectedNote = this.notes[noteIndex];
       }
+      this.updateLastLocalChange();
       this.saveNote(this.notes[noteIndex]);
       this.cacheNotes();
       
@@ -265,6 +310,7 @@ export class NotesStore {
     const notebookIndex = this.notebooks.findIndex(notebook => notebook.id === notebookId);
     if (notebookIndex !== -1) {
       this.notebooks[notebookIndex] = { ...this.notebooks[notebookIndex], ...updates };
+      this.updateLastLocalChange();
       this.saveNotebook(this.notebooks[notebookIndex]);
       this.cacheNotebooks();
     }
@@ -277,6 +323,7 @@ export class NotesStore {
       if (this.selectedNote?.id === noteId) {
         this.selectedNote = note;
       }
+      this.updateLastLocalChange();
       this.saveNote(note);
       this.cacheNotes();
       analytics.censorshipToggled(note.isCensored);
@@ -287,6 +334,7 @@ export class NotesStore {
     const notebook = this.notebooks.find(n => n.id === notebookId);
     if (notebook) {
       notebook.isCensored = !notebook.isCensored;
+      this.updateLastLocalChange();
       this.saveNotebook(notebook);
       this.cacheNotebooks();
       analytics.censorshipToggled(notebook.isCensored);
@@ -299,6 +347,7 @@ export class NotesStore {
       this.selectedNote = null;
       this.isEditing = false;
     }
+    this.updateLastLocalChange();
     this.deleteNoteFromDatabase(noteId);
     this.saveToDatabase();
     this.cacheNotes();
@@ -323,6 +372,7 @@ export class NotesStore {
     const note = this.notes.find(n => n.id === noteId);
     if (note) {
       note.tags.push(tag);
+      this.updateLastLocalChange();
       this.saveNote(note);
       this.cacheNotes();
     }
@@ -332,6 +382,7 @@ export class NotesStore {
     const note = this.notes.find(n => n.id === noteId);
     if (note) {
       note.tags = note.tags.filter(tag => tag.id !== tagId);
+      this.updateLastLocalChange();
       this.saveNote(note);
       this.cacheNotes();
     }
@@ -346,6 +397,7 @@ export class NotesStore {
       isCensored: false
     };
     this.notebooks.push(newNotebook);
+    this.updateLastLocalChange();
     this.saveNotebook(newNotebook);
     this.cacheNotebooks();
     this.cacheNotes();
@@ -357,6 +409,7 @@ export class NotesStore {
     const notebook = this.notebooks.find(n => n.id === notebookId);
     if (notebook) {
       notebook.isExpanded = !notebook.isExpanded;
+      this.updateLastLocalChange();
       this.saveNotebook(notebook);
     }
   };

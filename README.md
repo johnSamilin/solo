@@ -28,6 +28,8 @@ Solo is a modern, privacy-focused note-taking application with an emphasis on ty
 - Nested notebooks support
 - Tag system with hierarchical organization
 - Flexible note categorization
+- Timeline view for chronological event visualization
+- Date picker navigation for quick timeline browsing
 
 ### 🎨 Typography & Layout
 - Multiple predefined themes:
@@ -49,6 +51,9 @@ Solo is a modern, privacy-focused note-taking application with an emphasis on ty
 - Floating action button with quick access to tools
 - Keyboard shortcuts for common actions
 - Responsive sidebar with collapsible sections
+- Smart sync notifications for unsynced changes
+- Timeline view with callout-style note connections
+- Date picker for quick timeline navigation
 
 ### 📱 Cross-Platform Support
 - Desktop application (Windows, macOS, Linux)
@@ -60,6 +65,8 @@ Solo is a modern, privacy-focused note-taking application with an emphasis on ty
 - Data export functionality
 - No cloud dependency
 - Complete data ownership
+- Intelligent sync status monitoring
+- Automatic notifications for pending changes
 
 ## Technical Details
 
