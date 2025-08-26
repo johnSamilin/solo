@@ -7,7 +7,6 @@ import { analytics } from '../utils/analytics';
 
 interface SyncMetadata {
   lastLocalChange: number;
-  lastServerSync: number;
 }
 
 export class NotesStore {
@@ -26,7 +25,6 @@ export class NotesStore {
   isLoadingNoteContent = false;
   syncMetadata: SyncMetadata = {
     lastLocalChange: 0,
-    lastServerSync: 0
   };
   private notebooksByParentId = new Map<string | null, Notebook[]>();
   private notesByNotebookId = new Map<string | null, Note[]>();
@@ -244,16 +242,6 @@ export class NotesStore {
     this.saveSyncMetadata();
   };
 
-  updateLastServerSync = () => {
-    // Only track server sync when server sync is configured
-    const { settingsStore } = require('./StoreProvider');
-    if (settingsStore.syncMode !== 'server' || !settingsStore.server.enabled) {
-      return;
-    }
-    
-    this.syncMetadata.lastServerSync = Date.now();
-    this.saveSyncMetadata();
-  };
 
   private async saveSyncMetadata() {
     try {
@@ -563,6 +551,5 @@ export class NotesStore {
   async importFromSync(data: { notes: any[], notebooks: any[] }): Promise<void> {
     await db.importData(data);
     await this.loadFromDatabase();
-    this.updateLastServerSync();
   }
 }

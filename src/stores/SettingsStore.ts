@@ -273,13 +273,34 @@ export class SettingsStore {
   };
 
   checkSyncReminder = async () => {
-    if (this.syncMode !== 'server' || !this.server.enabled || !this.server.token || !this.server.url) {
+    if (this.syncMode !== 'server' || !this.server.enabled || !this.server.token) {
       return;
     }
 
     try {
-      const { notesStore } = await import('./StoreProvider');
-      const store = notesStore;
+      // Get server timestamp
+      const response = await fetch(`${this.server.url}/api/data/timestamp`, {
+        headers: {
+          'Authorization': `Bearer ${this.server.token}`,
+        },
+      });
+
+      if (response.ok) {
+        const { timestamp: serverTimestamp } = await response.json();
+        
+        // Get local change timestamp
+        const { notesStore } = await import('./StoreProvider');
+        const localTimestamp = notesStore.syncMetadata.lastLocalChange;
+        
+        // Show reminder if local changes are newer than server data
+        if (localTimestamp > serverTimestamp) {
+          this.showSyncReminder();
+        }
+      }
+    } catch (error) {
+      console.error('Error checking sync status:', error);
+    }
+  };
       
       // Get server timestamp
       const response = await fetch(`${this.server.url}/api/data`, {

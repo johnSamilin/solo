@@ -421,6 +421,21 @@ http2Server.on('stream', async (stream, headers) => {
     
     // Handle image deletion
     if (method === 'DELETE') {
+
+  // Handle timestamp request
+  if (path === '/api/data/timestamp' && method === 'GET') {
+    const session = verifyToken(headers);
+    if (!session) {
+      stream.respond({ ':status': 401, ...responseHeaders });
+      stream.end(JSON.stringify({ error: 'Unauthorized' }));
+      return;
+    }
+
+    const timestamp = getUserDataTimestamp(session.user_id);
+    stream.respond({ ':status': 200, ...responseHeaders });
+    stream.end(JSON.stringify({ timestamp }));
+    return;
+  }
       const session = verifyToken(headers);
       if (!session || session.user_id !== userId) {
         stream.respond({ ':status': 401, ...responseHeaders });
