@@ -127,18 +127,21 @@ const App = observer(() => {
           }
         } else if (settingsStore.syncMode === 'webdav' && window.bridge?.syncWebDAV) {
           try {
+            const syncData = await notesStore.exportForSync();
             const success = await window.bridge.syncWebDAV(JSON.stringify(settingsStore.webDAV));
             settingsStore.setToast(
               success ? 'Changes saved to WebDAV' : 'Failed to save changes',
-            body: JSON.stringify(syncData),
+              success ? 'success' : 'error'
+            );
+            if (success) {
+              notesStore.updateLastServerSync();
+              analytics.syncCompleted('webdav');
             } else {
               analytics.syncFailed('webdav');
             }
           } catch (error) {
-            notesStore.updateLastServerSync();
             console.error('Sync failed:', error);
             settingsStore.setToast('Failed to save changes', 'error');
-          const syncData = await notesStore.exportForSync();
             analytics.syncFailed('webdav');
           }
         }
@@ -403,7 +406,6 @@ const App = observer(() => {
         />
       )}
     </div>
-
   );
 });
 
