@@ -79,7 +79,20 @@ export const Timeline: FC<TimelinePageProps> = observer(({ onClose, onNoteSelect
     const totalYears = endYear - startYear + 1;
     const totalMonths = totalYears * 12;
     
+    let currentPosition = 0;
+    
     for (let year = startYear; year <= endYear; year++) {
+      // Add year separator (decorative only)
+      items.push({
+        type: 'year',
+        date: new Date(year, 0, 1),
+        label: year.toString(),
+        notes: [],
+        isLeft: false,
+        position: currentPosition
+      });
+      currentPosition += 80; // Space for year separator
+      
       // Add months at even intervals
       for (let month = 0; month < 12; month++) {
         const monthDate = new Date(year, month, 1);
@@ -89,16 +102,15 @@ export const Timeline: FC<TimelinePageProps> = observer(({ onClose, onNoteSelect
         // Check if this is the current month
         const isCurrent = year === now.getFullYear() && month === now.getMonth();
         
-        const monthPosition = ((year - startYear) * 12 + month) * 120;
-        
         items.push({
           type: isCurrent ? 'current' : 'month',
           date: monthDate,
           label: monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
           notes: monthNotes,
           isLeft: ((year - startYear) * 12 + month) % 2 === 0,
-          position: monthPosition
+          position: currentPosition
         });
+        currentPosition += 120; // Space for each month
       }
     }
 

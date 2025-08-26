@@ -60,7 +60,7 @@
 .timeline-content {
   position: relative;
   width: 100%;
-  height: 14400px; /* 120 years * 12 months * 120px */
+  height: 15280px; /* Adjusted for year separators + months */
   padding: 2rem 0;
 }
 
@@ -90,6 +90,38 @@
   padding: 1rem 2rem;
 }
 
+.timeline-item.year {
+  justify-content: center;
+  margin: 2rem 0;
+  padding: 0;
+}
+
+.timeline-item.year .timeline-date {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--color-text-light);
+  text-align: center;
+  background: var(--color-white);
+  padding: 1rem 2rem;
+  border-radius: 1rem;
+  border: 2px solid var(--color-border);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  position: relative;
+  z-index: 3;
+}
+
+.timeline-item.year .timeline-date::before {
+  content: '';
+  position: absolute;
+  left: -2rem;
+  right: -2rem;
+  top: 50%;
+  height: 2px;
+  background: linear-gradient(to right, transparent, var(--color-border), transparent);
+  transform: translateY(-50%);
+  z-index: -1;
+}
+
 .timeline-marker {
   position: absolute;
   left: 50%;
@@ -102,6 +134,9 @@
   z-index: 2;
 }
 
+.timeline-marker.year {
+  display: none;
+}
 
 .timeline-marker.current {
   background: var(--color-accent);
