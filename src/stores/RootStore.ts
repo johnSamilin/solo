@@ -12,6 +12,9 @@ export class RootStore {
     this.settingsStore = new SettingsStore(this.notesStore);
     this.tagsStore = new TagsStore();
     
+    // Provide NotesStore with reference to RootStore for accessing other stores
+    this.notesStore.setRootStore(this);
+    
     // Initialize tags from notes when notes are loaded
     this.initializeTags();
   }

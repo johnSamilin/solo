@@ -28,6 +28,7 @@ export class NotesStore {
   };
   private notebooksByParentId = new Map<string | null, Notebook[]>();
   private notesByNotebookId = new Map<string | null, Note[]>();
+  private _rootStore: any = null;
 
   constructor() {
     makeObservable(this, {
@@ -42,6 +43,10 @@ export class NotesStore {
     });
     this.loadFromStorage();
   }
+
+  setRootStore = (rootStore: any) => {
+    this._rootStore = rootStore;
+  };
 
   private cacheNotebooks = () => {
     this.notebooksByParentId = this.notebooks.reduce((agr, notebook) => {
@@ -233,7 +238,11 @@ export class NotesStore {
 
   updateLastLocalChange = () => {
     // Only track changes when server sync is properly configured
-    const { settingsStore } = require('./StoreProvider');
+    if (!this._rootStore || !this._rootStore.settingsStore) {
+      return;
+    }
+    
+    const settingsStore = this._rootStore.settingsStore;
     if (settingsStore.syncMode !== 'server' || !settingsStore.server.enabled || !settingsStore.server.token) {
       return;
     }
