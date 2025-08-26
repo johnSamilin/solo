@@ -1,5 +1,6 @@
 import { makeAutoObservable } from 'mobx';
 import { TypographySettings, CensorshipSettings, WebDAVSettings, ServerSettings, Toast, SyncMode } from '../types';
+import { NotesStore } from './NotesStore';
 import { defaultSettings } from '../constants';
 import { isPlugin } from '../config';
 import { analytics } from '../utils/analytics';
@@ -8,6 +9,7 @@ const STORAGE_KEY = 'solo-settings';
 const SECURE_STORAGE_KEY = 'solo-secure-settings';
 
 export class SettingsStore {
+  private notesStore: NotesStore;
   settings: TypographySettings = defaultSettings;
   censorship: CensorshipSettings = {
     pin: null,
@@ -38,7 +40,8 @@ export class SettingsStore {
   toast: Toast | null = null;
   activeSettingsTab: 'typography' | 'layout' | 'censorship' | 'data' | 'sync' = 'typography';
 
-  constructor() {
+  constructor(notesStore: NotesStore) {
+    this.notesStore = notesStore;
     makeAutoObservable(this);
     this.loadFromStorage();
     this.setupKeyboardShortcuts();
@@ -289,8 +292,7 @@ export class SettingsStore {
         const { timestamp: serverTimestamp } = await response.json();
         
         // Get local change timestamp
-        const { notesStore } = await import('./StoreProvider');
-        const localTimestamp = notesStore.syncMetadata.lastLocalChange;
+        const localTimestamp = this.notesStore.syncMetadata.lastLocalChange;
         
         // Show reminder if local changes are newer than server data
         if (localTimestamp > serverTimestamp) {

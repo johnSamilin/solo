@@ -9,7 +9,7 @@ export class RootStore {
 
   constructor() {
     this.notesStore = new NotesStore();
-    this.settingsStore = new SettingsStore();
+    this.settingsStore = new SettingsStore(this.notesStore);
     this.tagsStore = new TagsStore();
     
     // Initialize tags from notes when notes are loaded
