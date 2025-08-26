@@ -14,13 +14,19 @@
 .timeline-header {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  justify-content: space-between;
   padding: 1rem 2rem;
   border-bottom: 1px solid var(--color-border);
   background: var(--color-white);
   position: sticky;
   top: 0;
   z-index: 10;
+}
+
+.timeline-header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
 }
 
 .timeline-back-button {
@@ -48,6 +54,37 @@
   font-weight: 600;
   color: var(--color-text);
   font-family: 'Outfit', system-ui, sans-serif;
+}
+
+.timeline-date-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  color: var(--color-text);
+}
+
+.date-picker-input {
+  border: none;
+  background: none;
+  color: var(--color-text);
+  font-family: 'Outfit', system-ui, sans-serif;
+  font-size: 0.875rem;
+  cursor: pointer;
+  outline: none;
+  min-width: 120px;
+}
+
+.date-picker-input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.date-picker-input::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
 }
 
 .timeline-container {

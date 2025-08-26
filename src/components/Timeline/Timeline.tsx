@@ -1,6 +1,6 @@
 import { FC, useState, useEffect, useRef, useCallback } from 'react';
 import { observer } from 'mobx-react-lite';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Calendar } from 'lucide-react';
 import { useStore } from '../../stores/StoreProvider';
 import { Note } from '../../types';
 import './Timeline.css';
@@ -25,6 +25,7 @@ export const Timeline: FC<TimelinePageProps> = observer(({ onClose, onNoteSelect
   const [isLoading, setIsLoading] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const [visibleRange, setVisibleRange] = useState({ start: 0, end: 50 });
+  const [selectedDate, setSelectedDate] = useState<string>('');
 
   // Generate timeline items
   const generateTimelineItems = useCallback(() => {
@@ -187,16 +188,53 @@ export const Timeline: FC<TimelinePageProps> = observer(({ onClose, onNoteSelect
     return plainText.length > 100 ? plainText.substring(0, 100) + '...' : plainText;
   };
 
+  const handleDateChange = (dateString: string) => {
+    setSelectedDate(dateString);
+    
+    if (!dateString || !containerRef.current) return;
+    
+    const selectedDate = new Date(dateString);
+    const targetYear = selectedDate.getFullYear();
+    const targetMonth = selectedDate.getMonth();
+    
+    // Find the timeline item for the selected month
+    const targetItem = timelineItems.find(item => {
+      if (item.type !== 'month' && item.type !== 'current') return false;
+      return item.date.getFullYear() === targetYear && item.date.getMonth() === targetMonth;
+    });
+    
+    if (targetItem) {
+      // Scroll to the target month with some offset for better visibility
+      const scrollPosition = targetItem.position - 200;
+      containerRef.current.scrollTo({
+        top: Math.max(0, scrollPosition),
+        behavior: 'smooth'
+      });
+    }
+  };
+
   const visibleItems = timelineItems.slice(visibleRange.start, visibleRange.end);
 
   return (
     <div className="timeline-page">
       <div className="timeline-header">
-        <button onClick={onClose} className="timeline-back-button">
-          <ArrowLeft className="h-5 w-5" />
-          Back
-        </button>
-        <h1>Timeline</h1>
+        <div className="timeline-header-left">
+          <button onClick={onClose} className="timeline-back-button">
+            <ArrowLeft className="h-5 w-5" />
+            Back
+          </button>
+          <h1>Timeline</h1>
+        </div>
+        <div className="timeline-date-picker">
+          <Calendar className="h-4 w-4" />
+          <input
+            type="month"
+            value={selectedDate}
+            onChange={(e) => handleDateChange(e.target.value)}
+            className="date-picker-input"
+            title="Jump to month"
+          />
+        </div>
       </div>
 
       <div className="timeline-container" ref={containerRef}>
