@@ -273,7 +273,7 @@ export class SettingsStore {
   };
 
   checkSyncReminder = async () => {
-    if (this.syncMode !== 'server' || !this.server.token) {
+    if (this.syncMode !== 'server' || !this.server.enabled || !this.server.token || !this.server.url) {
       return;
     }
 

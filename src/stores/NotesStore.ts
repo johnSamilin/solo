@@ -234,11 +234,23 @@ export class NotesStore {
   };
 
   updateLastLocalChange = () => {
+    // Only track changes when server sync is properly configured
+    const { settingsStore } = require('./StoreProvider');
+    if (settingsStore.syncMode !== 'server' || !settingsStore.server.enabled || !settingsStore.server.token) {
+      return;
+    }
+    
     this.syncMetadata.lastLocalChange = Date.now();
     this.saveSyncMetadata();
   };
 
   updateLastServerSync = () => {
+    // Only track server sync when server sync is configured
+    const { settingsStore } = require('./StoreProvider');
+    if (settingsStore.syncMode !== 'server' || !settingsStore.server.enabled) {
+      return;
+    }
+    
     this.syncMetadata.lastServerSync = Date.now();
     this.saveSyncMetadata();
   };
