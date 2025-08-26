@@ -121,6 +121,61 @@
   flex: 1;
   text-align: left;
   padding-left: 2rem;
+  position: relative;
+}
+
+/* Connector lines for callouts */
+.timeline-content-left::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 0;
+  width: 2rem;
+  height: 2px;
+  background: var(--color-accent);
+  transform: translateY(-50%);
+  border-radius: 1px;
+}
+
+.timeline-content-right::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 2rem;
+  height: 2px;
+  background: var(--color-accent);
+  transform: translateY(-50%);
+  border-radius: 1px;
+}
+
+/* Curved connector using border-radius */
+.timeline-content-left::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 1.5rem;
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid var(--color-accent);
+  border-left: none;
+  border-bottom: none;
+  border-radius: 0 1rem 0 0;
+  transform: translateY(-50%) rotate(45deg);
+}
+
+.timeline-content-right::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 1.5rem;
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid var(--color-accent);
+  border-right: none;
+  border-bottom: none;
+  border-radius: 1rem 0 0 0;
+  transform: translateY(-50%) rotate(-45deg);
 }
 
 .timeline-date {
@@ -156,71 +211,11 @@
   border: 1px solid var(--color-border);
 }
 
-.timeline-note::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  width: 2rem;
-  height: 2px;
-  background: var(--color-accent);
-  transform: translateY(-50%);
-  z-index: 1;
-}
-
-.timeline-content-left .timeline-note::before {
-  right: -2rem;
-  background: linear-gradient(90deg, var(--color-accent), transparent);
-}
-
-.timeline-content-right .timeline-note::before {
-  left: -2rem;
-  background: linear-gradient(270deg, var(--color-accent), transparent);
-}
-
-.timeline-note::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  width: 40px;
-  height: 40px;
-  border: 2px solid var(--color-accent);
-  border-radius: 50% 50% 50% 0;
-  transform: translateY(-50%);
-  z-index: 0;
-}
-
-.timeline-content-left .timeline-note::after {
-  right: -20px;
-  border-radius: 50% 0 50% 50%;
-  transform: translateY(-50%) rotate(-45deg);
-}
-
-.timeline-content-right .timeline-note::after {
-  left: -20px;
-  border-radius: 0 50% 50% 50%;
-  transform: translateY(-50%) rotate(45deg);
-}
-
 .timeline-note:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.15), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
 
-.timeline-note:hover::before {
-  background: var(--color-text);
-}
-
-.timeline-content-left .timeline-note:hover::before {
-  background: linear-gradient(90deg, var(--color-text), transparent);
-}
-
-.timeline-content-right .timeline-note:hover::before {
-  background: linear-gradient(270deg, var(--color-text), transparent);
-}
-
-.timeline-note:hover::after {
-  border-color: var(--color-text);
-}
 
 .timeline-note-title {
   font-size: 1rem;
