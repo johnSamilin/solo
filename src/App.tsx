@@ -115,6 +115,7 @@ const App = observer(() => {
 
             if (response.ok) {
               settingsStore.setToast('Changes saved to server', 'success');
+              notesStore.updateLastServerSync();
               analytics.syncCompleted('server');
             } else {
               settingsStore.setToast('Failed to save changes', 'error');
