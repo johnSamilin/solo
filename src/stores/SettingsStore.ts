@@ -123,6 +123,9 @@ export class SettingsStore {
           this.server = secureData.server || this.server;
         }
       }
+
+      // Check for sync reminder after loading settings
+      this.checkSyncReminder();
     } catch (error) {
       console.error('Error loading settings:', error);
     }
@@ -267,5 +270,62 @@ export class SettingsStore {
     if (this.isSettingsOpen) {
       analytics.settingsOpened(tab);
     }
+  };
+
+  checkSyncReminder = async () => {
+    if (this.syncMode !== 'server' || !this.server.token) {
+      return;
+    }
+
+    try {
+      const { notesStore } = await import('./StoreProvider');
+      const store = notesStore;
+      
+      // Get server timestamp
+      const response = await fetch(`${this.server.url}/api/data`, {
+        method: 'HEAD',
+        headers: {
+          'Authorization': `Bearer ${this.server.token}`,
+        },
+      });
+
+      if (response.ok) {
+        const lastModified = response.headers.get('Last-Modified');
+        const serverTimestamp = lastModified ? new Date(lastModified).getTime() : 0;
+        
+        // Compare with local changes
+        if (store.syncMetadata.lastLocalChange > Math.max(serverTimestamp, store.syncMetadata.lastServerSync)) {
+          this.showSyncReminder();
+        }
+      }
+    } catch (error) {
+      console.error('Error checking sync status:', error);
+    }
+  };
+
+  private showSyncReminder = () => {
+    // Create a persistent toast that doesn't auto-dismiss
+    const reminderToast = document.createElement('div');
+    reminderToast.className = 'sync-reminder-toast';
+    reminderToast.innerHTML = `
+      <div class="sync-reminder-content">
+        <span>You have local changes that haven't been synced to the server</span>
+        <button class="sync-reminder-button" onclick="this.parentElement.parentElement.remove()">
+          Sync Now (Ctrl+S)
+        </button>
+        <button class="sync-reminder-dismiss" onclick="this.parentElement.parentElement.remove()">
+          ×
+        </button>
+      </div>
+    `;
+    
+    document.body.appendChild(reminderToast);
+    
+    // Auto-remove after 10 seconds
+    setTimeout(() => {
+      if (reminderToast.parentElement) {
+        reminderToast.remove();
+      }
+    }, 10000);
   };
 }

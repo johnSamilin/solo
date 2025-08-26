@@ -130,16 +130,15 @@ const App = observer(() => {
             const success = await window.bridge.syncWebDAV(JSON.stringify(settingsStore.webDAV));
             settingsStore.setToast(
               success ? 'Changes saved to WebDAV' : 'Failed to save changes',
-              success ? 'success' : 'error'
-            );
-            if (success) {
-              analytics.syncCompleted('webdav');
+            body: JSON.stringify(syncData),
             } else {
               analytics.syncFailed('webdav');
             }
           } catch (error) {
+            notesStore.updateLastServerSync();
             console.error('Sync failed:', error);
             settingsStore.setToast('Failed to save changes', 'error');
+          const syncData = await notesStore.exportForSync();
             analytics.syncFailed('webdav');
           }
         }
@@ -148,7 +147,7 @@ const App = observer(() => {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [settingsStore.syncMode, settingsStore.server, settingsStore.webDAV]);
+  }, [settingsStore.syncMode, settingsStore.server, settingsStore.webDAV, notesStore]);
 
   useEffect(() => {
     if (editor && notesStore.selectedNote && !notesStore.isLoadingNoteContent) {
