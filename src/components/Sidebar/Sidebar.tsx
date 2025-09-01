@@ -85,7 +85,7 @@ export const Sidebar: FC<SidebarProps> = observer(({ editor, onOpenSearch, onOpe
         const success = await window.bridge.syncWebDAV(JSON.stringify({
           ...settingsStore.webDAV,
           data: {
-            notes: syncData,
+            ...syncData,
             tags,
           }
         }));
@@ -111,7 +111,10 @@ export const Sidebar: FC<SidebarProps> = observer(({ editor, onOpenSearch, onOpe
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${settingsStore.server.token}`,
           },
-          body: JSON.stringify(syncData),
+          body: JSON.stringify({
+            ...syncData,
+            tags,
+          }),
         });
 
         if (response.ok) {
@@ -162,7 +165,7 @@ export const Sidebar: FC<SidebarProps> = observer(({ editor, onOpenSearch, onOpe
 
         if (response.ok) {
           const data = await response.json();
-          await notesStore.importFromSync(data.notes);
+          await notesStore.importFromSync(data);
           tagsStore.setTagTree(data.tags);
           settingsStore.setToast('Server restore completed successfully', 'success');
         } else {
