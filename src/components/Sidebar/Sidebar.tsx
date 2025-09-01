@@ -16,7 +16,7 @@ type SidebarProps = {
 };
 
 export const Sidebar: FC<SidebarProps> = observer(({ editor, onOpenSearch, onOpenTimeline }) => {
-  const { notesStore, settingsStore } = useStore();
+  const { notesStore, settingsStore, tagsStore } = useStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSidebarVisible, setIsSidebarVisible] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -78,12 +78,16 @@ export const Sidebar: FC<SidebarProps> = observer(({ editor, onOpenSearch, onOpe
 
   const handleSync = async () => {
     const syncData = await notesStore.exportForSync();
+    const tags = tagsStore.tagTree;
     
     if (settingsStore.syncMode === 'webdav' && window.bridge?.syncWebDAV) {
       try {
         const success = await window.bridge.syncWebDAV(JSON.stringify({
           ...settingsStore.webDAV,
-          data: syncData
+          data: {
+            notes: syncData,
+            tags,
+          }
         }));
         settingsStore.setToast(
           success ? 'WebDAV sync completed successfully' : 'WebDAV sync failed',
@@ -158,7 +162,8 @@ export const Sidebar: FC<SidebarProps> = observer(({ editor, onOpenSearch, onOpe
 
         if (response.ok) {
           const data = await response.json();
-          await notesStore.importFromSync(data);
+          await notesStore.importFromSync(data.notes);
+          tagsStore.setTagTree(data.tags);
           settingsStore.setToast('Server restore completed successfully', 'success');
         } else {
           settingsStore.setToast('Server restore failed', 'error');
