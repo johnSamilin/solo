@@ -8,7 +8,7 @@ import { FAB } from "./FAB";
 import { TagsDisplay } from "./TagsDisplay";
 import { NoteSettingsModal } from "../Modals/NoteSettingsModal";
 import { TextRecognitionModal } from "../Modals/TextRecognitionModal";
-import { ArrowLeft, Plus, ArrowRight, Maximize2, Trash2, ScanText } from "lucide-react";
+import { ArrowLeft, Plus, ArrowRight, Maximize2, Trash2, ScanText, ImageIcon } from "lucide-react";
 import { themes } from "../../constants";
 import { analytics } from "../../utils/analytics";
 import { DateEditDialog } from "./DateEditDialog";
