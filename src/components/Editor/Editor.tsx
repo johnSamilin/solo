@@ -451,33 +451,82 @@ export const Editor: FC<EditorProps> = observer(({
   const hasNext = currentIndex < visibleNotes.length - 1;
 
   return (
-    <div className={`editor ${isAnnotatedLayout ? 'annotated' : ''}`}>
-      <div className="editor-container">
-        {isAnnotatedLayout ? (
-          <div className="editor-content" ref={editorContentRef}>
-            <div className="images-column">
-              <button
-                onClick={handleAnnotatedImageClick}
-                className="add-image-button"
-              >
-                <ImageIcon className="h-5 w-5" />
-                Add Image
-              </button>
-              {annotationImages.map((image) => (
-                <img
-                  key={image.id}
-                  src={image.src}
-                  alt="Annotation"
-                  className="annotation-image"
-                  onClick={() => {
-                    if (image.src.startsWith('http')) {
-                      window.open(image.src, '_blank');
-                    }
-                  }}
+    <>
+      <div className={`editor ${isAnnotatedLayout ? 'annotated' : ''}`}>
+        <div className="editor-container">
+          {isAnnotatedLayout ? (
+            <div className="editor-content" ref={editorContentRef}>
+              <div className="images-column">
+                <button
+                  onClick={handleAnnotatedImageClick}
+                  className="add-image-button"
+                >
+                  <ImageIcon className="h-5 w-5" />
+                  Add Image
+                </button>
+                {annotationImages.map((image) => (
+                  <img
+                    key={image.id}
+                    src={image.src}
+                    alt="Annotation"
+                    className="annotation-image"
+                    onClick={() => {
+                      if (image.src.startsWith('http')) {
+                        window.open(image.src, '_blank');
+                      }
+                    }}
+                  />
+                ))}
+              </div>
+              <div className="text-column">
+                <input
+                  type="text"
+                  value={notesStore.selectedNote.title}
+                  onChange={handleTitleChange}
+                  className="editor-title"
+                  placeholder="Note Title"
                 />
-              ))}
+                {!settingsStore.isZenMode && (
+                  <p className="note-item-date">
+                    <span 
+                      className="note-date-clickable"
+                      onClick={handleDateClick}
+                      title="Click to edit date"
+                    >
+                      {new Date(notesStore.selectedNote.createdAt).toLocaleDateString()}
+                    </span>
+                  </p>
+                )}
+                <EditorContent editor={editor} className="editor-body" />
+                <TagsDisplay />
+                <div className="note-navigation" style={{ clear: 'both' }}>
+                  <button
+                    onClick={handlePrevNote}
+                    className="button-icon"
+                    disabled={!hasPrev}
+                    title="Previous note"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={handleCreateNote}
+                    className="button-icon"
+                    title="Create new note"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={handleNextNote}
+                    className="button-icon"
+                    title="Next note"
+                  >
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
             </div>
-            <div className="text-column">
+          ) : (
+            <div className="editor-content" ref={editorContentRef}>
               <input
                 type="text"
                 value={notesStore.selectedNote.title}
@@ -485,17 +534,15 @@ export const Editor: FC<EditorProps> = observer(({
                 className="editor-title"
                 placeholder="Note Title"
               />
-              {!settingsStore.isZenMode && (
-                <p className="note-item-date">
-                  <span 
-                    className="note-date-clickable"
-                    onClick={handleDateClick}
-                    title="Click to edit date"
-                  >
-                    {new Date(notesStore.selectedNote.createdAt).toLocaleDateString()}
-                  </span>
-                </p>
-              )}
+              {!settingsStore.isZenMode && <p className="note-item-date">
+                <span 
+                  className="note-date-clickable"
+                  onClick={handleDateClick}
+                  title="Click to edit date"
+                >
+                  {new Date(notesStore.selectedNote.createdAt).toLocaleDateString()}
+                </span>
+              </p>}
               <EditorContent editor={editor} className="editor-body" />
               <TagsDisplay />
               <div className="note-navigation" style={{ clear: 'both' }}>
@@ -522,66 +569,20 @@ export const Editor: FC<EditorProps> = observer(({
                   <ArrowRight className="h-4 w-4" />
                 </button>
               </div>
+              {!settingsStore.isZenMode && <div className="word-count">
+                {wordCount}/{paragraphCount}
+              </div>}
+              {isDictating && (
+                <button
+                  onClick={toggleDictationLanguage}
+                  className="language-selector"
+                  title={`Current language: ${dictationLang === 'en-US' ? 'English' : 'Russian'}`}
+                >
+                  {dictationLang === 'en-US' ? '🇺🇸' : '🇷🇺'}
+                </button>
+              )}
             </div>
-          </div>
-        ) : (
-          <div className="editor-content" ref={editorContentRef}>
-            <input
-              type="text"
-              value={notesStore.selectedNote.title}
-              onChange={handleTitleChange}
-              className="editor-title"
-              placeholder="Note Title"
-            />
-            {!settingsStore.isZenMode && <p className="note-item-date">
-              <span 
-                className="note-date-clickable"
-                onClick={handleDateClick}
-                title="Click to edit date"
-              >
-                {new Date(notesStore.selectedNote.createdAt).toLocaleDateString()}
-              </span>
-            </p>}
-            <EditorContent editor={editor} className="editor-body" />
-            <TagsDisplay />
-            <div className="note-navigation" style={{ clear: 'both' }}>
-              <button
-                onClick={handlePrevNote}
-                className="button-icon"
-                disabled={!hasPrev}
-                title="Previous note"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </button>
-              <button
-                onClick={handleCreateNote}
-                className="button-icon"
-                title="Create new note"
-              >
-                <Plus className="h-4 w-4" />
-              </button>
-              <button
-                onClick={handleNextNote}
-                className="button-icon"
-                title="Next note"
-              >
-                <ArrowRight className="h-4 w-4" />
-              </button>
-            </div>
-            {!settingsStore.isZenMode && <div className="word-count">
-              {wordCount}/{paragraphCount}
-            </div>}
-            {isDictating && (
-              <button
-                onClick={toggleDictationLanguage}
-                className="language-selector"
-                title={`Current language: ${dictationLang === 'en-US' ? 'English' : 'Russian'}`}
-              >
-                {dictationLang === 'en-US' ? '🇺🇸' : '🇷🇺'}
-              </button>
-            )}
-          </div>
-        )}
+          )}
         </div>
 
         <FAB
@@ -652,6 +653,6 @@ export const Editor: FC<EditorProps> = observer(({
           />
         )}
       </div>
-    </div>
+    </>
   );
 });
