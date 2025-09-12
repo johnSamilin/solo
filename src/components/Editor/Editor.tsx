@@ -15,6 +15,11 @@ import { DateEditDialog } from "./DateEditDialog";
 
 import './Editor.css';
 
+interface AnnotationImage {
+  src: string;
+  id: string;
+}
+
 const nonCharacterKeys = new Set([
   'Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'Tab',
   'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
@@ -59,6 +64,7 @@ export const Editor: FC<EditorProps> = observer(({
   const [isOcrModalOpen, setIsOcrModalOpen] = useState(false);
   const [selectedImageUrl, setSelectedImageUrl] = useState<string>('');
   const [isDateDialogOpen, setIsDateDialogOpen] = useState(false);
+  const [annotationImages, setAnnotationImages] = useState<AnnotationImage[]>([]);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const isLanguageSwitchPending = useRef(false);
   
@@ -73,6 +79,25 @@ export const Editor: FC<EditorProps> = observer(({
       rate: 2.0
     });
   }, [settingsStore.settings.typewriterSound, notesStore.selectedNote?.theme, settingsStore.settings]);
+
+  // Extract images from note content for annotated layout
+  useEffect(() => {
+    if (!notesStore.selectedNote?.content) {
+      setAnnotationImages([]);
+      return;
+    }
+
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = notesStore.selectedNote.content;
+    const images = tempDiv.querySelectorAll('img');
+    
+    const imageList: AnnotationImage[] = Array.from(images).map((img, index) => ({
+      src: img.src,
+      id: `img-${index}`
+    }));
+    
+    setAnnotationImages(imageList);
+  }, [notesStore.selectedNote?.content]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -304,6 +329,24 @@ export const Editor: FC<EditorProps> = observer(({
     }
   };
 
+  const handleAnnotatedImageUpload = (file: File) => {
+    // For annotated layout, add image to the images column
+    handleImageUpload(file);
+  };
+
+  const handleAnnotatedImageClick = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        handleAnnotatedImageUpload(file);
+      }
+    };
+    input.click();
+  };
+
   const handleDateClick = () => {
     setIsDateDialogOpen(true);
   };
@@ -399,69 +442,146 @@ export const Editor: FC<EditorProps> = observer(({
 
   if (!notesStore.selectedNote) return null;
 
+  const currentTheme = notesStore.selectedNote.theme;
+  const isAnnotatedLayout = currentTheme === 'annotated';
+
   const visibleNotes = notesStore.getVisibleNotes(settingsStore.censorship.enabled);
   const currentIndex = visibleNotes.findIndex(note => note.id === notesStore.selectedNote?.id);
   const hasPrev = currentIndex > 0;
   const hasNext = currentIndex < visibleNotes.length - 1;
 
   return (
-    <div className="editor">
+    <div className={`editor ${isAnnotatedLayout ? 'annotated' : ''}`}>
       <div className="editor-container">
-        <div className="editor-content" ref={editorContentRef}>
-          <input
-            type="text"
-            value={notesStore.selectedNote.title}
-            onChange={handleTitleChange}
-            className="editor-title"
-            placeholder="Note Title"
-          />
-          {!settingsStore.isZenMode && <p className="note-item-date">
-            <span 
-              className="note-date-clickable"
-              onClick={handleDateClick}
-              title="Click to edit date"
-            >
-              {new Date(notesStore.selectedNote.createdAt).toLocaleDateString()}
-            </span>
-          </p>}
-          <EditorContent editor={editor} className="editor-body" />
-          <TagsDisplay />
-          <div className="note-navigation" style={{ clear: 'both' }}>
-            <button
-              onClick={handlePrevNote}
-              className="button-icon"
-              disabled={!hasPrev}
-              title="Previous note"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </button>
-            <button
-              onClick={handleCreateNote}
-              className="button-icon"
-              title="Create new note"
-            >
-              <Plus className="h-4 w-4" />
-            </button>
-            <button
-              onClick={handleNextNote}
-              className="button-icon"
-              title="Next note"
-            >
-              <ArrowRight className="h-4 w-4" />
-            </button>
+        {isAnnotatedLayout ? (
+          <div className="editor-content" ref={editorContentRef}>
+            <div className="images-column">
+              <button
+                onClick={handleAnnotatedImageClick}
+                className="add-image-button"
+              >
+                <ImageIcon className="h-5 w-5" />
+                Add Image
+              </button>
+              {annotationImages.map((image) => (
+                <img
+                  key={image.id}
+                  src={image.src}
+                  alt="Annotation"
+                  className="annotation-image"
+                  onClick={() => {
+                    if (image.src.startsWith('http')) {
+                      window.open(image.src, '_blank');
+                    }
+                  }}
+                />
+              ))}
+            </div>
+            <div className="text-column">
+              <input
+                type="text"
+                value={notesStore.selectedNote.title}
+                onChange={handleTitleChange}
+                className="editor-title"
+                placeholder="Note Title"
+              />
+              {!settingsStore.isZenMode && (
+                <p className="note-item-date">
+                  <span 
+                    className="note-date-clickable"
+                    onClick={handleDateClick}
+                    title="Click to edit date"
+                  >
+                    {new Date(notesStore.selectedNote.createdAt).toLocaleDateString()}
+                  </span>
+                </p>
+              )}
+              <EditorContent editor={editor} className="editor-body" />
+              <TagsDisplay />
+              <div className="note-navigation" style={{ clear: 'both' }}>
+                <button
+                  onClick={handlePrevNote}
+                  className="button-icon"
+                  disabled={!hasPrev}
+                  title="Previous note"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={handleCreateNote}
+                  className="button-icon"
+                  title="Create new note"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={handleNextNote}
+                  className="button-icon"
+                  title="Next note"
+                >
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
           </div>
-          {!settingsStore.isZenMode && <div className="word-count">
-            {wordCount}/{paragraphCount}
-          </div>}
-          {isDictating && (
-            <button
-              onClick={toggleDictationLanguage}
-              className="language-selector"
-              title={`Current language: ${dictationLang === 'en-US' ? 'English' : 'Russian'}`}
-            >
-              {dictationLang === 'en-US' ? '🇺🇸' : '🇷🇺'}
-            </button>
-          )}
+        ) : (
+          <div className="editor-content" ref={editorContentRef}>
+            <input
+              type="text"
+              value={notesStore.selectedNote.title}
+              onChange={handleTitleChange}
+              className="editor-title"
+              placeholder="Note Title"
+            />
+            {!settingsStore.isZenMode && <p className="note-item-date">
+              <span 
+                className="note-date-clickable"
+                onClick={handleDateClick}
+                title="Click to edit date"
+              >
+                {new Date(notesStore.selectedNote.createdAt).toLocaleDateString()}
+              </span>
+            </p>}
+            <EditorContent editor={editor} className="editor-body" />
+            <TagsDisplay />
+            <div className="note-navigation" style={{ clear: 'both' }}>
+              <button
+                onClick={handlePrevNote}
+                className="button-icon"
+                disabled={!hasPrev}
+                title="Previous note"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </button>
+              <button
+                onClick={handleCreateNote}
+                className="button-icon"
+                title="Create new note"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+              <button
+                onClick={handleNextNote}
+                className="button-icon"
+                title="Next note"
+              >
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            </div>
+            {!settingsStore.isZenMode && <div className="word-count">
+              {wordCount}/{paragraphCount}
+            </div>}
+            {isDictating && (
+              <button
+                onClick={toggleDictationLanguage}
+                className="language-selector"
+                title={`Current language: ${dictationLang === 'en-US' ? 'English' : 'Russian'}`}
+              >
+                {dictationLang === 'en-US' ? '🇺🇸' : '🇷🇺'}
+              </button>
+            )}
+          </div>
+        )}
         </div>
         <FAB
           editor={editor}
