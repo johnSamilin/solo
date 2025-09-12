@@ -1,8 +1,9 @@
 import { FC, useState, useEffect, useRef, useCallback } from 'react';
 import { observer } from 'mobx-react-lite';
-import { ArrowLeft, Calendar } from 'lucide-react';
 import { useStore } from '../../stores/StoreProvider';
 import { Note } from '../../types';
+import { TimelineHeader } from './TimelineHeader';
+import { TimelineItem } from './TimelineItem';
 import './Timeline.css';
 
 interface TimelinePageProps {
@@ -10,7 +11,7 @@ interface TimelinePageProps {
   onNoteSelect: (note: Note) => void;
 }
 
-interface TimelineItem {
+interface TimelineItemData {
   type: 'year' | 'month' | 'current';
   date: Date;
   label: string;
@@ -21,7 +22,7 @@ interface TimelineItem {
 
 export const Timeline: FC<TimelinePageProps> = observer(({ onClose, onNoteSelect }) => {
   const { notesStore, settingsStore } = useStore();
-  const [timelineItems, setTimelineItems] = useState<TimelineItem[]>([]);
+  const [timelineItems, setTimelineItems] = useState<TimelineItemData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const [visibleRange, setVisibleRange] = useState({ start: 0, end: 50 });
@@ -30,20 +31,17 @@ export const Timeline: FC<TimelinePageProps> = observer(({ onClose, onNoteSelect
   // Generate timeline items
   const generateTimelineItems = useCallback(() => {
     const now = new Date();
-    const items: TimelineItem[] = [];
+    const items: TimelineItemData[] = [];
     
-    // Filter notes that have special timeline tags or paragraphs with timeline tags
     const timelineTags = ['Main events', 'Главные события'];
     const visibleNotes = notesStore.getVisibleNotes(settingsStore.isCensorshipEnabled())
       .filter(note => {
-        // Check note-level tags
         const hasTimelineTag = note.tags.some(tag => 
           timelineTags.some(timelineTag => tag.path.includes(timelineTag))
         );
         
         if (hasTimelineTag) return true;
         
-        // Check paragraph-level tags
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = note.content;
         const taggedElements = tempDiv.querySelectorAll('[data-tags]');
@@ -62,7 +60,6 @@ export const Timeline: FC<TimelinePageProps> = observer(({ onClose, onNoteSelect
         return false;
       });
     
-    // Group notes by year and month
     const notesByDate = new Map<string, Note[]>();
     visibleNotes.forEach(note => {
       const date = new Date(note.createdAt);
@@ -73,17 +70,12 @@ export const Timeline: FC<TimelinePageProps> = observer(({ onClose, onNoteSelect
       notesByDate.get(yearMonth)!.push(note);
     });
 
-    // Generate timeline with months only at even intervals
     const startYear = now.getFullYear() - 5;
     const endYear = now.getFullYear() + 5;
-    
-    const totalYears = endYear - startYear + 1;
-    const totalMonths = totalYears * 12;
     
     let currentPosition = 0;
     
     for (let year = startYear; year <= endYear; year++) {
-      // Add year separator (decorative only)
       items.push({
         type: 'year',
         date: new Date(year, 0, 1),
@@ -92,15 +84,13 @@ export const Timeline: FC<TimelinePageProps> = observer(({ onClose, onNoteSelect
         isLeft: false,
         position: currentPosition
       });
-      currentPosition += 80; // Space for year separator
+      currentPosition += 80;
       
-      // Add months at even intervals
       for (let month = 0; month < 12; month++) {
         const monthDate = new Date(year, month, 1);
         const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
         const monthNotes = notesByDate.get(monthKey) || [];
         
-        // Check if this is the current month
         const isCurrent = year === now.getFullYear() && month === now.getMonth();
         
         items.push({
@@ -111,7 +101,7 @@ export const Timeline: FC<TimelinePageProps> = observer(({ onClose, onNoteSelect
           isLeft: ((year - startYear) * 12 + month) % 2 === 0,
           position: currentPosition
         });
-        currentPosition += 120; // Space for each month
+        currentPosition += 120;
       }
     }
 
@@ -125,7 +115,6 @@ export const Timeline: FC<TimelinePageProps> = observer(({ onClose, onNoteSelect
     setTimelineItems(items);
     setIsLoading(false);
 
-    // Scroll to current date
     setTimeout(() => {
       const currentItem = items.find(item => item.type === 'current');
       if (currentItem && containerRef.current) {
@@ -135,7 +124,7 @@ export const Timeline: FC<TimelinePageProps> = observer(({ onClose, onNoteSelect
     }, 100);
   }, [generateTimelineItems]);
 
-  // Handle infinite scroll (virtual scrolling for performance)
+  // Handle infinite scroll
   const handleScroll = useCallback(() => {
     if (!containerRef.current) return;
     
@@ -143,8 +132,7 @@ export const Timeline: FC<TimelinePageProps> = observer(({ onClose, onNoteSelect
     const scrollTop = container.scrollTop;
     const containerHeight = container.clientHeight;
     
-    // Find visible items based on their positions
-    const buffer = 1200; // 10 items * 120px
+    const buffer = 1200;
     const visibleItems = timelineItems.filter(item => 
       item.position >= scrollTop - buffer && 
       item.position <= scrollTop + containerHeight + buffer
@@ -163,29 +151,16 @@ export const Timeline: FC<TimelinePageProps> = observer(({ onClose, onNoteSelect
     const container = containerRef.current;
     if (container) {
       container.addEventListener('scroll', handleScroll);
-      handleScroll(); // Initial call
+      handleScroll();
       return () => container.removeEventListener('scroll', handleScroll);
     }
   }, [handleScroll]);
 
   const handleNoteClick = async (note: Note) => {
-    // Load note content if not already loaded
     if (!note.content) {
       await notesStore.loadNoteContent(note);
     }
     onNoteSelect(note);
-  };
-
-  const getPreviewText = (note: Note): string => {
-    if (!note.content) return 'No content';
-    
-    // Remove HTML tags and get plain text
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = note.content;
-    const plainText = tempDiv.textContent || tempDiv.innerText || '';
-    
-    // Return first 100 characters
-    return plainText.length > 100 ? plainText.substring(0, 100) + '...' : plainText;
   };
 
   const handleDateChange = (dateString: string) => {
@@ -197,14 +172,12 @@ export const Timeline: FC<TimelinePageProps> = observer(({ onClose, onNoteSelect
     const targetYear = selectedDate.getFullYear();
     const targetMonth = selectedDate.getMonth();
     
-    // Find the timeline item for the selected month
     const targetItem = timelineItems.find(item => {
       if (item.type !== 'month' && item.type !== 'current') return false;
       return item.date.getFullYear() === targetYear && item.date.getMonth() === targetMonth;
     });
     
     if (targetItem) {
-      // Scroll to the target month with some offset for better visibility
       const scrollPosition = targetItem.position - 200;
       containerRef.current.scrollTo({
         top: Math.max(0, scrollPosition),
@@ -217,25 +190,11 @@ export const Timeline: FC<TimelinePageProps> = observer(({ onClose, onNoteSelect
 
   return (
     <div className="timeline-page">
-      <div className="timeline-header">
-        <div className="timeline-header-left">
-          <button onClick={onClose} className="timeline-back-button">
-            <ArrowLeft className="h-5 w-5" />
-            Back
-          </button>
-          <h1>Timeline</h1>
-        </div>
-        <div className="timeline-date-picker">
-          <Calendar className="h-4 w-4" />
-          <input
-            type="month"
-            value={selectedDate}
-            onChange={(e) => handleDateChange(e.target.value)}
-            className="date-picker-input"
-            title="Jump to month"
-          />
-        </div>
-      </div>
+      <TimelineHeader
+        onClose={onClose}
+        selectedDate={selectedDate}
+        onDateChange={handleDateChange}
+      />
 
       <div className="timeline-container" ref={containerRef}>
         {isLoading ? (
@@ -247,92 +206,13 @@ export const Timeline: FC<TimelinePageProps> = observer(({ onClose, onNoteSelect
           <div className="timeline-content">
             <div className="timeline-line"></div>
             
-            {visibleItems.map((item, index) => {
-              return (
-                <div
-                  key={`${item.date.getTime()}-${item.type}`}
-                  className={`timeline-item ${item.type}`}
-                  style={{ 
-                    position: 'absolute',
-                    top: `${item.position}px`,
-                    left: 0,
-                    right: 0
-                  }}
-                >
-                  <div className={`timeline-marker ${item.type}`}></div>
-                  
-                  {item.isLeft ? (
-                    <>
-                      <div className="timeline-content-left">
-                        <div className={`timeline-date ${item.type}`}>
-                          {item.label}
-                        </div>
-                        {item.notes.length > 0 ? (
-                          <div className="timeline-notes">
-                            {item.notes.slice(0, 3).map(note => (
-                              <div
-                                key={note.id}
-                                className="timeline-note"
-                                onClick={() => handleNoteClick(note)}
-                              >
-                                <div className="timeline-note-title">
-                                  {note.title}
-                                </div>
-                                <div className="timeline-note-preview">
-                                  {getPreviewText(note)}
-                                </div>
-                              </div>
-                            ))}
-                            {item.notes.length > 3 && (
-                              <div className="timeline-empty">
-                                +{item.notes.length - 3} more notes
-                              </div>
-                            )}
-                          </div>
-                        ) : item.type !== 'year' ? (
-                          <div className="timeline-empty">No notes</div>
-                        ) : null}
-                      </div>
-                      <div className="timeline-content-right"></div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="timeline-content-left"></div>
-                      <div className="timeline-content-right">
-                        <div className={`timeline-date ${item.type}`}>
-                          {item.label}
-                        </div>
-                        {item.notes.length > 0 ? (
-                          <div className="timeline-notes">
-                            {item.notes.slice(0, 3).map(note => (
-                              <div
-                                key={note.id}
-                                className="timeline-note"
-                                onClick={() => handleNoteClick(note)}
-                              >
-                                <div className="timeline-note-title">
-                                  {note.title}
-                                </div>
-                                <div className="timeline-note-preview">
-                                  {getPreviewText(note)}
-                                </div>
-                              </div>
-                            ))}
-                            {item.notes.length > 3 && (
-                              <div className="timeline-empty">
-                                +{item.notes.length - 3} more notes
-                              </div>
-                            )}
-                          </div>
-                        ) : item.type !== 'year' ? (
-                          <div className="timeline-empty">No notes</div>
-                        ) : null}
-                      </div>
-                    </>
-                  )}
-                </div>
-              );
-            })}
+            {visibleItems.map((item) => (
+              <TimelineItem
+                key={`${item.date.getTime()}-${item.type}`}
+                item={item}
+                onNoteClick={handleNoteClick}
+              />
+            ))}
           </div>
         )}
       </div>
