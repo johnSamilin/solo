@@ -583,6 +583,7 @@ export const Editor: FC<EditorProps> = observer(({
           </div>
         )}
         </div>
+
         <FAB
           editor={editor}
           isZenMode={settingsStore.isZenMode}
@@ -598,59 +599,59 @@ export const Editor: FC<EditorProps> = observer(({
           isDictating={isDictating}
           handleCutIn={handleCutIn}
         />
+
+        {contextMenu && (
+          <div
+            className="image-context-menu"
+            style={{
+              left: contextMenu.x,
+              top: contextMenu.y
+            }}
+          >
+            <button className="menu-item" onClick={toggleImageWidth}>
+              <Maximize2 className="h-4 w-4" />
+              Toggle Full Width
+            </button>
+            <button className="menu-item" onClick={recognizeImageText}>
+              <ScanText className="h-4 w-4" />
+              Recognise Text
+            </button>
+            <button className="menu-item" onClick={deleteImage}>
+              <Trash2 className="h-4 w-4" />
+              Delete Image
+            </button>
+          </div>
+        )}
+
+        {settingsStore.isNoteSettingsOpen && (
+          <NoteSettingsModal
+            onClose={() => settingsStore.setNoteSettingsOpen(false)}
+            notebooks={notesStore.notebooks}
+            currentNotebookId={notesStore.selectedNote.notebookId}
+            onMoveNote={handleMoveNote}
+            onDeleteNote={handleDeleteNote}
+            onToggleCensorship={() => notesStore.toggleNoteCensorship(notesStore?.selectedNote?.id ?? '')}
+            isCensored={notesStore.selectedNote.isCensored}
+            currentTheme={notesStore.selectedNote.theme || ''}
+            onThemeChange={handleThemeChange}
+          />
+        )}
+
+        {isOcrModalOpen && (
+          <TextRecognitionModal
+            onClose={() => setIsOcrModalOpen(false)}
+            imageUrl={selectedImageUrl}
+          />
+        )}
+
+        {isDateDialogOpen && notesStore.selectedNote && (
+          <DateEditDialog
+            currentDate={notesStore.selectedNote.createdAt}
+            onDateChange={handleDateChange}
+            onClose={() => setIsDateDialogOpen(false)}
+          />
+        )}
       </div>
-
-      {contextMenu && (
-        <div
-          className="image-context-menu"
-          style={{
-            left: contextMenu.x,
-            top: contextMenu.y
-          }}
-        >
-          <button className="menu-item" onClick={toggleImageWidth}>
-            <Maximize2 className="h-4 w-4" />
-            Toggle Full Width
-          </button>
-          <button className="menu-item" onClick={recognizeImageText}>
-            <ScanText className="h-4 w-4" />
-            Recognise Text
-          </button>
-          <button className="menu-item" onClick={deleteImage}>
-            <Trash2 className="h-4 w-4" />
-            Delete Image
-          </button>
-        </div>
-      )}
-
-      {settingsStore.isNoteSettingsOpen && (
-        <NoteSettingsModal
-          onClose={() => settingsStore.setNoteSettingsOpen(false)}
-          notebooks={notesStore.notebooks}
-          currentNotebookId={notesStore.selectedNote.notebookId}
-          onMoveNote={handleMoveNote}
-          onDeleteNote={handleDeleteNote}
-          onToggleCensorship={() => notesStore.toggleNoteCensorship(notesStore?.selectedNote?.id ?? '')}
-          isCensored={notesStore.selectedNote.isCensored}
-          currentTheme={notesStore.selectedNote.theme || ''}
-          onThemeChange={handleThemeChange}
-        />
-      )}
-
-      {isOcrModalOpen && (
-        <TextRecognitionModal
-          onClose={() => setIsOcrModalOpen(false)}
-          imageUrl={selectedImageUrl}
-        />
-      )}
-
-      {isDateDialogOpen && notesStore.selectedNote && (
-        <DateEditDialog
-          currentDate={notesStore.selectedNote.createdAt}
-          onDateChange={handleDateChange}
-          onClose={() => setIsDateDialogOpen(false)}
-        />
-      )}
     </div>
   );
 });
