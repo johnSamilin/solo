@@ -20,6 +20,27 @@ export const defaultSettings: TypographySettings = {
 };
 
 export const themes: Record<string, { name: string; settings: TypographySettings }> = {
+  annotated: {
+    name: 'Annotated',
+    settings: {
+      editorFontFamily: 'Crimson Pro',
+      editorFontSize: '1rem',
+      editorLineHeight: '1.6',
+      titleFontFamily: 'Crimson Pro',
+      titleFontSize: '1.5rem',
+      sidebarFontFamily: 'Crimson Pro',
+      sidebarFontSize: '0.875rem',
+      pageMargins: '1rem',
+      paragraphSpacing: '1em',
+      enableDropCaps: false,
+      dropCapSize: '3.5em',
+      dropCapLineHeight: '3.5',
+      maxEditorWidth: '100%',
+      sidebarPinned: true,
+      typewriterSound: 'typewriter',
+      autoZenMode: true
+    },
+  },
   air: {
     name: 'Air',
     settings: {
