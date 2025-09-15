@@ -262,9 +262,17 @@ export class NotesStore {
 
   createNote = (notebookId?: string) => {
     const targetNotebookId = notebookId || this.focusedNotebookId || 'default';
+    
+    // Generate localized title with day and month
+    const now = new Date();
+    const title = now.toLocaleDateString(undefined, { 
+      day: 'numeric', 
+      month: 'long' 
+    });
+    
     const newNote: Note = {
       id: generateUniqueId(),
-      title: 'Untitled Note',
+      title: title,
       content: '',
       createdAt: new Date(),
       tags: [],
