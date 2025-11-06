@@ -1,4 +1,4 @@
-Create a native Ubuntu app with .deb installer. 
+Create a native Ubuntu app with .deb installer. Just write the code, I'll compile it myself.
 
 Visual style should be the same as in https://github.com/johnSamilin/solo web version (overall and typography/layout).
 
