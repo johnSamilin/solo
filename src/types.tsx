@@ -61,15 +61,10 @@ export interface Toast {
   type: 'success' | 'error';
 }
 
-export type ImportMode = 'merge' | 'replace';
 
 export interface Bridge {
   loadFromStorage: (key: string) => Promise<any>;
   saveToStorage: (key: string, data: any) => Promise<boolean>;
-  pickExportFolder: () => Promise<string>;
-  pickImportFolder: () => Promise<string>;
-  exportData: (data: string, exportPath: string) => void;
-  importFromJoplin: (settings: string) => Promise<{ notes: Note[], notebooks: Notebook[] } | null>;
   openExternal: (url: string) => Promise<void>;
 }
 

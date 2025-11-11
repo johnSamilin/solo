@@ -20,10 +20,8 @@ export class SettingsStore {
   isSettingsOpen = false;
   isNewNotebookModalOpen = false;
   isNoteSettingsOpen = false;
-  exportPath = '';
-  importStatus: 'idle' | 'success' | 'error' = 'idle';
   toast: Toast | null = null;
-  activeSettingsTab: 'typography' | 'layout' | 'censorship' | 'data' = 'typography';
+  activeSettingsTab: 'typography' | 'layout' | 'censorship' = 'typography';
 
   constructor(notesStore: NotesStore) {
     this.notesStore = notesStore;
@@ -40,14 +38,6 @@ export class SettingsStore {
     this.toast = null;
   };
 
-  setImportStatus = (status: 'idle' | 'success' | 'error') => {
-    this.importStatus = status;
-    if (status !== 'idle') {
-      setTimeout(() => {
-        this.importStatus = 'idle';
-      }, 3000);
-    }
-  };
 
   private setupKeyboardShortcuts = () => {
     document.addEventListener('keydown', (e) => {
@@ -206,7 +196,7 @@ export class SettingsStore {
     this.isNoteSettingsOpen = isOpen;
   };
 
-  setActiveSettingsTab = (tab: 'typography' | 'layout' | 'censorship' | 'data') => {
+  setActiveSettingsTab = (tab: 'typography' | 'layout' | 'censorship') => {
     this.activeSettingsTab = tab;
   };
 }

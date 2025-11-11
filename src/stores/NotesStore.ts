@@ -1,5 +1,5 @@
 import { makeObservable, observable } from 'mobx';
-import { Note, Tag, Notebook, ImportMode } from '../types';
+import { Note, Tag, Notebook } from '../types';
 import { generateUniqueId } from '../utils';
 import { db } from '../utils/database';
 import { migrationManager } from '../utils/migration';
@@ -151,77 +151,6 @@ export class NotesStore {
     }
   }
 
-  freshStart = () => {
-    this.notes = [];
-    this.notebooks = [{
-      id: 'default',
-      name: 'Main notebook',
-      parentId: null,
-      isExpanded: true,
-      isCensored: false
-    }];
-    this.cacheNotebooks();
-    this.cacheNotes();
-    this.selectedNote = null;
-    this.focusedNotebookId = null;
-    this.isEditing = false;
-    this.clearAllData();
-  };
-
-  private async clearAllData() {
-    try {
-      await db.clearAllData();
-      await this.saveToDatabase();
-    } catch (error) {
-      console.error('Error clearing all data:', error);
-    }
-  }
-
-  importData = (data: { notes: Note[], notebooks: Notebook[] }, mode: ImportMode) => {
-    if (mode === 'replace') {
-      this.notes = data.notes.map(note => ({
-        ...note,
-        createdAt: new Date(note.createdAt)
-      }));
-      this.notebooks = data.notebooks;
-      this.selectedNote = null;
-      this.focusedNotebookId = null;
-    } else {
-      // Create a map of existing notebooks by name for deduplication
-      const existingNotebooks = new Map(this.notebooks.map(n => [n.id, n]));
-      
-      // Import notebooks, reusing existing IDs where possible
-      data.notebooks.forEach(notebook => {
-        const existing = existingNotebooks.get(notebook.id);
-        if (!existing) {
-          this.notebooks.push(notebook);
-        }
-      });
-
-      // Create a map for notebook name to ID mapping
-      const notebookMap = new Map(this.notebooks.map(n => [n.name, n.id]));
-
-      // Import notes with new IDs and updated notebook references
-      const importedNotes = data.notes.map(note => {
-        const notebookName = data.notebooks.find(n => n.id === note.notebookId)?.name;
-        return {
-          ...note,
-          id: generateUniqueId(),
-          createdAt: new Date(note.createdAt),
-          notebookId: notebookName ? notebookMap.get(notebookName) || 'default' : 'default',
-          tags: note.tags.map(tag => ({
-            ...tag,
-            id: generateUniqueId()
-          }))
-        };
-      });
-
-      this.notes = [...this.notes, ...importedNotes];
-    }
-    this.cacheNotebooks();
-    this.cacheNotes();
-    this.saveToDatabase();
-  };
 
 
   createNote = (notebookId?: string) => {
