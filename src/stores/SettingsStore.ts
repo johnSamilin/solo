@@ -3,7 +3,6 @@ import { TypographySettings, CensorshipSettings, Toast } from '../types';
 import { NotesStore } from './NotesStore';
 import { defaultSettings } from '../constants';
 import { isPlugin } from '../config';
-import { analytics } from '../utils/analytics';
 
 const STORAGE_KEY = 'solo-settings';
 const SECURE_STORAGE_KEY = 'solo-secure-settings';
@@ -158,7 +157,6 @@ export class SettingsStore {
     this.censorship.enabled = true;
     this.fakeCensorshipDisabled = false;
     this.saveToStorage();
-    analytics.censorshipToggled(true);
   };
 
   disableCensorship = (currentPin: string) => {
@@ -166,7 +164,6 @@ export class SettingsStore {
       this.censorship.enabled = false;
       this.fakeCensorshipDisabled = false;
       this.saveToStorage();
-      analytics.censorshipToggled(false);
       return true;
     }
     
@@ -185,13 +182,11 @@ export class SettingsStore {
   toggleZenMode = () => {
     this.isZenMode = !this.isZenMode;
     this.saveToStorage();
-    analytics.zenModeToggled(this.isZenMode);
   };
 
   turnZenModeOff = () => {
     this.isZenMode = false;
-    this.saveToStorage();    
-    analytics.zenModeToggled(false);
+    this.saveToStorage();
   };
 
   toggleToolbar = () => {
@@ -201,9 +196,6 @@ export class SettingsStore {
 
   setSettingsOpen = (isOpen: boolean) => {
     this.isSettingsOpen = isOpen;
-    if (isOpen) {
-      analytics.settingsOpened(this.activeSettingsTab);
-    }
   };
 
   setNewNotebookModalOpen = (isOpen: boolean) => {
@@ -216,8 +208,5 @@ export class SettingsStore {
 
   setActiveSettingsTab = (tab: 'typography' | 'layout' | 'censorship' | 'data') => {
     this.activeSettingsTab = tab;
-    if (this.isSettingsOpen) {
-      analytics.settingsOpened(tab);
-    }
   };
 }

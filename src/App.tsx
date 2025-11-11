@@ -25,7 +25,6 @@ import { generateUniqueId } from './utils';
 import { TagNode } from './types';
 import { themes } from './constants';
 import { Plus } from 'lucide-react';
-import { analytics } from './utils/analytics';
 import { TagModal } from './components/Modals/TagModal/TagModal';
 
 const App = observer(() => {
@@ -189,7 +188,6 @@ const App = observer(() => {
           editor?.chain().focus().setImage({ 
             src: `${settingsStore.server.url}${url}` 
           }).run();
-          analytics.imageUploaded();
         } else {
           settingsStore.setToast('Failed to upload image', 'error');
         }
@@ -202,7 +200,6 @@ const App = observer(() => {
       reader.onload = () => {
         if (typeof reader.result === 'string') {
           editor?.chain().focus().setImage({ src: reader.result }).run();
-          analytics.imageUploaded();
         }
       };
       reader.readAsDataURL(file);
@@ -247,7 +244,6 @@ const App = observer(() => {
     const url = window.prompt('Enter the URL:');
     if (url) {
       editor?.chain().focus().toggleLink({ href: url }).run();
-      analytics.linkInserted();
     }
   };
 
@@ -256,7 +252,6 @@ const App = observer(() => {
       .focus()
       .toggleTaskList()
       .run();
-    analytics.taskListCreated();
   };
 
   const handleCutIn = () => {

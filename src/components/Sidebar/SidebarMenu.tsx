@@ -4,7 +4,6 @@ import { Editor } from '@tiptap/react';
 import { observer } from 'mobx-react-lite';
 import { useStore } from '../../stores/StoreProvider';
 import { isPlugin } from '../../config';
-import { analytics } from '../../utils/analytics';
 
 interface SidebarMenuProps {
   editor: Editor | null;

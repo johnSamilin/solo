@@ -3,7 +3,6 @@ import { Note, Tag, Notebook, ImportMode } from '../types';
 import { generateUniqueId } from '../utils';
 import { db } from '../utils/database';
 import { migrationManager } from '../utils/migration';
-import { analytics } from '../utils/analytics';
 
 
 export class NotesStore {
@@ -222,7 +221,6 @@ export class NotesStore {
     this.cacheNotebooks();
     this.cacheNotes();
     this.saveToDatabase();
-    analytics.dataImported(mode);
   };
 
 
@@ -257,7 +255,6 @@ export class NotesStore {
 
     this.saveNote(newNote);
     this.cacheNotes();
-    analytics.noteCreated();
     return newNote;
   };
 
@@ -273,7 +270,6 @@ export class NotesStore {
       
       // Track theme changes
       if (updates.theme !== undefined) {
-        analytics.themeChanged(updates.theme || 'default');
       }
     }
   };
@@ -296,7 +292,6 @@ export class NotesStore {
       }
         this.saveNote(note);
       this.cacheNotes();
-      analytics.censorshipToggled(note.isCensored);
     }
   };
 
@@ -306,7 +301,6 @@ export class NotesStore {
       notebook.isCensored = !notebook.isCensored;
         this.saveNotebook(notebook);
       this.cacheNotebooks();
-      analytics.censorshipToggled(notebook.isCensored);
     }
   };
 
@@ -319,7 +313,6 @@ export class NotesStore {
     this.deleteNoteFromDatabase(noteId);
     this.saveToDatabase();
     this.cacheNotes();
-    analytics.noteDeleted();
   };
 
   setSelectedNote = (note: Note | null) => {
@@ -366,7 +359,6 @@ export class NotesStore {
     this.saveNotebook(newNotebook);
     this.cacheNotebooks();
     this.cacheNotes();
-    analytics.notebookCreated();
     return newNotebook;
   };
 
