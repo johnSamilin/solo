@@ -1,5 +1,5 @@
 import { FC, useState, useRef, useEffect } from 'react';
-import { MoreVertical, Plus, Search, Clock, FolderPlus, Upload, Download, Mail, Settings } from 'lucide-react';
+import { MoreVertical, Plus, Search, Clock, FolderPlus, Mail, Settings } from 'lucide-react';
 import { Editor } from '@tiptap/react';
 import { observer } from 'mobx-react-lite';
 import { useStore } from '../../stores/StoreProvider';
@@ -17,7 +17,7 @@ export const SidebarMenu: FC<SidebarMenuProps> = observer(({
   onOpenSearch,
   onOpenTimeline
 }) => {
-  const { notesStore, settingsStore, tagsStore } = useStore();
+  const { notesStore, settingsStore } = useStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -61,113 +61,6 @@ export const SidebarMenu: FC<SidebarMenuProps> = observer(({
     setIsMenuOpen(false);
   };
 
-  const handleSync = async () => {
-    const syncData = await notesStore.exportForSync();
-    const tags = tagsStore.tagTree;
-    
-    if (settingsStore.syncMode === 'webdav' && window.bridge?.syncWebDAV) {
-      try {
-        const success = await window.bridge.syncWebDAV(JSON.stringify({
-          ...settingsStore.webDAV,
-          data: {
-            ...syncData,
-            tags,
-          }
-        }));
-        settingsStore.setToast(
-          success ? 'WebDAV sync completed successfully' : 'WebDAV sync failed',
-          success ? 'success' : 'error'
-        );
-        if (success) {
-          analytics.syncCompleted('webdav');
-        } else {
-          analytics.syncFailed('webdav');
-        }
-      } catch (error) {
-        console.error('Sync failed:', error);
-        settingsStore.setToast('WebDAV sync failed', 'error');
-        analytics.syncFailed('webdav');
-      }
-    } else if (settingsStore.syncMode === 'server' && settingsStore.server.token) {
-      try {
-        const response = await fetch(`${settingsStore.server.url}/api/data`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${settingsStore.server.token}`,
-          },
-          body: JSON.stringify({
-            ...syncData,
-            tags,
-          }),
-        });
-
-        if (response.ok) {
-          settingsStore.setToast('Server sync completed successfully', 'success');
-          analytics.syncCompleted('server');
-        } else {
-          settingsStore.setToast('Server sync failed', 'error');
-          analytics.syncFailed('server');
-        }
-      } catch (error) {
-        console.error('Server sync failed:', error);
-        settingsStore.setToast('Server sync failed', 'error');
-        analytics.syncFailed('server');
-      }
-    }
-    setIsMenuOpen(false);
-  };
-
-  const handleRestore = async () => {
-    if (settingsStore.syncMode === 'webdav' && window.bridge?.restoreWebDAV) {
-      try {
-        if (!confirm('This will replace all your current data with the latest backup. Are you sure?')) {
-          return;
-        }
-
-        const success = await window.bridge.restoreWebDAV(JSON.stringify(settingsStore.webDAV));
-        if (success) {
-          settingsStore.setToast('WebDAV restore completed successfully', 'success');
-          notesStore.loadFromStorage();
-        } else {
-          settingsStore.setToast('WebDAV restore failed - no backups found', 'error');
-        }
-      } catch (error) {
-        alert('Restore failed: ' + error);
-        settingsStore.setToast('WebDAV restore failed', 'error');
-      }
-    } else if (settingsStore.syncMode === 'server' && settingsStore.server.token) {
-      try {
-        if (!confirm('This will replace all your current data with the server data. Are you sure?')) {
-          return;
-        }
-
-        const response = await fetch(`${settingsStore.server.url}/api/data`, {
-          headers: {
-            'Authorization': `Bearer ${settingsStore.server.token}`,
-          },
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          await notesStore.importFromSync(data);
-          if (data.tags) {
-            tagsStore.setTagTree(data.tags);
-          }
-          settingsStore.setToast('Server restore completed successfully', 'success');
-        } else {
-          settingsStore.setToast('Server restore failed', 'error');
-        }
-      } catch (error) {
-        console.error('Server restore failed:', error);
-        settingsStore.setToast('Server restore failed', 'error');
-      }
-    }
-    setIsMenuOpen(false);
-  };
-
-  const showSyncButtons = settingsStore.syncMode !== 'none' && 
-    ((settingsStore.syncMode === 'webdav' && isPlugin) || settingsStore.syncMode === 'server');
 
   return (
     <div className="sidebar-header">
@@ -225,26 +118,6 @@ export const SidebarMenu: FC<SidebarMenuProps> = observer(({
               <FolderPlus className="h-4 w-4" />
               New Notebook
             </button>
-            {showSyncButtons && (
-              <>
-                <button
-                  className="sidebar-dropdown-item"
-                  onClick={handleSync}
-                  role="menuitem"
-                >
-                  <Upload className="h-4 w-4" />
-                  Sync to {settingsStore.syncMode === 'webdav' ? 'WebDAV' : 'Server'}
-                </button>
-                <button
-                  className="sidebar-dropdown-item"
-                  onClick={handleRestore}
-                  role="menuitem"
-                >
-                  <Download className="h-4 w-4" />
-                  Restore from {settingsStore.syncMode === 'webdav' ? 'WebDAV' : 'Server'}
-                </button>
-              </>
-            )}
             <button
               className="sidebar-dropdown-item"
               onClick={handleAskQuestion}

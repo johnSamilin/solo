@@ -1,5 +1,5 @@
 import { makeAutoObservable } from 'mobx';
-import { TypographySettings, CensorshipSettings, WebDAVSettings, ServerSettings, Toast, SyncMode } from '../types';
+import { TypographySettings, CensorshipSettings, Toast } from '../types';
 import { NotesStore } from './NotesStore';
 import { defaultSettings } from '../constants';
 import { isPlugin } from '../config';
@@ -15,20 +15,6 @@ export class SettingsStore {
     pin: null,
     enabled: true
   };
-  webDAV: WebDAVSettings = {
-    url: '',
-    username: '',
-    password: '',
-    enabled: false
-  };
-  server: ServerSettings = {
-    url: '',
-    username: '',
-    password: '',
-    enabled: false,
-    token: undefined
-  };
-  syncMode: SyncMode = 'none';
   fakeCensorshipDisabled = false;
   isZenMode = false;
   isToolbarExpanded = false;
@@ -38,7 +24,7 @@ export class SettingsStore {
   exportPath = '';
   importStatus: 'idle' | 'success' | 'error' = 'idle';
   toast: Toast | null = null;
-  activeSettingsTab: 'typography' | 'layout' | 'censorship' | 'data' | 'sync' = 'typography';
+  activeSettingsTab: 'typography' | 'layout' | 'censorship' | 'data' = 'typography';
 
   constructor(notesStore: NotesStore) {
     this.notesStore = notesStore;
@@ -90,7 +76,6 @@ export class SettingsStore {
           this.settings = data.settings;
           this.isZenMode = data.isZenMode;
           this.isToolbarExpanded = data.isToolbarExpanded;
-          this.syncMode = data.syncMode || 'none';
         }
 
         // Load secure settings
@@ -99,11 +84,9 @@ export class SettingsStore {
           secureData = JSON.parse(secureData);
         }
         if (secureData) {
-          this.censorship = secureData.censorship ? 
-            { ...secureData.censorship, enabled: true } : 
+          this.censorship = secureData.censorship ?
+            { ...secureData.censorship, enabled: true } :
             { pin: null, enabled: true };
-          this.webDAV = secureData.webDAV || this.webDAV;
-          this.server = secureData.server || this.server;
         }
       } else {
         const stored = localStorage.getItem(STORAGE_KEY);
@@ -114,21 +97,16 @@ export class SettingsStore {
           this.settings = data.settings;
           this.isZenMode = data.isZenMode;
           this.isToolbarExpanded = data.isToolbarExpanded;
-          this.syncMode = data.syncMode || 'none';
         }
 
         if (secureStored) {
           const secureData = JSON.parse(secureStored);
-          this.censorship = secureData.censorship ? 
-            { ...secureData.censorship, enabled: true } : 
+          this.censorship = secureData.censorship ?
+            { ...secureData.censorship, enabled: true } :
             { pin: null, enabled: true };
-          this.webDAV = secureData.webDAV || this.webDAV;
-          this.server = secureData.server || this.server;
         }
       }
 
-      // Check for sync reminder after loading settings
-      this.checkSyncReminder();
     } catch (error) {
       console.error('Error loading settings:', error);
     }
@@ -140,15 +118,12 @@ export class SettingsStore {
       const data = {
         settings: this.settings,
         isZenMode: this.isZenMode,
-        isToolbarExpanded: this.isToolbarExpanded,
-        syncMode: this.syncMode
+        isToolbarExpanded: this.isToolbarExpanded
       };
 
       // Save secure settings separately
       const secureData = {
-        censorship: this.censorship,
-        webDAV: this.webDAV,
-        server: this.server
+        censorship: this.censorship
       };
 
       if (isPlugin) {
@@ -173,35 +148,6 @@ export class SettingsStore {
     this.saveToStorage();
   };
 
-  updateWebDAV = (newSettings: Partial<WebDAVSettings>) => {
-    this.webDAV = { ...this.webDAV, ...newSettings };
-    this.saveToStorage();
-  };
-
-  updateServer = (newSettings: Partial<ServerSettings>) => {
-    this.server = { ...this.server, ...newSettings };
-    this.saveToStorage();
-  };
-
-  setSyncMode = (mode: SyncMode) => {
-    this.syncMode = mode;
-    if (mode === 'webdav') {
-      this.webDAV.enabled = true;
-      this.server.enabled = false;
-    } else if (mode === 'server') {
-      this.server.enabled = true;
-      this.webDAV.enabled = false;
-    } else {
-      this.webDAV.enabled = false;
-      this.server.enabled = false;
-    }
-    this.saveToStorage();
-  };
-
-  setServerToken = (token: string) => {
-    this.server.token = token;
-    this.saveToStorage();
-  };
 
   setCensorshipPin = (pin: string) => {
     this.censorship.pin = pin;
@@ -268,65 +214,10 @@ export class SettingsStore {
     this.isNoteSettingsOpen = isOpen;
   };
 
-  setActiveSettingsTab = (tab: 'typography' | 'layout' | 'censorship' | 'data' | 'sync') => {
+  setActiveSettingsTab = (tab: 'typography' | 'layout' | 'censorship' | 'data') => {
     this.activeSettingsTab = tab;
     if (this.isSettingsOpen) {
       analytics.settingsOpened(tab);
     }
-  };
-
-  checkSyncReminder = async () => {
-    if (this.syncMode !== 'server' || !this.server.enabled || !this.server.token) {
-      return;
-    }
-
-    try {
-      // Get server timestamp
-      const response = await fetch(`${this.server.url}/api/data/timestamp`, {
-        headers: {
-          'Authorization': `Bearer ${this.server.token}`,
-        },
-      });
-
-      if (response.ok) {
-        const { timestamp: serverTimestamp } = await response.json();
-        
-        // Get local change timestamp
-        const localTimestamp = this.notesStore.syncMetadata.lastLocalChange;
-        
-        // Show reminder if local changes are newer than server data
-        if (localTimestamp > serverTimestamp) {
-          this.showSyncReminder();
-        }
-      }
-    } catch (error) {
-      console.error('Error checking sync status:', error);
-    }
-  };
-
-  private showSyncReminder = () => {
-    // Create a persistent toast that doesn't auto-dismiss
-    const reminderToast = document.createElement('div');
-    reminderToast.className = 'sync-reminder-toast';
-    reminderToast.innerHTML = `
-      <div class="sync-reminder-content">
-        <span>You have local changes that haven't been synced to the server</span>
-        <button class="sync-reminder-button" onclick="this.parentElement.parentElement.remove()">
-          Sync Now (Ctrl+S)
-        </button>
-        <button class="sync-reminder-dismiss" onclick="this.parentElement.parentElement.remove()">
-          ×
-        </button>
-      </div>
-    `;
-    
-    document.body.appendChild(reminderToast);
-    
-    // Auto-remove after 10 seconds
-    setTimeout(() => {
-      if (reminderToast.parentElement) {
-        reminderToast.remove();
-      }
-    }, 10000);
   };
 }

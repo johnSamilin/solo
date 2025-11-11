@@ -4,7 +4,6 @@ import { Typography } from "./Typography";
 import { Layout } from "./Layout";
 import { Censorship } from "./Censorship";
 import { Data } from "./Data";
-import { Sync } from "./Sync";
 import { observer } from "mobx-react-lite";
 import { useStore } from "../../../stores/StoreProvider";
 
@@ -12,7 +11,7 @@ type SettingsModalProps = {
   onClose: () => void;
 };
 
-type TabType = 'typography' | 'layout' | 'censorship' | 'data' | 'sync';
+type TabType = 'typography' | 'layout' | 'censorship' | 'data';
 
 export const SettingsModal: FC<SettingsModalProps> = observer(({ onClose}) => {
   const { settingsStore } = useStore();
@@ -27,8 +26,6 @@ export const SettingsModal: FC<SettingsModalProps> = observer(({ onClose}) => {
         return <Censorship />;
       case 'data':
         return <Data />;
-      case 'sync':
-        return <Sync />;
       default:
         return null;
     }
@@ -67,12 +64,6 @@ export const SettingsModal: FC<SettingsModalProps> = observer(({ onClose}) => {
             onClick={() => settingsStore.setActiveSettingsTab('data')}
           >
             Data
-          </button>
-          <button
-            className={`modal-tab ${settingsStore.activeSettingsTab === 'sync' ? 'active' : ''}`}
-            onClick={() => settingsStore.setActiveSettingsTab('sync')}
-          >
-            Sync
           </button>
         </div>
         <div className="modal-content">

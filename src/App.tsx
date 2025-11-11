@@ -96,62 +96,6 @@ const App = observer(() => {
     },
   });
 
-  useEffect(() => {
-    const handleKeyDown = async (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        e.preventDefault();
-        
-        if (settingsStore.syncMode === 'server' && settingsStore.server.token) {
-          try {
-            const response = await fetch(`${settingsStore.server.url}/api/data`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${settingsStore.server.token}`,
-              },
-              body: JSON.stringify({
-                notes: notesStore.notes,
-                notebooks: notesStore.notebooks,
-              }),
-            });
-
-            if (response.ok) {
-              settingsStore.setToast('Changes saved to server', 'success');
-              analytics.syncCompleted('server');
-            } else {
-              settingsStore.setToast('Failed to save changes', 'error');
-              analytics.syncFailed('server');
-            }
-          } catch (error) {
-            console.error('Sync failed:', error);
-            settingsStore.setToast('Failed to save changes', 'error');
-            analytics.syncFailed('server');
-          }
-        } else if (settingsStore.syncMode === 'webdav' && window.bridge?.syncWebDAV) {
-          try {
-            const syncData = await notesStore.exportForSync();
-            const success = await window.bridge.syncWebDAV(JSON.stringify(settingsStore.webDAV));
-            settingsStore.setToast(
-              success ? 'Changes saved to WebDAV' : 'Failed to save changes',
-              success ? 'success' : 'error'
-            );
-            if (success) {
-              analytics.syncCompleted('webdav');
-            } else {
-              analytics.syncFailed('webdav');
-            }
-          } catch (error) {
-            console.error('Sync failed:', error);
-            settingsStore.setToast('Failed to save changes', 'error');
-            analytics.syncFailed('webdav');
-          }
-        }
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [settingsStore.syncMode, settingsStore.server, settingsStore.webDAV, notesStore]);
 
   useEffect(() => {
     if (editor && notesStore.selectedNote && !notesStore.isLoadingNoteContent) {

@@ -34,10 +34,6 @@ export const analytics = {
   censorshipToggled: (enabled: boolean) => trackEvent('censorship_toggled', { enabled }),
   themeChanged: (theme: string) => trackEvent('theme_changed', { theme }),
   
-  // Sync events
-  syncCompleted: (method: string) => trackEvent('sync_completed', { method }),
-  syncFailed: (method: string) => trackEvent('sync_failed', { method }),
-  
   // Export/Import events
   dataExported: () => trackEvent('data_exported'),
   dataImported: (mode: string) => trackEvent('data_imported', { mode }),
