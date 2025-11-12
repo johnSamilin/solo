@@ -94,13 +94,6 @@ export const FAB: FC<FABProps> = ({
             <LinkIcon className="h-4 w-4" />
           </button>
           <button
-            onClick={() => editor?.commands.toggleCensored()}
-            className="button-icon"
-            title="Toggle Censored Text (Ctrl+Alt+X)"
-          >
-            <EyeOff className="h-4 w-4" />
-          </button>
-          <button
             onClick={insertTaskList}
             className="button-icon"
             title="Insert Task List"
