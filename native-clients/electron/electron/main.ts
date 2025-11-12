@@ -6,6 +6,29 @@ import { existsSync } from 'fs';
 let mainWindow: BrowserWindow | null = null;
 let dataFolder: string | null = null;
 
+const SETTINGS_FILE = path.join(app.getPath('userData'), 'settings.json');
+
+const loadSettings = async () => {
+  try {
+    if (existsSync(SETTINGS_FILE)) {
+      const data = await fs.readFile(SETTINGS_FILE, 'utf-8');
+      const settings = JSON.parse(data);
+      dataFolder = settings.dataFolder || null;
+    }
+  } catch (error) {
+    console.error('Failed to load settings:', error);
+  }
+};
+
+const saveSettings = async () => {
+  try {
+    const settings = { dataFolder };
+    await fs.writeFile(SETTINGS_FILE, JSON.stringify(settings, null, 2), 'utf-8');
+  } catch (error) {
+    console.error('Failed to save settings:', error);
+  }
+};
+
 const createWindow = () => {
   mainWindow = new BrowserWindow({
     width: 1200,
@@ -25,7 +48,8 @@ const createWindow = () => {
   }
 };
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  await loadSettings();
   createWindow();
 
   app.on('activate', () => {
@@ -68,6 +92,7 @@ ipcMain.handle('select-folder', async () => {
   }
 
   dataFolder = result.filePaths[0];
+  await saveSettings();
   return { success: true, path: dataFolder };
 });
 
