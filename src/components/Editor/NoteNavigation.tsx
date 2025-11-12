@@ -12,7 +12,7 @@ export const NoteNavigation: FC<NoteNavigationProps> = observer(({ onCreateNote 
 
   if (!notesStore.selectedNote) return null;
 
-  const visibleNotes = notesStore.getVisibleNotes(settingsStore.censorship.enabled);
+  const visibleNotes = notesStore.getVisibleNotes();
   const currentIndex = visibleNotes.findIndex(note => note.id === notesStore.selectedNote?.id);
   const hasPrev = currentIndex > 0;
   const hasNext = currentIndex < visibleNotes.length - 1;
