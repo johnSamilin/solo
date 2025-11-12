@@ -20,7 +20,6 @@ export interface Note {
   createdAt: Date;
   tags: Tag[];
   notebookId: string;
-  isCensored?: boolean;
   theme?: string;
 }
 
@@ -29,7 +28,6 @@ export interface Notebook {
   name: string;
   parentId: string | null;
   isExpanded: boolean;
-  isCensored?: boolean;
 }
 
 export interface TypographySettings {
@@ -51,10 +49,6 @@ export interface TypographySettings {
   autoZenMode: boolean;
 }
 
-export interface CensorshipSettings {
-  pin: string | null;
-  enabled: boolean;
-}
 
 export interface Toast {
   message: string;

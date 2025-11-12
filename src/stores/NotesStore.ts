@@ -11,8 +11,7 @@ export class NotesStore {
     id: 'default',
     name: 'Main notebook',
     parentId: null,
-    isExpanded: true,
-    isCensored: false
+    isExpanded: true
   }];
   selectedNote: Note | null = null;
   focusedNotebookId: string | null = null;
@@ -81,7 +80,6 @@ export class NotesStore {
         name: 'Main notebook',
         parentId: null,
         isExpanded: true,
-        isCensored: false
       }];
       this.notes = [];
     } finally {
@@ -97,7 +95,6 @@ export class NotesStore {
       name: notebook.name,
       parentId: notebook.parentId,
       isExpanded: notebook.isExpanded,
-      isCensored: notebook.isCensored
     }));
 
     // Ensure default notebook exists
@@ -107,7 +104,6 @@ export class NotesStore {
         name: 'Main notebook',
         parentId: null,
         isExpanded: true,
-        isCensored: false
       };
       this.notebooks = [defaultNotebook];
       await db.saveNotebook(defaultNotebook);
@@ -121,7 +117,6 @@ export class NotesStore {
       content: '', // Content will be loaded on demand
       createdAt: new Date(note.createdAt),
       notebookId: note.notebookId,
-      isCensored: note.isCensored,
       theme: note.theme,
       tags: JSON.parse(note.tags || '[]')
     }));
@@ -169,8 +164,7 @@ export class NotesStore {
       content: '',
       createdAt: new Date(),
       tags: [],
-      notebookId: targetNotebookId,
-      isCensored: false
+      notebookId: targetNotebookId
     };
     this.notes.push(newNote);
     this.selectedNote = newNote;
@@ -212,26 +206,6 @@ export class NotesStore {
     }
   };
 
-  toggleNoteCensorship = (noteId: string) => {
-    const note = this.notes.find(n => n.id === noteId);
-    if (note) {
-      note.isCensored = !note.isCensored;
-      if (this.selectedNote?.id === noteId) {
-        this.selectedNote = note;
-      }
-        this.saveNote(note);
-      this.cacheNotes();
-    }
-  };
-
-  toggleNotebookCensorship = (notebookId: string) => {
-    const notebook = this.notebooks.find(n => n.id === notebookId);
-    if (notebook) {
-      notebook.isCensored = !notebook.isCensored;
-        this.saveNotebook(notebook);
-      this.cacheNotebooks();
-    }
-  };
 
   deleteNote = (noteId: string) => {
     this.notes = this.notes.filter(note => note.id !== noteId);
@@ -281,8 +255,7 @@ export class NotesStore {
       id: generateUniqueId(),
       name,
       parentId,
-      isExpanded: true,
-      isCensored: false
+      isExpanded: true
     };
     this.notebooks.push(newNotebook);
     this.saveNotebook(newNotebook);
@@ -303,23 +276,8 @@ export class NotesStore {
     return this.notesByNotebookId.get(notebookId) ?? [];
   };
 
-  filterCensoredNotes = (notes: Note[], isCensorshipEnabled: boolean) => {
-    return notes.filter(note => {
-      if (!isCensorshipEnabled) {
-        return true;
-      }
-      if (!this.isNotebookCensored(note.notebookId)) {
-        return !note.isCensored;
-      } else {
-        return false;
-      }
-
-      return true;
-    });
-  }
-
-  getVisibleNotes = (isCensorshipEnabled: boolean) => {
-    return this.filterCensoredNotes(this.notes, isCensorshipEnabled);
+  getVisibleNotes = () => {
+    return this.notes;
   };
 
   getChildNotebooks = (parentId: string | null) => {
@@ -335,20 +293,10 @@ export class NotesStore {
     return [...this.getNotebookParentChain(notebook.parentId), notebookId];
   };
 
-  isNotebookCensored = (notebookId: string): boolean => {
-    // Get the chain of parent notebooks
-    const parentChain = this.getNotebookParentChain(notebookId);
-    
-    // Check if any notebook in the chain is censored
-    return parentChain.some(id => {
-      const notebook = this.notebooks.find(n => n.id === id);
-      return notebook?.isCensored || false;
-    });
-  };
 
-  getSiblingNotes(noteId: string, isCensorshipEnabled: boolean): { prev: Note; next: Note } {
+  getSiblingNotes(noteId: string): { prev: Note; next: Note } {
     const notesList = this.notebooks.reduce((agr, notebook) => {
-      const notes = this.filterCensoredNotes(this.getNotebookNotes(notebook.id), isCensorshipEnabled);
+      const notes = this.getNotebookNotes(notebook.id);
       //@ts-expect-error because fuck you
       return agr.concat(notes);
     }, []);
@@ -397,8 +345,7 @@ export class NotesStore {
         content: note.content,
         createdAt: note.createdAt.toISOString(),
         notebookId: note.notebookId,
-        isCensored: note.isCensored,
-        theme: note.theme,
+          theme: note.theme,
         tags: JSON.stringify(note.tags)
       };
       await db.saveNote(dbNote);
@@ -414,8 +361,7 @@ export class NotesStore {
         name: notebook.name,
         parentId: notebook.parentId,
         isExpanded: notebook.isExpanded,
-        isCensored: notebook.isCensored
-      });
+        });
     } catch (error) {
       console.error('Error saving notebook:', error);
     }

@@ -2,7 +2,6 @@ import { X } from "lucide-react";
 import { FC, useCallback, useState } from "react";
 import { Typography } from "./Typography";
 import { Layout } from "./Layout";
-import { Censorship } from "./Censorship";
 import { observer } from "mobx-react-lite";
 import { useStore } from "../../../stores/StoreProvider";
 
@@ -10,7 +9,7 @@ type SettingsModalProps = {
   onClose: () => void;
 };
 
-type TabType = 'typography' | 'layout' | 'censorship';
+type TabType = 'typography' | 'layout';
 
 export const SettingsModal: FC<SettingsModalProps> = observer(({ onClose}) => {
   const { settingsStore } = useStore();
@@ -21,8 +20,6 @@ export const SettingsModal: FC<SettingsModalProps> = observer(({ onClose}) => {
         return <Typography settings={settingsStore.settings} setSettings={settingsStore.updateSettings} />;
       case 'layout':
         return <Layout settings={settingsStore.settings} setSettings={settingsStore.updateSettings} />;
-      case 'censorship':
-        return <Censorship />;
       default:
         return null;
     }
@@ -49,12 +46,6 @@ export const SettingsModal: FC<SettingsModalProps> = observer(({ onClose}) => {
             onClick={() => settingsStore.setActiveSettingsTab('layout')}
           >
             Layout
-          </button>
-          <button
-            className={`modal-tab ${settingsStore.activeSettingsTab === 'censorship' ? 'active' : ''}`}
-            onClick={() => settingsStore.setActiveSettingsTab('censorship')}
-          >
-            Censorship
           </button>
         </div>
         <div className="modal-content">

@@ -8,7 +8,6 @@ import Link from '@tiptap/extension-link';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import { observer } from 'mobx-react-lite';
-import { Censored } from './extensions/Censored';
 import { ParagraphTags } from './extensions/ParagraphTags';
 import { FullWidthImage } from './extensions/FullWidthImage';
 import { CutIn } from './extensions/CutIn';
@@ -61,7 +60,6 @@ const App = observer(() => {
           class: 'text-blue-600 hover:text-blue-800 underline cursor-pointer',
         },
       }),
-      Censored,
       TaskList,
       TaskItem.configure({
         nested: true,
@@ -101,35 +99,17 @@ const App = observer(() => {
       // Load note content if not already loaded
       if (!notesStore.selectedNote.content) {
         notesStore.loadNoteContent(notesStore.selectedNote);
-        return; // Don't set content until loading is complete
-      }
-      
-      if (notesStore.selectedNote.isCensored && settingsStore.isCensorshipEnabled()) {
-        editor.commands.setContent('');
-        setInitialContent('');
         return;
       }
 
       const content = notesStore.selectedNote.content;
-      if (settingsStore.isCensorshipEnabled()) {
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = content;
-        const censoredElements = tempDiv.querySelectorAll('span[data-censored]');
-        censoredElements.forEach(el => el.textContent = '');
-        
-        if (tempDiv.innerHTML !== editor.getHTML()) {
-          editor.commands.setContent(tempDiv.innerHTML);
-          setInitialContent(tempDiv.textContent || '');
-        }
-      } else {
-        if (content !== editor.getHTML()) {
-          editor.commands.setContent(content);
-          setInitialContent(editor.state.doc.textContent);
-        }
+      if (content !== editor.getHTML()) {
+        editor.commands.setContent(content);
+        setInitialContent(editor.state.doc.textContent);
       }
       setAutoZenDisabled(false);
     }
-  }, [editor, notesStore.selectedNote, settingsStore.isCensorshipEnabled(), notesStore.isLoadingNoteContent]);
+  }, [editor, notesStore.selectedNote, notesStore.isLoadingNoteContent]);
 
   useEffect(() => {
     if (!settingsStore.isZenMode) {
