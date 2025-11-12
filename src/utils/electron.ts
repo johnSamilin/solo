@@ -24,11 +24,13 @@ export function parseFileStructure(structure: FileNode[]): ParseResult {
   const notebooks: Notebook[] = [];
   const notes: Note[] = [];
 
-  function processNode(node: FileNode, parentId: string | null = null) {
+  function processNode(node: FileNode, parentPath: string = '') {
     if (node.type === 'folder') {
-      const notebookId = generateUniqueId();
+      const currentPath = parentPath ? `${parentPath}/${node.name}` : node.name;
+      const parentId = parentPath || null;
+
       notebooks.push({
-        id: notebookId,
+        id: node.path,
         name: node.name,
         parentId: parentId,
         isExpanded: true,
@@ -36,7 +38,7 @@ export function parseFileStructure(structure: FileNode[]): ParseResult {
 
       if (node.children) {
         for (const child of node.children) {
-          processNode(child, notebookId);
+          processNode(child, node.path);
         }
       }
     } else if (node.type === 'file' && node.name.endsWith('.html')) {
@@ -53,19 +55,19 @@ export function parseFileStructure(structure: FileNode[]): ParseResult {
         : new Date();
 
       notes.push({
-        id: metadata?.id || generateUniqueId(),
+        id: node.path,
         title: noteTitle,
         content: '',
         createdAt: createdAt,
         tags: tags,
-        notebookId: parentId || 'default',
+        notebookId: parentPath || 'default',
         filePath: node.path,
       } as Note & { filePath: string });
     }
   }
 
   for (const node of structure) {
-    processNode(node, null);
+    processNode(node, '');
   }
 
   if (notebooks.length === 0) {
