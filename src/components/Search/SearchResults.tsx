@@ -107,15 +107,7 @@ export const SearchResults: FC<SearchResultsProps> = observer(({
 
   // Filter content based on censorship mode
   const getFilteredContent = (note: Note): string => {
-    if (!settingsStore.isCensorshipEnabled()) {
-      return note.content;
-    }
-    
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = note.content;
-    const censoredElements = tempDiv.querySelectorAll('span[data-censored]');
-    censoredElements.forEach(el => el.remove());
-    return tempDiv.innerHTML;
+    return note.content;
   };
 
   // Get content to display for a note
