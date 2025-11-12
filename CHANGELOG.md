@@ -12,21 +12,6 @@ Added a button to FAB (Floating Action Button) that opens Note Settings modal wi
 - Delete note button (styled in red)
 - Integrated with existing notebook management system
 
-## Feature: Note-level Censorship
-- Added ability to mark entire notes as censored
-- Censored notes are completely hidden when censorship is enabled
-- Added lock icon indicator for censored notes in the sidebar
-- Integrated with existing censorship system
-
-## Feature: Notebook-level Censorship
-- Added ability to mark entire notebooks as censored
-- Censored notebooks are completely hidden when censorship is enabled
-- Added lock icon indicator for censored notebooks
-- Recursive censorship for nested notebooks (parent censorship affects children)
-- Added notebook censorship toggle to notebook context menu
-- Added notebook edit modal for managing notebook settings
-- Improved notebook context menu to only appear on right-click
-
 ## Feature: Enhanced Typography
 - Added customizable page margins (narrow, medium, wide)
 - Added adjustable paragraph spacing (tight, normal, relaxed)
