@@ -92,9 +92,6 @@
           },
           "isExpanded": {
             "type": "boolean"
-          },
-          "isCensored": {
-            "type": "boolean"
           }
         }
       },
