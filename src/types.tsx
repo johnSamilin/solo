@@ -21,6 +21,7 @@ export interface Note {
   tags: Tag[];
   notebookId: string;
   theme?: string;
+  filePath?: string;
 }
 
 export interface Notebook {
@@ -62,8 +63,39 @@ export interface Bridge {
   openExternal: (url: string) => Promise<void>;
 }
 
+export interface FileMetadata {
+  id: string;
+  tags: string[];
+  date: string;
+}
+
+export interface FileNode {
+  name: string;
+  path: string;
+  type: 'file' | 'folder';
+  children?: FileNode[];
+  metadata?: FileMetadata;
+}
+
+export interface ElectronAPI {
+  selectFolder: () => Promise<{ success: boolean; path?: string; error?: string }>;
+  getDataFolder: () => Promise<{ success: boolean; path?: string | null }>;
+  selectParentFolder: () => Promise<{ success: boolean; path?: string; error?: string }>;
+  openFile: (relativePath: string) => Promise<{ success: boolean; content?: string; error?: string }>;
+  updateFile: (relativePath: string, content: string) => Promise<{ success: boolean; error?: string }>;
+  updateMetadata: (relativePath: string, metadata: FileMetadata) => Promise<{ success: boolean; path?: string; error?: string }>;
+  readStructure: () => Promise<{ success: boolean; structure?: FileNode[]; error?: string }>;
+  scanAllTags: () => Promise<{ success: boolean; tags?: string[]; error?: string }>;
+  toggleZenMode: (enable: boolean) => Promise<{ success: boolean; isZenMode?: boolean; error?: string }>;
+  getZenMode: () => Promise<{ success: boolean; isZenMode?: boolean; error?: string }>;
+  search: (searchString?: string, tags?: string[]) => Promise<{ success: boolean; results?: any[]; error?: string }>;
+  createNotebook: (parentPath: string, name: string) => Promise<{ success: boolean; path?: string; error?: string }>;
+  createNote: (parentPath: string, name: string) => Promise<{ success: boolean; htmlPath?: string; jsonPath?: string; error?: string }>;
+}
+
 declare global {
   interface Window {
     bridge?: Bridge;
+    electronAPI: ElectronAPI;
   }
 }

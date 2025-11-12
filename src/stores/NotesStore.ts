@@ -1,7 +1,7 @@
 import { makeObservable, observable } from 'mobx';
 import { Note, Tag, Notebook } from '../types';
 import { generateUniqueId } from '../utils';
-import { migrationManager } from '../utils/migration';
+import { loadFromElectron, loadNoteContent } from '../utils/electron';
 
 
 export class NotesStore {
@@ -63,17 +63,14 @@ export class NotesStore {
   loadFromStorage = async () => {
     this.isLoading = true;
     try {
-      // Check and perform migration if needed
-      await migrationManager.checkAndMigrate();
-      
-      // Initialize database
-      await db.initialize();
-      
-      // Load data from IndexedDB
-      await this.loadFromDatabase();
+      const result = await loadFromElectron();
+      this.notebooks = result.notebooks;
+      this.notes = result.notes;
+
+      this.cacheNotebooks();
+      this.cacheNotes();
     } catch (error) {
-      console.error('Error loading data:', error);
-      // Fallback to default data
+      console.error('Error loading data from Electron:', error);
       this.notebooks = [{
         id: 'default',
         name: 'Main notebook',
@@ -81,30 +78,12 @@ export class NotesStore {
         isExpanded: true,
       }];
       this.notes = [];
+      this.cacheNotebooks();
+      this.cacheNotes();
     } finally {
       this.isLoading = false;
     }
   };
-
-  private async loadFromDatabase() {
-    // Default notebook only
-    if (this.notebooks.length === 0) {
-      const defaultNotebook = {
-        id: 'default',
-        name: 'Main notebook',
-        parentId: null,
-        isExpanded: true,
-      };
-      this.notebooks = [defaultNotebook];
-    }
-
-    // Notes are not persisted in IndexedDB
-
-    this.cacheNotebooks();
-    this.cacheNotes();
-
-    // No state restoration from database
-  }
 
 
 
@@ -218,7 +197,6 @@ export class NotesStore {
     const notebook = this.notebooks.find(n => n.id === notebookId);
     if (notebook) {
       notebook.isExpanded = !notebook.isExpanded;
-        this.saveNotebook(notebook);
     }
   };
 
@@ -261,8 +239,25 @@ export class NotesStore {
 
 
   async loadNoteContent(note: Note): Promise<void> {
-    // Content is always available in memory
-    this.isLoadingNoteContent = false;
+    if (!note.filePath) {
+      this.isLoadingNoteContent = false;
+      return;
+    }
+
+    if (note.content) {
+      this.isLoadingNoteContent = false;
+      return;
+    }
+
+    this.isLoadingNoteContent = true;
+    try {
+      const content = await loadNoteContent(note.filePath);
+      this.updateNote(note.id, { content });
+    } catch (error) {
+      console.error('Failed to load note content:', error);
+    } finally {
+      this.isLoadingNoteContent = false;
+    }
   }
 
 

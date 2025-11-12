@@ -52,6 +52,7 @@ interface FileNode {
   path: string;
   type: 'file' | 'folder';
   children?: FileNode[];
+  metadata?: FileMetadata;
 }
 
 ipcMain.handle('select-folder', async () => {
@@ -176,6 +177,7 @@ ipcMain.handle('read-structure', async () => {
     const readDirectory = async (dirPath: string, basePath: string): Promise<FileNode[]> => {
       const entries = await fs.readdir(dirPath, { withFileTypes: true });
       const nodes: FileNode[] = [];
+      const processedMetadata = new Set<string>();
 
       for (const entry of entries) {
         const fullPath = path.join(dirPath, entry.name);
@@ -189,7 +191,27 @@ ipcMain.handle('read-structure', async () => {
             type: 'folder',
             children,
           });
-        } else {
+        } else if (entry.isFile() && entry.name.endsWith('.html')) {
+          const metadataPath = fullPath.replace(/\.html$/, '.json');
+          let metadata: FileMetadata | undefined;
+
+          if (existsSync(metadataPath)) {
+            try {
+              const metadataContent = await fs.readFile(metadataPath, 'utf-8');
+              metadata = JSON.parse(metadataContent);
+              processedMetadata.add(path.basename(metadataPath));
+            } catch (error) {
+              console.error(`Failed to read metadata for ${entry.name}:`, error);
+            }
+          }
+
+          nodes.push({
+            name: entry.name,
+            path: relativePath,
+            type: 'file',
+            metadata,
+          });
+        } else if (!entry.name.endsWith('.json')) {
           nodes.push({
             name: entry.name,
             path: relativePath,
