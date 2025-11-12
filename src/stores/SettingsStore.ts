@@ -16,7 +16,7 @@ export class SettingsStore {
   isNewNotebookModalOpen = false;
   isNoteSettingsOpen = false;
   toast: Toast | null = null;
-  activeSettingsTab: 'typography' | 'layout' = 'typography';
+  activeSettingsTab: 'typography' | 'layout' | 'data' = 'typography';
 
   constructor(notesStore: NotesStore) {
     this.notesStore = notesStore;
@@ -123,7 +123,7 @@ export class SettingsStore {
     this.isNoteSettingsOpen = isOpen;
   };
 
-  setActiveSettingsTab = (tab: 'typography' | 'layout') => {
+  setActiveSettingsTab = (tab: 'typography' | 'layout' | 'data') => {
     this.activeSettingsTab = tab;
   };
 }
