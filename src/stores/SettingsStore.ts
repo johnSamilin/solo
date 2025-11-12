@@ -96,11 +96,13 @@ export class SettingsStore {
 
   toggleZenMode = () => {
     this.isZenMode = !this.isZenMode;
+    window.electronAPI.toggleZenMode(this.isZenMode);
     this.saveToStorage();
   };
 
   turnZenModeOff = () => {
     this.isZenMode = false;
+    window.electronAPI.toggleZenMode(false);
     this.saveToStorage();
   };
 
