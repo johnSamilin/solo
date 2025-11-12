@@ -4,7 +4,6 @@ interface DBNote {
   content: string;
   createdAt: string;
   notebookId: string;
-  isCensored?: boolean;
   theme?: string;
   tags: string; // JSON string of tags array
 }
