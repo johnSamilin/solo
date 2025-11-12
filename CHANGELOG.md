@@ -12,15 +12,6 @@ Added a button to FAB (Floating Action Button) that opens Note Settings modal wi
 - Delete note button (styled in red)
 - Integrated with existing notebook management system
 
-## Feature: Censorship System
-Added a new "Censorship" tab to settings modal with:
-- PIN code setup functionality
-- Default censorship mode enabled
-- Ability to toggle censorship off with correct PIN
-- Fake "disabled" state when incorrect PIN is entered (security through obscurity)
-- Added keyboard shortcut Ctrl+. to immediately enable censorship
-- Removed PIN requirement for enabling censorship
-
 ## Feature: Note-level Censorship
 - Added ability to mark entire notes as censored
 - Censored notes are completely hidden when censorship is enabled
