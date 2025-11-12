@@ -16,13 +16,6 @@ Solo is a modern, privacy-focused note-taking application with an emphasis on ty
 - Image and link embedding
 - Clean, distraction-free interface
 
-### 🔒 Privacy & Security
-- Built-in censorship system for sensitive content
-- PIN-protected content hiding
-- Note-level privacy controls
-- Quick censorship toggle with keyboard shortcuts (Ctrl+.)
-- Fake "disabled" state for enhanced security
-
 ### 📚 Organization
 - Hierarchical notebook structure
 - Nested notebooks support
