@@ -74,9 +74,6 @@
           },
           "notebookId": {
             "type": "string"
-          },
-          "isCensored": {
-            "type": "boolean"
           }
         }
       },
