@@ -15,10 +15,7 @@ export const NewNotebookModal: FC<NewNotebookModalProps> = observer(({ onClose }
 	const [selectedNotebookId, setSelectedNotebookId] = useState('');
 	const { notesStore, settingsStore } = useStore();
 
-	// Filter out censored notebooks when censorship is enabled
-	const availableNotebooks = notesStore.notebooks.filter(notebook => 
-		!settingsStore.isCensorshipEnabled() || !notesStore.isNotebookCensored(notebook.id)
-	);
+	const availableNotebooks = notesStore.notebooks;
 
 	return (
 		<div className="modal-overlay">

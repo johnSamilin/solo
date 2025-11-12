@@ -1,5 +1,5 @@
 import { FC } from 'react';
-import { X, Trash2, Lock, Unlock } from 'lucide-react';
+import { X, Trash2 } from 'lucide-react';
 import { Notebook } from '../../types';
 import { themes } from '../../constants';
 
@@ -11,8 +11,6 @@ type NoteSettingsModalProps = {
   currentNotebookId: string;
   onMoveNote: (notebookId: string) => void;
   onDeleteNote: () => void;
-  isCensored: boolean | undefined;
-  onToggleCensorship: () => void;
   currentTheme: string;
   onThemeChange: (theme: string) => void;
 };
@@ -23,8 +21,6 @@ export const NoteSettingsModal: FC<NoteSettingsModalProps> = ({
   currentNotebookId,
   onMoveNote,
   onDeleteNote,
-  isCensored,
-  onToggleCensorship,
   currentTheme,
   onThemeChange,
 }) => {
@@ -66,20 +62,6 @@ export const NoteSettingsModal: FC<NoteSettingsModalProps> = ({
                 </option>
               ))}
             </select>
-          </div>
-          <div className="setting-item">
-            <label>Note Censorship</label>
-            <button
-              onClick={onToggleCensorship}
-              className={`button-icon ${isCensored ? 'active' : ''}`}
-              title={isCensored ? 'Remove Censorship' : 'Mark as Censored'}
-            >
-              {isCensored ? (
-                <Lock className="h-4 w-4" />
-              ) : (
-                <Unlock className="h-4 w-4" />
-              )}
-            </button>
           </div>
           <div className="modal-actions">
             <button

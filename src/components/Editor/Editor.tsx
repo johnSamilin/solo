@@ -185,8 +185,6 @@ export const Editor: FC<EditorProps> = observer(({
             currentNotebookId={notesStore.selectedNote.notebookId}
             onMoveNote={handleMoveNote}
             onDeleteNote={handleDeleteNote}
-            onToggleCensorship={() => notesStore.toggleNoteCensorship(notesStore?.selectedNote?.id ?? '')}
-            isCensored={notesStore.selectedNote.isCensored}
             currentTheme={notesStore.selectedNote.theme || ''}
             onThemeChange={handleThemeChange}
           />

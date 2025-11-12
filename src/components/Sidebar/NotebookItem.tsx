@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, Lock } from "lucide-react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { Notebook } from "../../types";
 import { useStore } from "../../stores/StoreProvider";
@@ -39,13 +39,8 @@ export const NotebookItem = observer(({ notebook, level = 0, editor }: NotebookI
   const handleNoteSelect = (noteId: string) => {
     const note = notesStore.notes.find(n => n.id === noteId);
     if (note) {
-      if (note.isCensored && settingsStore.isCensorshipEnabled()) {
-        // Don't show censored notes when censorship is enabled
-        return;
-      }
       notesStore.setSelectedNote(note);
       notesStore.isEditing = true;
-      // Content will be loaded on demand in App.tsx
     }
   };
 
@@ -71,16 +66,7 @@ export const NotebookItem = observer(({ notebook, level = 0, editor }: NotebookI
     notesStore.updateNotebook(notebook.id, updatedNotebook);
   };
 
-  const visibleNotes = notebookNotes.filter(note => 
-    !note.isCensored || !settingsStore.isCensorshipEnabled()
-  );
-
-  const isNotebookCensored = notesStore.isNotebookCensored(notebook.id);
-
-  // Don't render censored notebooks when censorship is enabled
-  if (isNotebookCensored && settingsStore.isCensorshipEnabled()) {
-    return null;
-  }
+  const visibleNotes = notebookNotes;
 
   return (
     <div className="notebook-item" style={{ paddingLeft: `${level * 1.5}rem` }}>
@@ -101,7 +87,6 @@ export const NotebookItem = observer(({ notebook, level = 0, editor }: NotebookI
           onContextMenu={handleContextMenu}
         >
           {notebook.name}
-          {isNotebookCensored && <Lock className="h-4 w-4 ml-2" />}
         </span>
       </div>
       {isContextMenuOpen && (
@@ -134,7 +119,6 @@ export const NotebookItem = observer(({ notebook, level = 0, editor }: NotebookI
             >
               <div className="note-item-header">
                 <h3 className="note-item-title">{note.title}</h3>
-                {note.isCensored && <Lock className="h-4 w-4" />}
               </div>
             </div>
           ))}
@@ -153,8 +137,6 @@ export const NotebookItem = observer(({ notebook, level = 0, editor }: NotebookI
           onClose={() => setIsEditModalOpen(false)}
           notebook={notebook}
           onUpdate={handleUpdateNotebook}
-          onToggleCensorship={() => notesStore.toggleNotebookCensorship(notebook.id)}
-          isNotebookCensored={isNotebookCensored}
         />
       )}
     </div>

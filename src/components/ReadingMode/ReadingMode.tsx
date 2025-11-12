@@ -23,7 +23,7 @@ export const ReadingMode: FC<ReadingModeProps> = observer(({ onClose }) => {
   }, [onClose]);
 
   // Get all visible notes
-  const visibleNotes = notesStore.getVisibleNotes(settingsStore.isCensorshipEnabled());
+  const visibleNotes = notesStore.getVisibleNotes();
 
   // Sort notes by notebook hierarchy and creation date
   const sortedNotes = visibleNotes.sort((a, b) => {

@@ -1,5 +1,5 @@
 import { FC, useState } from 'react';
-import { X, Lock, Unlock } from 'lucide-react';
+import { X } from 'lucide-react';
 import { observer } from 'mobx-react-lite';
 import { Notebook } from '../../types';
 
@@ -9,16 +9,12 @@ type EditNotebookModalProps = {
   onClose: () => void;
   notebook: Notebook;
   onUpdate: (updates: Partial<Notebook>) => void;
-  onToggleCensorship: () => void;
-  isNotebookCensored: boolean;
 };
 
 export const EditNotebookModal: FC<EditNotebookModalProps> = observer(({
   onClose,
   notebook,
   onUpdate,
-  onToggleCensorship,
-  isNotebookCensored,
 }) => {
   const [name, setName] = useState(notebook.name);
 
@@ -48,20 +44,6 @@ export const EditNotebookModal: FC<EditNotebookModalProps> = observer(({
               className="notebook-input"
               placeholder="Enter notebook name"
             />
-          </div>
-          <div className="setting-item">
-            <label>Notebook Censorship</label>
-            <button
-              onClick={onToggleCensorship}
-              className={`button-icon ${isNotebookCensored ? 'active' : ''}`}
-              title={isNotebookCensored ? 'Remove Notebook Censorship' : 'Mark Notebook as Censored'}
-            >
-              {isNotebookCensored ? (
-                <Lock className="h-4 w-4" />
-              ) : (
-                <Unlock className="h-4 w-4" />
-              )}
-            </button>
           </div>
           <div className="modal-actions">
             <button
