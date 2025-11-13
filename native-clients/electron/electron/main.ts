@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, protocol } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import { existsSync } from 'fs';
@@ -7,6 +7,19 @@ let mainWindow: BrowserWindow | null = null;
 let dataFolder: string | null = null;
 
 const SETTINGS_FILE = path.join(app.getPath('userData'), 'settings.json');
+
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'image',
+    privileges: {
+      secure: true,
+      supportFetchAPI: true,
+      bypassCSP: false,
+      corsEnabled: false,
+      standard: true,
+    }
+  }
+]);
 
 const loadSettings = async () => {
   try {
@@ -37,6 +50,7 @@ const createWindow = () => {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
+      webSecurity: true,
     },
   });
 
@@ -50,6 +64,30 @@ const createWindow = () => {
 
 app.whenReady().then(async () => {
   await loadSettings();
+
+  protocol.registerFileProtocol('image', (request, callback) => {
+    const url = request.url.replace('image://', '');
+
+    if (!dataFolder) {
+      callback({ error: -2 });
+      return;
+    }
+
+    const assetsPath = path.join(dataFolder, 'assets', url);
+
+    if (!assetsPath.startsWith(path.join(dataFolder, 'assets'))) {
+      callback({ error: -2 });
+      return;
+    }
+
+    if (!existsSync(assetsPath)) {
+      callback({ error: -6 });
+      return;
+    }
+
+    callback({ path: assetsPath });
+  });
+
   createWindow();
 
   app.on('activate', () => {
