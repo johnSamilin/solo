@@ -97,7 +97,7 @@ const App = observer(() => {
   useEffect(() => {
     if (editor && notesStore.selectedNote && !notesStore.isLoadingNoteContent) {
       // Load note content if not already loaded
-      if (!notesStore.selectedNote.content) {
+      if (!notesStore.selectedNote.isLoaded) {
         notesStore.loadNoteContent(notesStore.selectedNote);
         return;
       }

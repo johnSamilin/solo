@@ -22,6 +22,7 @@ export interface Note {
   notebookId: string;
   theme?: string;
   filePath?: string;
+  isLoaded: boolean;
 }
 
 export interface Notebook {

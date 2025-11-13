@@ -101,53 +101,30 @@ export class NotesStore {
       month: 'long'
     });
 
-    if (window.electronAPI) {
-      if (this.notebooks.length === 0) {
-        const mainNotebookResult = await window.electronAPI.createNotebook('', 'Main notebook');
-        if (mainNotebookResult.success && mainNotebookResult.path) {
-          const mainNotebook: Notebook = {
-            id: mainNotebookResult.path,
-            name: 'Main notebook',
-            parentId: null,
-            isExpanded: true
-          };
-          this.notebooks.push(mainNotebook);
-          targetNotebookId = mainNotebook.id;
-        }
-      }
-
-      const result = await window.electronAPI.createNote(targetNotebookId, title);
-      if (result.success && result.htmlPath) {
-        const newNote: Note = {
-          id: result.htmlPath,
-          title: title,
-          content: '',
-          createdAt: new Date(),
-          tags: [],
-          notebookId: targetNotebookId
+    if (this.notebooks.length === 0) {
+      const mainNotebookResult = await window.electronAPI.createNotebook('', 'Main notebook');
+      if (mainNotebookResult.success && mainNotebookResult.path) {
+        const mainNotebook: Notebook = {
+          id: mainNotebookResult.path,
+          name: 'Main notebook',
+          parentId: null,
+          isExpanded: true
         };
-        this.notes.push(newNote);
-        this.selectedNote = newNote;
-        this.isEditing = true;
-
-        // Ensure the parent notebook is expanded
-        const notebook = this.notebooks.find(n => n.id === targetNotebookId);
-        if (notebook && !notebook.isExpanded) {
-          notebook.isExpanded = true;
-        }
-
-        return newNote;
-      } else {
-        throw new Error(result.error || 'Failed to create note');
+        this.notebooks.push(mainNotebook);
+        targetNotebookId = mainNotebook.id;
       }
-    } else {
+    }
+
+    const result = await window.electronAPI.createNote(targetNotebookId, title);
+    if (result.success && result.htmlPath) {
       const newNote: Note = {
-        id: generateUniqueId(),
+        id: result.htmlPath,
         title: title,
         content: '',
         createdAt: new Date(),
         tags: [],
-        notebookId: targetNotebookId
+        notebookId: targetNotebookId,
+        isLoaded: true,
       };
       this.notes.push(newNote);
       this.selectedNote = newNote;
@@ -159,8 +136,9 @@ export class NotesStore {
         notebook.isExpanded = true;
       }
 
-      this.cacheNotes();
       return newNote;
+    } else {
+      throw new Error(result.error || 'Failed to create note');
     }
   };
 
@@ -247,6 +225,9 @@ export class NotesStore {
   setSelectedNote = async (note: Note | null) => {
     await this.saveCurrentNote();
     this.selectedNote = note;
+    if (this.selectedNote) {
+      this.selectedNote.isLoaded = false;
+    }
     if (note) {
       this.setFocusedNotebook(note.notebookId);
     }
@@ -353,6 +334,9 @@ export class NotesStore {
     try {
       const content = await loadNoteContent(note.filePath);
       this.updateNote(note.id, { content });
+      if (this.selectedNote) {
+        this.selectedNote.isLoaded = true;
+      }
     } catch (error) {
       console.error('Failed to load note content:', error);
     } finally {

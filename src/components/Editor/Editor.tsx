@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { FC, useState } from 'react';
 import { observer } from 'mobx-react-lite';
 import { Editor as TEditor } from "@tiptap/react";
 import { useStore } from "../../stores/StoreProvider";
@@ -122,7 +122,6 @@ export const Editor: FC<EditorProps> = observer(({
     if (contextMenu) {
       setSelectedImageUrl(contextMenu.target.src);
       setIsOcrModalOpen(true);
-      setContextMenu(null);
     }
   };
 
