@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -34,6 +34,7 @@ const App = observer(() => {
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
   const [isParagraphTagModalOpen, setIsParagraphTagModalOpen] = useState(false);
   const [currentParagraphTags, setCurrentParagraphTags] = useState<Tag[]>([]);
+  const imageUploadRef = useRef<((file: File) => Promise<void>) | null>(null);
 
   const editor = useEditor({
     extensions: [
@@ -68,6 +69,24 @@ const App = observer(() => {
       CutIn,
     ],
     content: '',
+    editorProps: {
+      handlePaste: (view, event) => {
+        const items = event.clipboardData?.items;
+        if (!items) return false;
+
+        for (const item of Array.from(items)) {
+          if (item.type.indexOf('image') === 0) {
+            event.preventDefault();
+            const file = item.getAsFile();
+            if (file && imageUploadRef.current) {
+              imageUploadRef.current(file);
+            }
+            return true;
+          }
+        }
+        return false;
+      },
+    },
     onUpdate: ({ editor }) => {
       if (notesStore.selectedNote) {
         const content = editor.getHTML();
@@ -81,8 +100,8 @@ const App = observer(() => {
           const currentWords = currentContent.split(/\s+/).filter(word => word.length > 0).length;
           const newWords = currentWords - initialWords;
 
-          const currentSettings = notesStore.selectedNote?.theme ? 
-            themes[notesStore.selectedNote.theme].settings : 
+          const currentSettings = notesStore.selectedNote?.theme ?
+            themes[notesStore.selectedNote.theme].settings :
             settingsStore.settings;
 
           if (newWords > 5 && !settingsStore.isZenMode && !autoZenDisabled && currentSettings.autoZenMode) {
@@ -150,7 +169,25 @@ const App = observer(() => {
   }, [settingsStore.settings, notesStore.selectedNote?.theme]);
 
   const handleImageUpload = async (file: File) => {
-    if (settingsStore.syncMode === 'server' && settingsStore.server.token) {
+    if (window.electronAPI) {
+      try {
+        const reader = new FileReader();
+        reader.onload = async () => {
+          if (typeof reader.result === 'string') {
+            const result = await window.electronAPI.uploadImage(reader.result, file.name);
+            if (result.success && result.url) {
+              editor?.chain().focus().setImage({ src: result.url }).run();
+            } else {
+              settingsStore.setToast(result.error || 'Failed to upload image', 'error');
+            }
+          }
+        };
+        reader.readAsDataURL(file);
+      } catch (error) {
+        console.error('Image upload failed:', error);
+        settingsStore.setToast('Failed to upload image', 'error');
+      }
+    } else if (settingsStore.syncMode === 'server' && settingsStore.server.token) {
       try {
         const formData = new FormData();
         formData.append('image', file);
@@ -165,8 +202,8 @@ const App = observer(() => {
 
         if (response.ok) {
           const { url } = await response.json();
-          editor?.chain().focus().setImage({ 
-            src: `${settingsStore.server.url}${url}` 
+          editor?.chain().focus().setImage({
+            src: `${settingsStore.server.url}${url}`
           }).run();
         } else {
           settingsStore.setToast('Failed to upload image', 'error');
@@ -185,6 +222,8 @@ const App = observer(() => {
       reader.readAsDataURL(file);
     }
   };
+
+  imageUploadRef.current = handleImageUpload;
 
   const handleParagraphTagging = () => {
     if (!editor) return;
