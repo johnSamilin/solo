@@ -1,4 +1,4 @@
-import { makeObservable, observable } from 'mobx';
+import { makeObservable, observable, runInAction } from 'mobx';
 import { Note, Tag, Notebook } from '../types';
 import { generateUniqueId } from '../utils';
 import { loadFromElectron, loadNoteContent } from '../utils/electron';
@@ -17,8 +17,8 @@ export class NotesStore {
   isEditing = false;
   isLoading = false;
   isLoadingNoteContent = false;
-  private notebooksByParentId = new Map<string | null, Notebook[]>();
-  private notesByNotebookId = new Map<string | null, Note[]>();
+  notebooksByParentId = new Map<string | null, Notebook[]>();
+  notesByNotebookId = new Map<string | null, Note[]>();
   private _rootStore: any = null;
 
   constructor() {
@@ -30,6 +30,8 @@ export class NotesStore {
       isEditing: observable,
       isLoading: observable,
       isLoadingNoteContent: observable,
+      notebooksByParentId: observable,
+      notesByNotebookId: observable,
     });
     this.loadFromStorage();
   }
@@ -181,7 +183,6 @@ export class NotesStore {
   };
 
   createNotebook = async (name: string, parentId: string | null = null) => {
-    if (window.electronAPI) {
       const result = await window.electronAPI.createNotebook(parentId || '', name);
       if (result.success && result.path) {
         const newNotebook: Notebook = {
@@ -190,23 +191,15 @@ export class NotesStore {
           parentId,
           isExpanded: true
         };
-        this.notebooks.push(newNotebook);
+        runInAction(() => {
+          this.notebooks = this.notebooks.concat(newNotebook);
+          this.cacheNotebooks();
+          this.cacheNotes();
+        });
         return newNotebook;
       } else {
         throw new Error(result.error || 'Failed to create notebook');
       }
-    } else {
-      const newNotebook: Notebook = {
-        id: generateUniqueId(),
-        name,
-        parentId,
-        isExpanded: true
-      };
-      this.notebooks.push(newNotebook);
-      this.cacheNotebooks();
-      this.cacheNotes();
-      return newNotebook;
-    }
   };
 
   toggleNotebook = (notebookId: string) => {
