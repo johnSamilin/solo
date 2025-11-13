@@ -20,6 +20,8 @@ export class NotesStore {
   notebooksByParentId = new Map<string | null, Notebook[]>();
   notesByNotebookId = new Map<string | null, Note[]>();
   private _rootStore: any = null;
+  private saveDebounceTimer: NodeJS.Timeout | null = null;
+  private pendingSave: { noteId: string; content: string } | null = null;
 
   constructor() {
     makeObservable(this, {
@@ -170,10 +172,54 @@ export class NotesStore {
         this.selectedNote = this.notes[noteIndex];
       }
       this.cacheNotes();
-      
+
+      if (updates.content !== undefined) {
+        this.debouncedSave(noteId, updates.content);
+      }
+
       // Track theme changes
       if (updates.theme !== undefined) {
       }
+    }
+  };
+
+  private debouncedSave = (noteId: string, content: string) => {
+    if (!window.electronAPI) return;
+
+    this.pendingSave = { noteId, content };
+
+    if (this.saveDebounceTimer) {
+      clearTimeout(this.saveDebounceTimer);
+    }
+
+    this.saveDebounceTimer = setTimeout(() => {
+      if (this.pendingSave) {
+        this.saveNoteContent(this.pendingSave.noteId, this.pendingSave.content);
+        this.pendingSave = null;
+      }
+    }, 500);
+  };
+
+  private saveNoteContent = async (noteId: string, content: string) => {
+    try {
+      const result = await window.electronAPI.updateFile(noteId, content);
+      if (!result.success) {
+        console.error('Failed to save note:', result.error);
+      }
+    } catch (error) {
+      console.error('Error saving note:', error);
+    }
+  };
+
+  saveCurrentNote = async () => {
+    if (this.saveDebounceTimer) {
+      clearTimeout(this.saveDebounceTimer);
+      this.saveDebounceTimer = null;
+    }
+
+    if (this.pendingSave) {
+      await this.saveNoteContent(this.pendingSave.noteId, this.pendingSave.content);
+      this.pendingSave = null;
     }
   };
 
@@ -186,7 +232,10 @@ export class NotesStore {
   };
 
 
-  deleteNote = (noteId: string) => {
+  deleteNote = async (noteId: string) => {
+    if (this.selectedNote?.id === noteId) {
+      await this.saveCurrentNote();
+    }
     this.notes = this.notes.filter(note => note.id !== noteId);
     if (this.selectedNote?.id === noteId) {
       this.selectedNote = null;
@@ -195,7 +244,8 @@ export class NotesStore {
     this.cacheNotes();
   };
 
-  setSelectedNote = (note: Note | null) => {
+  setSelectedNote = async (note: Note | null) => {
+    await this.saveCurrentNote();
     this.selectedNote = note;
     if (note) {
       this.setFocusedNotebook(note.notebookId);
