@@ -297,7 +297,28 @@ const App = observer(() => {
       />
 
       <div className="main-content">
-        {notesStore.selectedNote ? (
+        {window.electronAPI && !settingsStore.dataFolder ? (
+          <div className="empty-state">
+            <div className="empty-state-content">
+              <p className="empty-state-text">No data folder selected</p>
+              <p style={{ marginTop: '1rem', color: '#666', textAlign: 'center' }}>
+                To start working, please select a folder where your notes will be stored.
+                Go to Settings → Data and choose a folder on your computer.
+              </p>
+              <div className="empty-state-buttons">
+                <button
+                  onClick={() => {
+                    settingsStore.setSettingsOpen(true);
+                    settingsStore.setActiveSettingsTab('data');
+                  }}
+                  className="button-primary"
+                >
+                  Open Settings
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : notesStore.selectedNote ? (
           <Editor
             editor={editor}
             handleImageUpload={handleImageUpload}

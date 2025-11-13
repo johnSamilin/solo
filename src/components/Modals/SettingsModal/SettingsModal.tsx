@@ -13,24 +13,13 @@ type TabType = 'typography' | 'layout' | 'data';
 
 export const SettingsModal: FC<SettingsModalProps> = observer(({ onClose}) => {
   const { settingsStore, notesStore } = useStore();
-  const [dataFolder, setDataFolder] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (window.electronAPI) {
-      window.electronAPI.getDataFolder().then((result) => {
-        if (result.success && result.path) {
-          setDataFolder(result.path);
-        }
-      });
-    }
-  }, []);
 
   const handleSelectFolder = async () => {
     if (!window.electronAPI) return;
 
     const result = await window.electronAPI.selectFolder();
     if (result.success && result.path) {
-      setDataFolder(result.path);
+      settingsStore.setDataFolder(result.path);
       settingsStore.setToast('Data folder updated. Reloading...', 'success');
       await notesStore.loadFromStorage();
     } else {
@@ -53,7 +42,7 @@ export const SettingsModal: FC<SettingsModalProps> = observer(({ onClose}) => {
               <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                 <input
                   type="text"
-                  value={dataFolder || 'No folder selected'}
+                  value={settingsStore.dataFolder || 'No folder selected'}
                   readOnly
                   style={{
                     flex: 1,

@@ -17,13 +17,28 @@ export class SettingsStore {
   isNoteSettingsOpen = false;
   toast: Toast | null = null;
   activeSettingsTab: 'typography' | 'layout' | 'data' = 'typography';
+  dataFolder: string | null = null;
 
   constructor(notesStore: NotesStore) {
     this.notesStore = notesStore;
     makeAutoObservable(this);
     this.loadFromStorage();
     this.setupKeyboardShortcuts();
+    this.checkDataFolder();
   }
+
+  checkDataFolder = async () => {
+    if (window.electronAPI) {
+      const result = await window.electronAPI.getDataFolder();
+      if (result.success && result.path) {
+        this.dataFolder = result.path;
+      }
+    }
+  };
+
+  setDataFolder = (path: string | null) => {
+    this.dataFolder = path;
+  };
 
   setToast = (message: string, type: 'success' | 'error') => {
     this.toast = { message, type };

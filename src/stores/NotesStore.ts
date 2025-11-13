@@ -90,7 +90,7 @@ export class NotesStore {
 
 
   createNote = async (notebookId?: string) => {
-    const targetNotebookId = notebookId || this.focusedNotebookId || 'default';
+    let targetNotebookId = notebookId || this.focusedNotebookId || 'default';
 
     // Generate localized title with day and month
     const now = new Date();
@@ -100,6 +100,20 @@ export class NotesStore {
     });
 
     if (window.electronAPI) {
+      if (this.notebooks.length === 0) {
+        const mainNotebookResult = await window.electronAPI.createNotebook('', 'Main notebook');
+        if (mainNotebookResult.success && mainNotebookResult.path) {
+          const mainNotebook: Notebook = {
+            id: mainNotebookResult.path,
+            name: 'Main notebook',
+            parentId: null,
+            isExpanded: true
+          };
+          this.notebooks.push(mainNotebook);
+          targetNotebookId = mainNotebook.id;
+        }
+      }
+
       const result = await window.electronAPI.createNote(targetNotebookId, title);
       if (result.success && result.htmlPath) {
         const newNote: Note = {
