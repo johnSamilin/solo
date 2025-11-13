@@ -224,11 +224,11 @@ export class NotesStore {
 
   setSelectedNote = async (note: Note | null) => {
     await this.saveCurrentNote();
-    this.selectedNote = note;
-    if (this.selectedNote) {
-      this.selectedNote.isLoaded = false;
-    }
     if (note) {
+      this.selectedNote = {
+        ...note,
+        isLoaded: false,
+      };
       this.setFocusedNotebook(note.notebookId);
     }
     this.isEditing = !!note;
@@ -321,11 +321,6 @@ export class NotesStore {
 
   async loadNoteContent(note: Note): Promise<void> {
     if (!note.filePath) {
-      this.isLoadingNoteContent = false;
-      return;
-    }
-
-    if (note.content) {
       this.isLoadingNoteContent = false;
       return;
     }
