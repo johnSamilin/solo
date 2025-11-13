@@ -82,9 +82,13 @@ export const Editor: FC<EditorProps> = observer(({
     }
   };
 
-  const handleCreateNote = () => {
+  const handleCreateNote = async () => {
     if (notesStore.selectedNote) {
-      notesStore.createNote(notesStore.selectedNote.notebookId);
+      try {
+        await notesStore.createNote(notesStore.selectedNote.notebookId);
+      } catch (error) {
+        settingsStore.setToast((error as Error).message || 'Failed to create note', 'error');
+      }
     }
   };
 

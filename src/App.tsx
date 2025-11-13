@@ -213,10 +213,14 @@ const App = observer(() => {
     setIsParagraphTagModalOpen(false);
   };
 
-  const handleCreateNote = () => {
-    notesStore.createNote();
-    if (editor) {
-      editor.commands.setContent('');
+  const handleCreateNote = async () => {
+    try {
+      await notesStore.createNote();
+      if (editor) {
+        editor.commands.setContent('');
+      }
+    } catch (error) {
+      settingsStore.setToast((error as Error).message || 'Failed to create note', 'error');
     }
   };
 

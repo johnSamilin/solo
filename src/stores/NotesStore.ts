@@ -89,36 +89,63 @@ export class NotesStore {
 
 
 
-  createNote = (notebookId?: string) => {
+  createNote = async (notebookId?: string) => {
     const targetNotebookId = notebookId || this.focusedNotebookId || 'default';
-    
+
     // Generate localized title with day and month
     const now = new Date();
-    const title = now.toLocaleDateString(undefined, { 
-      day: 'numeric', 
-      month: 'long' 
+    const title = now.toLocaleDateString(undefined, {
+      day: 'numeric',
+      month: 'long'
     });
-    
-    const newNote: Note = {
-      id: generateUniqueId(),
-      title: title,
-      content: '',
-      createdAt: new Date(),
-      tags: [],
-      notebookId: targetNotebookId
-    };
-    this.notes.push(newNote);
-    this.selectedNote = newNote;
-    this.isEditing = true;
 
-    // Ensure the parent notebook is expanded
-    const notebook = this.notebooks.find(n => n.id === targetNotebookId);
-    if (notebook && !notebook.isExpanded) {
-      notebook.isExpanded = true;
+    if (window.electronAPI) {
+      const result = await window.electronAPI.createNote(targetNotebookId, title);
+      if (result.success && result.htmlPath) {
+        const newNote: Note = {
+          id: result.htmlPath,
+          title: title,
+          content: '',
+          createdAt: new Date(),
+          tags: [],
+          notebookId: targetNotebookId
+        };
+        this.notes.push(newNote);
+        this.selectedNote = newNote;
+        this.isEditing = true;
+
+        // Ensure the parent notebook is expanded
+        const notebook = this.notebooks.find(n => n.id === targetNotebookId);
+        if (notebook && !notebook.isExpanded) {
+          notebook.isExpanded = true;
+        }
+
+        return newNote;
+      } else {
+        throw new Error(result.error || 'Failed to create note');
+      }
+    } else {
+      const newNote: Note = {
+        id: generateUniqueId(),
+        title: title,
+        content: '',
+        createdAt: new Date(),
+        tags: [],
+        notebookId: targetNotebookId
+      };
+      this.notes.push(newNote);
+      this.selectedNote = newNote;
+      this.isEditing = true;
+
+      // Ensure the parent notebook is expanded
+      const notebook = this.notebooks.find(n => n.id === targetNotebookId);
+      if (notebook && !notebook.isExpanded) {
+        notebook.isExpanded = true;
+      }
+
+      this.cacheNotes();
+      return newNote;
     }
-
-    this.cacheNotes();
-    return newNote;
   };
 
   updateNote = (noteId: string, updates: Partial<Note>) => {

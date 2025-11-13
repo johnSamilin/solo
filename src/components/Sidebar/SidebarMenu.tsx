@@ -37,12 +37,16 @@ export const SidebarMenu: FC<SidebarMenuProps> = observer(({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleCreateNote = () => {
-    notesStore.createNote();
-    if (editor) {
-      editor.commands.setContent('');
+  const handleCreateNote = async () => {
+    try {
+      await notesStore.createNote();
+      if (editor) {
+        editor.commands.setContent('');
+      }
+      setIsMenuOpen(false);
+    } catch (error) {
+      settingsStore.setToast((error as Error).message || 'Failed to create note', 'error');
     }
-    setIsMenuOpen(false);
   };
 
   const handleCreateNotebook = () => {
