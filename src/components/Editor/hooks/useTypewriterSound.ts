@@ -21,12 +21,16 @@ export const useTypewriterSound = (editor: Editor | null) => {
   const soundRef = useRef<Howl>();
 
   useEffect(() => {
-    const currentSettings = notesStore.selectedNote?.theme ? 
-      themes[notesStore.selectedNote.theme].settings : 
+    const currentSettings = notesStore.selectedNote?.theme ?
+      themes[notesStore.selectedNote.theme].settings :
       settingsStore.settings;
 
+    const audioSrc = window.electronAPI
+      ? `audio://${currentSettings.typewriterSound}.mp3`
+      : `/${currentSettings.typewriterSound}.mp3`;
+
     soundRef.current = new Howl({
-      src: [`/${currentSettings.typewriterSound}.mp3`],
+      src: [audioSrc],
       volume: 1,
       rate: 2.0
     });

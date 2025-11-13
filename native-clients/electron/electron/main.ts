@@ -18,6 +18,16 @@ protocol.registerSchemesAsPrivileged([
       corsEnabled: false,
       standard: true,
     }
+  },
+  {
+    scheme: 'audio',
+    privileges: {
+      secure: true,
+      supportFetchAPI: true,
+      bypassCSP: false,
+      corsEnabled: false,
+      standard: true,
+    }
   }
 ]);
 
@@ -86,6 +96,33 @@ app.whenReady().then(async () => {
     }
 
     callback({ path: assetsPath });
+  });
+
+  protocol.registerFileProtocol('audio', (request, callback) => {
+    const url = request.url.replace('audio://', '');
+
+    let audioPath: string;
+    let basePath: string;
+
+    if (process.env.NODE_ENV === 'development') {
+      basePath = path.join(__dirname, '../../../public');
+      audioPath = path.join(basePath, url);
+    } else {
+      basePath = path.join(__dirname, '../dist');
+      audioPath = path.join(basePath, url);
+    }
+
+    if (!audioPath.startsWith(basePath)) {
+      callback({ error: -2 });
+      return;
+    }
+
+    if (!existsSync(audioPath)) {
+      callback({ error: -6 });
+      return;
+    }
+
+    callback({ path: audioPath });
   });
 
   createWindow();
