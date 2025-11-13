@@ -79,7 +79,7 @@ export const SettingsModal: FC<SettingsModalProps> = observer(({ onClose}) => {
       default:
         return null;
     }
-  }, [settingsStore.activeSettingsTab, settingsStore.settings, dataFolder]);
+  }, [settingsStore.activeSettingsTab, settingsStore.settings, settingsStore.dataFolder]);
 
   return (
     <div className="modal-overlay">
