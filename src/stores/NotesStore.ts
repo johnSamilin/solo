@@ -180,17 +180,33 @@ export class NotesStore {
     }
   };
 
-  createNotebook = (name: string, parentId: string | null = null) => {
-    const newNotebook: Notebook = {
-      id: generateUniqueId(),
-      name,
-      parentId,
-      isExpanded: true
-    };
-    this.notebooks.push(newNotebook);
-    this.cacheNotebooks();
-    this.cacheNotes();
-    return newNotebook;
+  createNotebook = async (name: string, parentId: string | null = null) => {
+    if (window.electronAPI) {
+      const result = await window.electronAPI.createNotebook(parentId || '', name);
+      if (result.success && result.path) {
+        const newNotebook: Notebook = {
+          id: result.path,
+          name,
+          parentId,
+          isExpanded: true
+        };
+        this.notebooks.push(newNotebook);
+        return newNotebook;
+      } else {
+        throw new Error(result.error || 'Failed to create notebook');
+      }
+    } else {
+      const newNotebook: Notebook = {
+        id: generateUniqueId(),
+        name,
+        parentId,
+        isExpanded: true
+      };
+      this.notebooks.push(newNotebook);
+      this.cacheNotebooks();
+      this.cacheNotes();
+      return newNotebook;
+    }
   };
 
   toggleNotebook = (notebookId: string) => {
