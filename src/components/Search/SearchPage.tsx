@@ -1,4 +1,4 @@
-import { FC, useState, useMemo } from 'react';
+import { FC, useState, useMemo, useEffect } from 'react';
 import { observer } from 'mobx-react-lite';
 import { ArrowLeft } from 'lucide-react';
 import { useStore } from '../../stores/StoreProvider';
@@ -19,10 +19,14 @@ interface TagFilter {
 }
 
 export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect }) => {
-  const { notesStore, settingsStore } = useStore();
+  const { notesStore, settingsStore, tagsStore } = useStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [tagFilters, setTagFilters] = useState<TagFilter[]>([]);
   const [selectedTagOperator, setSelectedTagOperator] = useState<'AND' | 'OR' | 'NOT'>('AND');
+
+  useEffect(() => {
+    tagsStore.loadTagsFromElectron();
+  }, [tagsStore]);
 
   // Fuzzy search function
   const fuzzyMatch = (text: string, query: string): boolean => {

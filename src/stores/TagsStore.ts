@@ -10,8 +10,27 @@ export class TagsStore {
 
   constructor() {
     makeAutoObservable(this);
-    this.loadFromStorage();
+    if (!window.electronAPI) {
+      this.loadFromStorage();
+    }
   }
+
+  loadTagsFromElectron = async () => {
+    if (!window.electronAPI) return;
+
+    try {
+      const result = await window.electronAPI.scanAllTags();
+      if (result.success && result.tags) {
+        const tags = result.tags.map((path: string) => ({
+          id: generateUniqueId(),
+          path
+        }));
+        this.tagTree = this.buildTagTree(tags);
+      }
+    } catch (error) {
+      console.error('Error loading tags from electron:', error);
+    }
+  };
 
   private loadFromStorage = async () => {
     try {
@@ -40,6 +59,8 @@ export class TagsStore {
   };
 
   private saveToStorage = async () => {
+    if (window.electronAPI) return;
+
     try {
       const data = {
         tagTree: this.tagTree
