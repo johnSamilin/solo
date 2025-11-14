@@ -148,7 +148,7 @@ export class NotesStore {
 
     const note = this.notes[noteIndex];
 
-    if (window.electronAPI && note?.path && updates.title && updates.title !== note.title) {
+    if (window.electronAPI?.renameNote && note?.path && updates.title && updates.title !== note.title) {
       const result = await window.electronAPI.renameNote(note.path, updates.title);
       if (!result.success) {
         console.error('Failed to rename note file:', result.error);
@@ -231,7 +231,7 @@ export class NotesStore {
 
     const notebook = this.notebooks[notebookIndex];
 
-    if (window.electronAPI && notebook?.path && updates.name && updates.name !== notebook.name) {
+    if (window.electronAPI?.renameNotebook && notebook?.path && updates.name && updates.name !== notebook.name) {
       const result = await window.electronAPI.renameNotebook(notebook.path, updates.name);
       if (!result.success) {
         console.error('Failed to rename notebook folder:', result.error);
