@@ -18,6 +18,7 @@ export class SettingsStore {
   toast: Toast | null = null;
   activeSettingsTab: 'typography' | 'layout' | 'data' = 'typography';
   dataFolder: string | null = null;
+  digikamDbPath: string | null = null;
 
   constructor(notesStore: NotesStore) {
     this.notesStore = notesStore;
@@ -63,6 +64,7 @@ export class SettingsStore {
           this.settings = data.settings;
           this.isZenMode = data.isZenMode;
           this.isToolbarExpanded = data.isToolbarExpanded;
+          this.digikamDbPath = data.digikamDbPath || null;
         }
       } else {
         const stored = localStorage.getItem(STORAGE_KEY);
@@ -72,6 +74,7 @@ export class SettingsStore {
           this.settings = data.settings;
           this.isZenMode = data.isZenMode;
           this.isToolbarExpanded = data.isToolbarExpanded;
+          this.digikamDbPath = data.digikamDbPath || null;
         }
       }
 
@@ -85,7 +88,8 @@ export class SettingsStore {
       const data = {
         settings: this.settings,
         isZenMode: this.isZenMode,
-        isToolbarExpanded: this.isToolbarExpanded
+        isToolbarExpanded: this.isToolbarExpanded,
+        digikamDbPath: this.digikamDbPath
       };
 
       if (isPlugin) {
@@ -140,5 +144,10 @@ export class SettingsStore {
 
   setActiveSettingsTab = (tab: 'typography' | 'layout' | 'data') => {
     this.activeSettingsTab = tab;
+  };
+
+  setDigikamDbPath = (path: string | null) => {
+    this.digikamDbPath = path;
+    this.saveToStorage();
   };
 }

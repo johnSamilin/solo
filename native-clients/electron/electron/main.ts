@@ -172,6 +172,21 @@ ipcMain.handle('get-data-folder', async () => {
   return { success: true, path: dataFolder };
 });
 
+ipcMain.handle('select-file', async (_, filters?: { name: string; extensions: string[] }[]) => {
+  if (!mainWindow) return { success: false, error: 'No window available' };
+
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openFile'],
+    filters: filters || [],
+  });
+
+  if (result.canceled || result.filePaths.length === 0) {
+    return { success: false, error: 'File selection cancelled' };
+  }
+
+  return { success: true, path: result.filePaths[0] };
+});
+
 ipcMain.handle('select-parent-folder', async () => {
   if (!mainWindow) return { success: false, error: 'No window available' };
   if (!dataFolder) return { success: false, error: 'No data folder selected' };

@@ -27,6 +27,20 @@ export const SettingsModal: FC<SettingsModalProps> = observer(({ onClose}) => {
     }
   };
 
+  const handleSelectDigikamDb = async () => {
+    if (!window.electronAPI) return;
+
+    const result = await window.electronAPI.selectFile([
+      { name: 'SQLite Database', extensions: ['db', 'sqlite', 'sqlite3'] }
+    ]);
+    if (result.success && result.path) {
+      settingsStore.setDigikamDbPath(result.path);
+      settingsStore.setToast('digiKam database path updated', 'success');
+    } else if (result.error && !result.error.includes('cancelled')) {
+      settingsStore.setToast(result.error || 'Failed to select file', 'error');
+    }
+  };
+
   const renderActiveTab = useCallback(() => {
     switch (settingsStore.activeSettingsTab) {
       case 'typography':
@@ -74,12 +88,49 @@ export const SettingsModal: FC<SettingsModalProps> = observer(({ onClose}) => {
                 Select the folder where your notes are stored
               </small>
             </div>
+            <div className="setting-item">
+              <label>digiKam Database (optional)</label>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <input
+                  type="text"
+                  value={settingsStore.digikamDbPath || 'No database selected'}
+                  readOnly
+                  style={{
+                    flex: 1,
+                    padding: '0.5rem',
+                    border: '1px solid #ccc',
+                    borderRadius: '4px',
+                    backgroundColor: '#f5f5f5'
+                  }}
+                />
+                <button
+                  onClick={handleSelectDigikamDb}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    padding: '0.5rem 1rem',
+                    backgroundColor: '#007bff',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <FolderOpen className="h-4 w-4" />
+                  Browse
+                </button>
+              </div>
+              <small style={{ color: '#666', marginTop: '0.5rem', display: 'block' }}>
+                Optional: Path to digiKam database file
+              </small>
+            </div>
           </div>
         );
       default:
         return null;
     }
-  }, [settingsStore.activeSettingsTab, settingsStore.settings, settingsStore.dataFolder]);
+  }, [settingsStore.activeSettingsTab, settingsStore.settings, settingsStore.dataFolder, settingsStore.digikamDbPath]);
 
   return (
     <div className="modal-overlay">

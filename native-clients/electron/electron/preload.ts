@@ -16,6 +16,7 @@ const api = {
   selectFolder: () => ipcRenderer.invoke('select-folder'),
   getDataFolder: () => ipcRenderer.invoke('get-data-folder'),
   selectParentFolder: () => ipcRenderer.invoke('select-parent-folder'),
+  selectFile: (filters?: { name: string; extensions: string[] }[]) => ipcRenderer.invoke('select-file', filters),
   openFile: (relativePath: string) => ipcRenderer.invoke('open-file', relativePath),
   updateFile: (relativePath: string, content: string) =>
     ipcRenderer.invoke('update-file', relativePath, content),
