@@ -697,6 +697,77 @@ ipcMain.handle('delete-notebook', async (_, relativePath: string) => {
   }
 });
 
+ipcMain.handle('rename-note', async (_, relativePath: string, newName: string) => {
+  try {
+    if (!dataFolder) {
+      return { success: false, error: 'No data folder selected' };
+    }
+
+    const sanitizedNewName = newName.trim().replace(/[/\\?%*:|"<>]/g, '-');
+    const fullPath = path.join(dataFolder, relativePath);
+
+    if (!fullPath.startsWith(dataFolder)) {
+      return { success: false, error: 'Invalid path: path traversal detected' };
+    }
+
+    if (!existsSync(fullPath)) {
+      return { success: false, error: 'Note file does not exist' };
+    }
+
+    const dirPath = path.dirname(fullPath);
+    const newHtmlPath = path.join(dirPath, `${sanitizedNewName}.html`);
+    const newJsonPath = path.join(dirPath, `${sanitizedNewName}.json`);
+    const oldJsonPath = fullPath.replace(/\.html$/, '.json');
+
+    if (existsSync(newHtmlPath)) {
+      return { success: false, error: 'A note with this name already exists' };
+    }
+
+    await fs.rename(fullPath, newHtmlPath);
+    if (existsSync(oldJsonPath)) {
+      await fs.rename(oldJsonPath, newJsonPath);
+    }
+
+    const relativeNewPath = path.relative(dataFolder, newHtmlPath);
+    return { success: true, newPath: relativeNewPath };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
+});
+
+ipcMain.handle('rename-notebook', async (_, relativePath: string, newName: string) => {
+  try {
+    if (!dataFolder) {
+      return { success: false, error: 'No data folder selected' };
+    }
+
+    const sanitizedNewName = newName.trim().replace(/[/\\?%*:|"<>]/g, '-');
+    const fullPath = path.join(dataFolder, relativePath);
+
+    if (!fullPath.startsWith(dataFolder)) {
+      return { success: false, error: 'Invalid path: path traversal detected' };
+    }
+
+    if (!existsSync(fullPath)) {
+      return { success: false, error: 'Notebook folder does not exist' };
+    }
+
+    const parentPath = path.dirname(fullPath);
+    const newPath = path.join(parentPath, sanitizedNewName);
+
+    if (existsSync(newPath)) {
+      return { success: false, error: 'A notebook with this name already exists' };
+    }
+
+    await fs.rename(fullPath, newPath);
+
+    const relativeNewPath = path.relative(dataFolder, newPath);
+    return { success: true, newPath: relativeNewPath };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
+});
+
 ipcMain.handle('upload-image', async (_event, imageData: string, fileName: string) => {
   try {
     if (!dataFolder) {

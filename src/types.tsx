@@ -96,6 +96,8 @@ export interface ElectronAPI {
   createNote: (parentPath: string, name: string) => Promise<{ success: boolean; htmlPath?: string; jsonPath?: string; error?: string }>;
   deleteNote: (relativePath: string) => Promise<{ success: boolean; error?: string }>;
   deleteNotebook: (relativePath: string) => Promise<{ success: boolean; error?: string }>;
+  renameNote: (relativePath: string, newName: string) => Promise<{ success: boolean; newPath?: string; error?: string }>;
+  renameNotebook: (relativePath: string, newName: string) => Promise<{ success: boolean; newPath?: string; error?: string }>;
   selectFile: (filters?: { name: string; extensions: string[] }[]) => Promise<{ success: boolean; path?: string; error?: string }>;
 }
 

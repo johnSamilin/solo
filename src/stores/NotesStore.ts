@@ -142,22 +142,46 @@ export class NotesStore {
     }
   };
 
-  updateNote = (noteId: string, updates: Partial<Note>) => {
+  updateNote = async (noteId: string, updates: Partial<Note>) => {
     const noteIndex = this.notes.findIndex(note => note.id === noteId);
-    if (noteIndex !== -1) {
-      this.notes[noteIndex] = { ...this.notes[noteIndex], ...updates };
+    if (noteIndex === -1) return;
+
+    const note = this.notes[noteIndex];
+
+    if (window.electronAPI && note?.path && updates.title && updates.title !== note.title) {
+      const result = await window.electronAPI.renameNote(note.path, updates.title);
+      if (!result.success) {
+        console.error('Failed to rename note file:', result.error);
+        return;
+      }
+
+      if (result.newPath) {
+        this.notes[noteIndex] = {
+          ...note,
+          ...updates,
+          id: result.newPath,
+          path: result.newPath,
+          filePath: result.newPath
+        };
+
+        if (this.selectedNote?.id === noteId) {
+          this.selectedNote = this.notes[noteIndex];
+        }
+      }
+    } else {
+      this.notes[noteIndex] = { ...note, ...updates };
       if (this.selectedNote?.id === noteId) {
         this.selectedNote = this.notes[noteIndex];
       }
-      this.cacheNotes();
+    }
 
-      if (updates.content !== undefined) {
-        this.debouncedSave(noteId, updates.content);
-      }
+    this.cacheNotes();
 
-      // Track theme changes
-      if (updates.theme !== undefined) {
-      }
+    if (updates.content !== undefined) {
+      this.debouncedSave(this.notes[noteIndex].id, updates.content);
+    }
+
+    if (updates.theme !== undefined) {
     }
   };
 
@@ -201,12 +225,57 @@ export class NotesStore {
     }
   };
 
-  updateNotebook = (notebookId: string, updates: Partial<Notebook>) => {
+  updateNotebook = async (notebookId: string, updates: Partial<Notebook>) => {
     const notebookIndex = this.notebooks.findIndex(notebook => notebook.id === notebookId);
-    if (notebookIndex !== -1) {
-      this.notebooks[notebookIndex] = { ...this.notebooks[notebookIndex], ...updates };
-      this.cacheNotebooks();
+    if (notebookIndex === -1) return;
+
+    const notebook = this.notebooks[notebookIndex];
+
+    if (window.electronAPI && notebook?.path && updates.name && updates.name !== notebook.name) {
+      const result = await window.electronAPI.renameNotebook(notebook.path, updates.name);
+      if (!result.success) {
+        console.error('Failed to rename notebook folder:', result.error);
+        return;
+      }
+
+      if (result.newPath) {
+        const oldPath = notebook.path;
+        const newPath = result.newPath;
+
+        this.notebooks[notebookIndex] = {
+          ...notebook,
+          ...updates,
+          id: newPath,
+          path: newPath
+        };
+
+        this.notebooks.forEach((nb, idx) => {
+          if (nb.parentId === oldPath) {
+            this.notebooks[idx] = { ...nb, parentId: newPath };
+          }
+        });
+
+        this.notes.forEach((note, idx) => {
+          if (note.notebookId === oldPath) {
+            const notePathParts = note.path?.split('/') || [];
+            if (notePathParts.length > 0) {
+              notePathParts[0] = updates.name || notebook.name;
+              const newNotePath = notePathParts.join('/');
+              this.notes[idx] = { ...note, notebookId: newPath, path: newNotePath, filePath: newNotePath };
+            }
+          }
+        });
+
+        if (this.focusedNotebookId === oldPath) {
+          this.focusedNotebookId = newPath;
+        }
+      }
+    } else {
+      this.notebooks[notebookIndex] = { ...notebook, ...updates };
     }
+
+    this.cacheNotebooks();
+    this.cacheNotes();
   };
 
   deleteNotebook = async (notebookId: string) => {

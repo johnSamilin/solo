@@ -31,6 +31,8 @@ const api = {
   createNote: (parentPath: string, name: string) => ipcRenderer.invoke('create-note', parentPath, name),
   deleteNote: (relativePath: string) => ipcRenderer.invoke('delete-note', relativePath),
   deleteNotebook: (relativePath: string) => ipcRenderer.invoke('delete-notebook', relativePath),
+  renameNote: (relativePath: string, newName: string) => ipcRenderer.invoke('rename-note', relativePath, newName),
+  renameNotebook: (relativePath: string, newName: string) => ipcRenderer.invoke('rename-notebook', relativePath, newName),
   uploadImage: (imageData: string, fileName: string) => ipcRenderer.invoke('upload-image', imageData, fileName),
 };
 
