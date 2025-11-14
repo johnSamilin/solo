@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, protocol } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, protocol, net } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import { existsSync } from 'fs';
@@ -75,54 +75,51 @@ const createWindow = () => {
 app.whenReady().then(async () => {
   await loadSettings();
 
-  protocol.registerFileProtocol('image', (request, callback) => {
-    const url = request.url.replace('image://', '');
+  protocol.handle('image', (request) => {
+    const url = new URL(request.url);
+    const filePath = url.pathname;
 
     if (!dataFolder) {
-      callback({ error: -2 });
-      return;
+      return new Response('No data folder', { status: 404 });
     }
 
-    const assetsPath = path.join(dataFolder, 'assets', url);
+    const assetsPath = path.join(dataFolder, 'assets', filePath);
 
     if (!assetsPath.startsWith(path.join(dataFolder, 'assets'))) {
-      callback({ error: -2 });
-      return;
+      return new Response('Forbidden', { status: 403 });
     }
 
     if (!existsSync(assetsPath)) {
-      callback({ error: -6 });
-      return;
+      return new Response('Not found', { status: 404 });
     }
 
-    callback({ path: assetsPath });
+    return net.fetch('file://' + assetsPath);
   });
 
-  protocol.registerFileProtocol('audio', (request, callback) => {
-    const url = request.url.replace('audio://', '');
+  protocol.handle('audio', (request) => {
+    const url = new URL(request.url);
+    const filePath = url.pathname;
 
     let audioPath: string;
     let basePath: string;
 
     if (process.env.NODE_ENV === 'development') {
       basePath = path.join(__dirname, '../../../public');
-      audioPath = path.join(basePath, url);
+      audioPath = path.join(basePath, filePath);
     } else {
       basePath = path.join(__dirname, '../dist');
-      audioPath = path.join(basePath, url);
+      audioPath = path.join(basePath, filePath);
     }
 
     if (!audioPath.startsWith(basePath)) {
-      callback({ error: -2 });
-      return;
+      return new Response('Forbidden', { status: 403 });
     }
 
     if (!existsSync(audioPath)) {
-      callback({ error: -6 });
-      return;
+      return new Response('Not found', { status: 404 });
     }
 
-    callback({ path: audioPath });
+    return net.fetch('file://' + audioPath);
   });
 
   createWindow();
