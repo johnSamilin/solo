@@ -209,11 +209,46 @@ export class NotesStore {
     }
   };
 
+  deleteNotebook = async (notebookId: string) => {
+    const notebook = this.notebooks.find(n => n.id === notebookId);
+
+    if (window.electronAPI && notebook?.path) {
+      const result = await window.electronAPI.deleteNotebook(notebook.path);
+      if (!result.success) {
+        console.error('Failed to delete notebook folder:', result.error);
+        return;
+      }
+    }
+
+    const notesToDelete = this.notes.filter(note => note.notebookId === notebookId);
+    for (const note of notesToDelete) {
+      await this.deleteNote(note.id);
+    }
+
+    const childNotebooks = this.notebooks.filter(nb => nb.parentId === notebookId);
+    for (const child of childNotebooks) {
+      await this.deleteNotebook(child.id);
+    }
+
+    this.notebooks = this.notebooks.filter(notebook => notebook.id !== notebookId);
+    this.cacheNotebooks();
+  };
+
 
   deleteNote = async (noteId: string) => {
     if (this.selectedNote?.id === noteId) {
       await this.saveCurrentNote();
     }
+
+    const note = this.notes.find(n => n.id === noteId);
+
+    if (window.electronAPI && note?.path) {
+      const result = await window.electronAPI.deleteNote(note.path);
+      if (!result.success) {
+        console.error('Failed to delete note file:', result.error);
+      }
+    }
+
     this.notes = this.notes.filter(note => note.id !== noteId);
     if (this.selectedNote?.id === noteId) {
       this.selectedNote = null;

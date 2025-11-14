@@ -644,6 +644,59 @@ ipcMain.handle('create-note', async (_, parentPath: string, name: string) => {
   }
 });
 
+ipcMain.handle('delete-note', async (_, relativePath: string) => {
+  try {
+    if (!dataFolder) {
+      return { success: false, error: 'No data folder selected' };
+    }
+
+    const fullPath = path.join(dataFolder, relativePath);
+
+    if (!fullPath.startsWith(dataFolder)) {
+      return { success: false, error: 'Invalid path: path traversal detected' };
+    }
+
+    if (!existsSync(fullPath)) {
+      return { success: false, error: 'Note file does not exist' };
+    }
+
+    const jsonPath = fullPath.replace(/\.html$/, '.json');
+
+    await fs.unlink(fullPath);
+    if (existsSync(jsonPath)) {
+      await fs.unlink(jsonPath);
+    }
+
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
+});
+
+ipcMain.handle('delete-notebook', async (_, relativePath: string) => {
+  try {
+    if (!dataFolder) {
+      return { success: false, error: 'No data folder selected' };
+    }
+
+    const fullPath = path.join(dataFolder, relativePath);
+
+    if (!fullPath.startsWith(dataFolder)) {
+      return { success: false, error: 'Invalid path: path traversal detected' };
+    }
+
+    if (!existsSync(fullPath)) {
+      return { success: false, error: 'Notebook folder does not exist' };
+    }
+
+    await fs.rm(fullPath, { recursive: true, force: true });
+
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
+});
+
 ipcMain.handle('upload-image', async (_event, imageData: string, fileName: string) => {
   try {
     if (!dataFolder) {

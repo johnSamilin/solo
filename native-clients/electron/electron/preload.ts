@@ -29,6 +29,8 @@ const api = {
   search: (searchString?: string, tags?: string[]) => ipcRenderer.invoke('search', searchString, tags),
   createNotebook: (parentPath: string, name: string) => ipcRenderer.invoke('create-notebook', parentPath, name),
   createNote: (parentPath: string, name: string) => ipcRenderer.invoke('create-note', parentPath, name),
+  deleteNote: (relativePath: string) => ipcRenderer.invoke('delete-note', relativePath),
+  deleteNotebook: (relativePath: string) => ipcRenderer.invoke('delete-notebook', relativePath),
   uploadImage: (imageData: string, fileName: string) => ipcRenderer.invoke('upload-image', imageData, fileName),
 };
 

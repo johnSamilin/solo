@@ -22,6 +22,7 @@ export interface Note {
   notebookId: string;
   theme?: string;
   filePath?: string;
+  path?: string;
   isLoaded: boolean;
 }
 
@@ -30,6 +31,7 @@ export interface Notebook {
   name: string;
   parentId: string | null;
   isExpanded: boolean;
+  path?: string;
 }
 
 export interface TypographySettings {
@@ -92,6 +94,9 @@ export interface ElectronAPI {
   search: (searchString?: string, tags?: string[]) => Promise<{ success: boolean; results?: any[]; error?: string }>;
   createNotebook: (parentPath: string, name: string) => Promise<{ success: boolean; path?: string; error?: string }>;
   createNote: (parentPath: string, name: string) => Promise<{ success: boolean; htmlPath?: string; jsonPath?: string; error?: string }>;
+  deleteNote: (relativePath: string) => Promise<{ success: boolean; error?: string }>;
+  deleteNotebook: (relativePath: string) => Promise<{ success: boolean; error?: string }>;
+  selectFile: (filters?: { name: string; extensions: string[] }[]) => Promise<{ success: boolean; path?: string; error?: string }>;
 }
 
 declare global {

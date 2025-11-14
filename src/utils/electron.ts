@@ -34,6 +34,7 @@ export function parseFileStructure(structure: FileNode[]): ParseResult {
         name: node.name,
         parentId: parentId,
         isExpanded: true,
+        path: node.path,
       });
 
       if (node.children) {
@@ -62,7 +63,9 @@ export function parseFileStructure(structure: FileNode[]): ParseResult {
         tags: tags,
         notebookId: parentPath || 'default',
         filePath: node.path,
-      } as Note & { filePath: string });
+        path: node.path,
+        isLoaded: false,
+      });
     }
   }
 

@@ -66,6 +66,10 @@ export const NotebookItem = observer(({ notebook, level = 0, editor }: NotebookI
     notesStore.updateNotebook(notebook.id, updatedNotebook);
   };
 
+  const handleDeleteNotebook = async () => {
+    await notesStore.deleteNotebook(notebook.id);
+  };
+
   const visibleNotes = notebookNotes;
 
   return (
@@ -137,6 +141,7 @@ export const NotebookItem = observer(({ notebook, level = 0, editor }: NotebookI
           onClose={() => setIsEditModalOpen(false)}
           notebook={notebook}
           onUpdate={handleUpdateNotebook}
+          onDelete={handleDeleteNotebook}
         />
       )}
     </div>

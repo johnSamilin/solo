@@ -9,18 +9,27 @@ type EditNotebookModalProps = {
   onClose: () => void;
   notebook: Notebook;
   onUpdate: (updates: Partial<Notebook>) => void;
+  onDelete?: () => void;
 };
 
 export const EditNotebookModal: FC<EditNotebookModalProps> = observer(({
   onClose,
   notebook,
   onUpdate,
+  onDelete,
 }) => {
   const [name, setName] = useState(notebook.name);
 
   const handleSubmit = () => {
     if (name.trim()) {
       onUpdate({ name: name.trim() });
+      onClose();
+    }
+  };
+
+  const handleDelete = () => {
+    if (confirm(`Are you sure you want to delete "${notebook.name}" and all its contents?`)) {
+      onDelete?.();
       onClose();
     }
   };
@@ -46,6 +55,15 @@ export const EditNotebookModal: FC<EditNotebookModalProps> = observer(({
             />
           </div>
           <div className="modal-actions">
+            {onDelete && (
+              <button
+                onClick={handleDelete}
+                className="button-secondary"
+                style={{ backgroundColor: '#dc3545', color: 'white' }}
+              >
+                Delete Notebook
+              </button>
+            )}
             <button
               onClick={handleSubmit}
               className="button-primary"
