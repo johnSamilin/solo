@@ -194,7 +194,7 @@ export class NotesStore {
     const metadata = {
       id: note.id,
       tags: note.tags.map(tag => tag.path),
-      date: new Date(note.createdAt).toISOString().split('T')[0]
+      createdAt: new Date(note.createdAt).toISOString().split('T')[0]
     };
 
     try {
