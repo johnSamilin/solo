@@ -4,7 +4,7 @@ import { Folder, File, RefreshCw, Save, FileJson, FolderTree, Tags, Maximize2, M
 interface FileMetadata {
   id: string;
   tags: string[];
-  date: string;
+  createdAt: string;
 }
 
 interface FileNode {
@@ -28,7 +28,7 @@ function App() {
   const [metadata, setMetadata] = useState<FileMetadata>({
     id: '',
     tags: [],
-    date: new Date().toISOString().split('T')[0],
+    createdAt: new Date().toISOString().split('T')[0],
   });
   const [structure, setStructure] = useState<FileNode[]>([]);
   const [status, setStatus] = useState<string>('');
@@ -80,6 +80,7 @@ function App() {
     if (!window.electronAPI) return;
 
     const result = await window.electronAPI.readStructure();
+    console.log({result})
     if (result.success && result.structure) {
       setStructure(result.structure);
       setStatus('File structure loaded');
@@ -109,7 +110,7 @@ function App() {
           setMetadata({
             id: '',
             tags: [],
-            date: new Date().toISOString().split('T')[0],
+            createdAt: new Date().toISOString().split('T')[0],
           });
         }
       }
@@ -475,8 +476,8 @@ function App() {
                   <label className="block text-sm font-medium text-slate-700 mb-2">Date</label>
                   <input
                     type="date"
-                    value={metadata.date}
-                    onChange={(e) => setMetadata({ ...metadata, date: e.target.value })}
+                    value={metadata.createdAt}
+                    onChange={(e) => setMetadata({ ...metadata, createdAt: e.target.value })}
                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>

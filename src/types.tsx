@@ -69,7 +69,7 @@ export interface Bridge {
 export interface FileMetadata {
   id: string;
   tags: string[];
-  date: string;
+  createdAt: string;
 }
 
 export interface FileNode {

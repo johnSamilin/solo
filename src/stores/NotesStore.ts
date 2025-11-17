@@ -1,6 +1,5 @@
 import { makeObservable, observable, runInAction } from 'mobx';
 import { Note, Tag, Notebook } from '../types';
-import { generateUniqueId } from '../utils';
 import { loadFromElectron, loadNoteContent } from '../utils/electron';
 
 

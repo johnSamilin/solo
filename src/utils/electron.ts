@@ -12,7 +12,6 @@ export async function loadFromElectron(): Promise<ParseResult> {
   }
 
   const result = await window.electronAPI.readStructure();
-
   if (!result.success || !result.structure) {
     throw new Error(result.error || 'Failed to read structure');
   }
@@ -51,8 +50,8 @@ export function parseFileStructure(structure: FileNode[]): ParseResult {
         path: tagPath,
       })) || [];
 
-      const createdAt = metadata?.date
-        ? new Date(metadata.date)
+      const createdAt = metadata?.createdAt
+        ? new Date(metadata.createdAt)
         : new Date();
 
       notes.push({

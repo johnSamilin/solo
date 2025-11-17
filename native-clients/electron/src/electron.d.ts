@@ -1,7 +1,7 @@
 interface FileMetadata {
   id: string;
   tags: string[];
-  date: string;
+  createdAt: string;
 }
 
 interface FileNode {

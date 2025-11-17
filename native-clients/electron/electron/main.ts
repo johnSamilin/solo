@@ -140,7 +140,7 @@ app.on('window-all-closed', () => {
 interface FileMetadata {
   id: string;
   tags: string[];
-  date: string;
+  createdAt: string;
 }
 
 interface FileNode {
@@ -625,7 +625,7 @@ ipcMain.handle('create-note', async (_, parentPath: string, name: string) => {
     const metadata: FileMetadata = {
       id: sanitizedName,
       tags: [],
-      date: new Date().toISOString().split('T')[0],
+      createdAt: new Date().toISOString().split('T')[0],
     };
 
     await fs.writeFile(htmlPath, htmlContent, 'utf-8');
