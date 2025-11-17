@@ -180,7 +180,30 @@ export class NotesStore {
       this.debouncedSave(this.notes[noteIndex].id, updates.content);
     }
 
+    if (updates.createdAt !== undefined || updates.tags !== undefined) {
+      this.updateNoteMetadata(this.notes[noteIndex]);
+    }
+
     if (updates.theme !== undefined) {
+    }
+  };
+
+  private updateNoteMetadata = async (note: Note) => {
+    if (!window.electronAPI?.updateMetadata || !note.path) return;
+
+    const metadata = {
+      id: note.id,
+      tags: note.tags.map(tag => tag.path),
+      date: new Date(note.createdAt).toISOString().split('T')[0]
+    };
+
+    try {
+      const result = await window.electronAPI.updateMetadata(note.path, metadata);
+      if (!result.success) {
+        console.error('Failed to update note metadata:', result.error);
+      }
+    } catch (error) {
+      console.error('Error updating note metadata:', error);
     }
   };
 
