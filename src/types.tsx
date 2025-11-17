@@ -70,6 +70,7 @@ export interface FileMetadata {
   id: string;
   tags: string[];
   createdAt: string;
+  theme?: string;
 }
 
 export interface FileNode {

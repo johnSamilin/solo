@@ -58,6 +58,7 @@ export function parseFileStructure(structure: FileNode[]): ParseResult {
         id: node.path,
         title: noteTitle,
         content: '',
+        ...metadata,
         createdAt: createdAt,
         tags: tags,
         notebookId: parentPath || 'default',

@@ -4,6 +4,7 @@ interface FileMetadata {
   id: string;
   tags: string[];
   date: string;
+  theme?: string;
 }
 
 interface ApiResponse<T = unknown> {

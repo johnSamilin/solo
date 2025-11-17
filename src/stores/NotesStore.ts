@@ -180,9 +180,7 @@ export class NotesStore {
       this.debouncedSave(this.notes[noteIndex].id, updates.content);
     }
 
-    if (updates.createdAt !== undefined || updates.tags !== undefined) {
-      this.updateNoteMetadata(this.notes[noteIndex]);
-    }
+    this.updateNoteMetadata(this.notes[noteIndex]);
 
     if (updates.theme !== undefined) {
     }
@@ -194,7 +192,8 @@ export class NotesStore {
     const metadata = {
       id: note.id,
       tags: note.tags.map(tag => tag.path),
-      createdAt: new Date(note.createdAt).toISOString().split('T')[0]
+      createdAt: new Date(note.createdAt).toISOString().split('T')[0],
+      theme: note.theme,
     };
 
     try {
