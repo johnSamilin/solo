@@ -4,6 +4,9 @@ export default {
     executableName: 'solo',
     icon: './build/icon',
     asar: true,
+    extraResource: [
+      './dist'
+    ],
   },
   rebuildConfig: {},
   makers: [

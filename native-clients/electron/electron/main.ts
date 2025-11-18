@@ -68,7 +68,10 @@ const createWindow = () => {
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+    const indexPath = path.join(process.resourcesPath, 'dist', 'index.html');
+    console.log('Loading index.html from:', indexPath);
+    console.log('Resources path:', process.resourcesPath);
+    mainWindow.loadFile(indexPath);
   }
 };
 
@@ -107,7 +110,7 @@ app.whenReady().then(async () => {
       basePath = path.join(__dirname, '../../../public');
       audioPath = path.join(basePath, filePath);
     } else {
-      basePath = path.join(__dirname, '../dist');
+      basePath = path.join(process.resourcesPath, 'dist');
       audioPath = path.join(basePath, filePath);
     }
 

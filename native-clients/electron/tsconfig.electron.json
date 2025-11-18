@@ -8,7 +8,9 @@
     "moduleResolution": "node",
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "strict": true
+    "strict": false,
+    "types": ["node"],
+    "typeRoots": ["./electron", "./node_modules/@types"]
   },
   "include": ["electron/**/*"],
   "exclude": ["node_modules"]
