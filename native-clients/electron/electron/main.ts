@@ -80,7 +80,7 @@ app.whenReady().then(async () => {
 
   protocol.handle('image', (request) => {
     const url = new URL(request.url);
-    const filePath = url.pathname;
+    const filePath = url.hostname;
 
     if (!dataFolder) {
       return new Response('No data folder', { status: 404 });
