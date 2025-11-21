@@ -94,7 +94,7 @@ export interface ElectronAPI {
   getZenMode: () => Promise<{ success: boolean; isZenMode?: boolean; error?: string }>;
   search: (searchString?: string, tags?: string[]) => Promise<{ success: boolean; results?: any[]; error?: string }>;
   createNotebook: (parentPath: string, name: string) => Promise<{ success: boolean; path?: string; error?: string }>;
-  createNote: (parentPath: string, name: string) => Promise<{ success: boolean; htmlPath?: string; jsonPath?: string; error?: string }>;
+  createNote: (parentPath: string, name: string) => Promise<{ success: boolean; htmlPath?: string; jsonPath?: string; error?: string, id: string }>;
   deleteNote: (relativePath: string) => Promise<{ success: boolean; error?: string }>;
   deleteNotebook: (relativePath: string) => Promise<{ success: boolean; error?: string }>;
   renameNote: (relativePath: string, newName: string) => Promise<{ success: boolean; newPath?: string; error?: string }>;

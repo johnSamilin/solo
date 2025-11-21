@@ -187,39 +187,6 @@ const App = observer(() => {
         console.error('Image upload failed:', error);
         settingsStore.setToast('Failed to upload image', 'error');
       }
-    } else if (settingsStore.syncMode === 'server' && settingsStore.server.token) {
-      try {
-        const formData = new FormData();
-        formData.append('image', file);
-
-        const response = await fetch(`${settingsStore.server.url}/api/upload`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${settingsStore.server.token}`,
-          },
-          body: formData
-        });
-
-        if (response.ok) {
-          const { url } = await response.json();
-          editor?.chain().focus().setImage({
-            src: `${settingsStore.server.url}${url}`
-          }).run();
-        } else {
-          settingsStore.setToast('Failed to upload image', 'error');
-        }
-      } catch (error) {
-        console.error('Image upload failed:', error);
-        settingsStore.setToast('Failed to upload image', 'error');
-      }
-    } else {
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === 'string') {
-          editor?.chain().focus().setImage({ src: reader.result }).run();
-        }
-      };
-      reader.readAsDataURL(file);
     }
   };
 

@@ -114,16 +114,22 @@ export class NotesStore {
       }
     }
 
-    const result = await window.electronAPI.createNote(targetNotebookId, title);
+    const path = this.notebooks.find((notebook) => notebook.id === notebookId)?.path;
+    console.log("create note", { path, notebookId })
+    if (!path) {
+      throw "no such notebook";
+    }
+    const result = await window.electronAPI.createNote(path, title);
     if (result.success && result.htmlPath) {
       const newNote: Note = {
-        id: result.htmlPath,
+        id: result.id,
         title: title,
         content: '',
         createdAt: new Date(),
         tags: [],
         notebookId: targetNotebookId,
         isLoaded: true,
+        path: result.htmlPath,
       };
       this.notes.push(newNote);
       this.selectedNote = newNote;
@@ -225,7 +231,12 @@ export class NotesStore {
 
   private saveNoteContent = async (noteId: string, content: string) => {
     try {
-      const result = await window.electronAPI.updateFile(noteId, content);
+      const path = this.notes.find(note => note.id === noteId)?.path;
+      if (!path) {
+        console.log({ noteId, path, notes: [...this.notes] })
+        throw 'No such path';
+      }
+      const result = await window.electronAPI.updateFile(path, content);
       if (!result.success) {
         console.error('Failed to save note:', result.error);
       }

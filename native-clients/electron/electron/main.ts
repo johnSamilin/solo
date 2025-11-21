@@ -564,7 +564,7 @@ ipcMain.handle('create-notebook', async (_, parentPath: string, name: string) =>
       return { success: false, error: 'Notebook name is required' };
     }
 
-    const sanitizedName = name.trim().replace(/[/\\?%*:|"<>]/g, '-');
+    const sanitizedName = name.replace(/[/\\?%*:|"<>]/g, '-');
     const fullParentPath = path.join(dataFolder, parentPath);
 
     if (!fullParentPath.startsWith(dataFolder)) {
@@ -596,7 +596,7 @@ ipcMain.handle('create-note', async (_, parentPath: string, name: string) => {
       return { success: false, error: 'Note name is required' };
     }
 
-    const sanitizedName = name.trim().replace(/[/\\?%*:|"<>]/g, '-');
+    const sanitizedName = name.replace(/[/\\?%*:|"<>]/g, '-');
     const fullParentPath = path.join(dataFolder, parentPath);
 
     if (!fullParentPath.startsWith(dataFolder)) {
@@ -626,7 +626,7 @@ ipcMain.handle('create-note', async (_, parentPath: string, name: string) => {
 </html>`;
 
     const metadata: FileMetadata = {
-      id: sanitizedName,
+      id: Date.now().toString(),
       tags: [],
       createdAt: new Date().toISOString().split('T')[0],
     };
@@ -640,6 +640,7 @@ ipcMain.handle('create-note', async (_, parentPath: string, name: string) => {
     return {
       success: true,
       htmlPath: relativeHtmlPath,
+      id: metadata.id,
       jsonPath: relativeJsonPath,
     };
   } catch (error) {
@@ -654,7 +655,6 @@ ipcMain.handle('delete-note', async (_, relativePath: string) => {
     }
 
     const fullPath = path.join(dataFolder, relativePath);
-
     if (!fullPath.startsWith(dataFolder)) {
       return { success: false, error: 'Invalid path: path traversal detected' };
     }
@@ -706,7 +706,7 @@ ipcMain.handle('rename-note', async (_, relativePath: string, newName: string) =
       return { success: false, error: 'No data folder selected' };
     }
 
-    const sanitizedNewName = newName.trim().replace(/[/\\?%*:|"<>]/g, '-');
+    const sanitizedNewName = newName.replace(/[/\\?%*:|"<>]/g, '-');
     const fullPath = path.join(dataFolder, relativePath);
 
     if (!fullPath.startsWith(dataFolder)) {
@@ -744,7 +744,7 @@ ipcMain.handle('rename-notebook', async (_, relativePath: string, newName: strin
       return { success: false, error: 'No data folder selected' };
     }
 
-    const sanitizedNewName = newName.trim().replace(/[/\\?%*:|"<>]/g, '-');
+    const sanitizedNewName = newName.replace(/[/\\?%*:|"<>]/g, '-');
     const fullPath = path.join(dataFolder, relativePath);
 
     if (!fullPath.startsWith(dataFolder)) {

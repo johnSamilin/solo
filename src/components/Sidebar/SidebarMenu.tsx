@@ -39,7 +39,7 @@ export const SidebarMenu: FC<SidebarMenuProps> = observer(({
 
   const handleCreateNote = async () => {
     try {
-      await notesStore.createNote();
+      await notesStore.createNote(notesStore.focusedNotebookId ?? undefined);
       if (editor) {
         editor.commands.setContent('');
       }
