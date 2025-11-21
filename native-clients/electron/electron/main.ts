@@ -101,7 +101,7 @@ app.whenReady().then(async () => {
 
   protocol.handle('audio', (request) => {
     const url = new URL(request.url);
-    const filePath = url.pathname;
+    const filePath = url.hostname;
 
     let audioPath: string;
     let basePath: string;
