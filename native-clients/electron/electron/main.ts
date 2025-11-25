@@ -80,7 +80,7 @@ app.whenReady().then(async () => {
 
   protocol.handle('image', (request) => {
     const url = new URL(request.url);
-    const filePath = url.hostname;
+    const filePath = process.platform === 'darwin' ? url.hostname : url.pathname;
 
     if (!dataFolder) {
       return new Response('No data folder', { status: 404 });
@@ -101,7 +101,7 @@ app.whenReady().then(async () => {
 
   protocol.handle('audio', (request) => {
     const url = new URL(request.url);
-    const filePath = url.hostname;
+    const filePath = process.platform === 'darwin' ? url.hostname : url.pathname;
 
     let audioPath: string;
     let basePath: string;
