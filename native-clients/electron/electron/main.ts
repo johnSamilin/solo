@@ -337,7 +337,10 @@ ipcMain.handle('read-structure', async () => {
 
       return nodes.sort((a, b) => {
         if (a.type === b.type) return a.name.localeCompare(b.name);
-        return a.type === 'folder' ? -1 : 1;
+        if (a.type === 'folder') {
+          return -1;
+        }
+        return (a.metadata?.createdAt ?? 0) > (b.metadata?.createdAt ?? 0) ? 1 : -1;
       });
     };
 
