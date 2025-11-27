@@ -142,6 +142,10 @@
   overflow-y: auto;
 }
 
+.zen-mode .editor.annotated .editor-content {
+  grid-template-columns: 50% 50%;
+}
+
 .editor.annotated .add-image-button {
   display: flex;
   align-items: center;
