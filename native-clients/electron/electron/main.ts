@@ -80,28 +80,52 @@ const createWindow = () => {
   });
 };
 
+async function getFile(filePath: string) {
+  const result = {
+    success: false,
+    response: new Response(),
+  };
+
+  if (!dataFolder) {
+    result.response = new Response('No data folder', { status: 404 });
+    return result;
+  }
+
+  const assetsPath = path.join(dataFolder, 'assets', filePath);
+
+  if (!assetsPath.startsWith(path.join(dataFolder, 'assets'))) {
+    result.response = new Response('Forbidden', { status: 403 });
+    return result;
+  }
+
+  if (!existsSync(assetsPath)) {
+    result.response = new Response('Not found', { status: 404 });
+    return result;
+  }
+
+  result.success = true;
+  result.response = await net.fetch('file://' + assetsPath);
+
+  return result;
+}
+
 app.whenReady().then(async () => {
   await loadSettings();
 
-  protocol.handle('image', (request) => {
+  protocol.handle('image', async (request) => {
     const url = new URL(request.url);
     const filePath = process.platform === 'darwin' ? url.hostname : url.pathname;
-
-    if (!dataFolder) {
-      return new Response('No data folder', { status: 404 });
+    const hostnameFile = await getFile(url.hostname);
+    if (hostnameFile.success) {
+      return hostnameFile.response;
+    } else {
+      const pathnameFile = await getFile(url.pathname);
+      if (pathnameFile.success) {
+        return pathnameFile.response;
+      }
     }
-
-    const assetsPath = path.join(dataFolder, 'assets', filePath);
-
-    if (!assetsPath.startsWith(path.join(dataFolder, 'assets'))) {
-      return new Response('Forbidden', { status: 403 });
-    }
-
-    if (!existsSync(assetsPath)) {
-      return new Response('Not found', { status: 404 });
-    }
-
-    return net.fetch('file://' + assetsPath);
+    
+    return Promise.reject();
   });
 
   protocol.handle('audio', (request) => {
@@ -341,11 +365,14 @@ ipcMain.handle('read-structure', async () => {
       }
 
       return nodes.sort((a, b) => {
-        if (a.type === b.type) return a.name.localeCompare(b.name);
+        if (a.type === b.type && a.type === 'file') {
+          return (a.metadata?.createdAt ?? 0) > (b.metadata?.createdAt ?? 0) ? 1 : -1;
+        }
         if (a.type === 'folder') {
           return -1;
         }
-        return (a.metadata?.createdAt ?? 0) > (b.metadata?.createdAt ?? 0) ? 1 : -1;
+
+        return 0;
       });
     };
 
@@ -793,7 +820,7 @@ ipcMain.handle('upload-image', async (_event, imageData: string, fileName: strin
 
     const timestamp = Date.now();
     const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const uniqueFileName = `${timestamp}-${sanitizedFileName}`;
+    const uniqueFileName = `${timestamp}-${sanitizedFileName}`.toLowerCase();
     const filePath = path.join(assetsDir, uniqueFileName);
 
     const base64Data = imageData.replace(/^data:image\/\w+;base64,/, '');

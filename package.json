@@ -7,7 +7,7 @@
     "build": "vite build && npm run copy-assets",
     "lint": "eslint .",
     "preview": "vite preview",
-    "copy-assets": "cp -R assets dist/assets && cp -R dist/* native-clients/electron/dist"
+    "copy-assets": "cp -R assets dist/assets && cp -R dist/* native-clients/electron/electron/dist"
   },
   "dependencies": {
     "@tiptap/core": "^2.2.4",
