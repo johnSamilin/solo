@@ -11,6 +11,7 @@ import { observer } from 'mobx-react-lite';
 import { ParagraphTags } from './extensions/ParagraphTags';
 import { FullWidthImage } from './extensions/FullWidthImage';
 import { CutIn } from './extensions/CutIn';
+import { Carousel } from './extensions/Carousel';
 import { buildTagTree } from './utils';
 import { useStore } from './stores/StoreProvider';
 import { SettingsModal } from './components/Modals/SettingsModal/SettingsModal';
@@ -67,6 +68,7 @@ const App = observer(() => {
       }),
       ParagraphTags,
       CutIn,
+      Carousel,
     ],
     content: '',
     editorProps: {
@@ -167,6 +169,68 @@ const App = observer(() => {
       }
     }
   }, [settingsStore.settings, notesStore.selectedNote?.theme]);
+
+  useEffect(() => {
+    const handleCarouselClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+
+      if (target.classList.contains('carousel-prev') || target.classList.contains('carousel-next')) {
+        event.preventDefault();
+        const carousel = target.closest('.carousel');
+        if (!carousel) return;
+
+        const slides = carousel.querySelectorAll('.carousel-slide');
+        const indicators = carousel.querySelectorAll('.carousel-indicator');
+
+        let currentIndex = 0;
+        slides.forEach((slide, index) => {
+          if ((slide as HTMLElement).style.display !== 'none') {
+            currentIndex = index;
+          }
+        });
+
+        const direction = target.classList.contains('carousel-next') ? 1 : -1;
+        const newIndex = (currentIndex + direction + slides.length) % slides.length;
+
+        slides.forEach((slide, index) => {
+          (slide as HTMLElement).style.display = index === newIndex ? 'block' : 'none';
+        });
+
+        indicators.forEach((indicator, index) => {
+          if (index === newIndex) {
+            indicator.classList.add('active');
+          } else {
+            indicator.classList.remove('active');
+          }
+        });
+      }
+
+      if (target.classList.contains('carousel-indicator')) {
+        event.preventDefault();
+        const carousel = target.closest('.carousel');
+        if (!carousel) return;
+
+        const indicators = carousel.querySelectorAll('.carousel-indicator');
+        const slides = carousel.querySelectorAll('.carousel-slide');
+        const index = Array.from(indicators).indexOf(target);
+
+        slides.forEach((slide, i) => {
+          (slide as HTMLElement).style.display = i === index ? 'block' : 'none';
+        });
+
+        indicators.forEach((indicator, i) => {
+          if (i === index) {
+            indicator.classList.add('active');
+          } else {
+            indicator.classList.remove('active');
+          }
+        });
+      }
+    };
+
+    document.addEventListener('click', handleCarouselClick);
+    return () => document.removeEventListener('click', handleCarouselClick);
+  }, []);
 
   const handleImageUpload = async (file: File) => {
     if (window.electronAPI) {

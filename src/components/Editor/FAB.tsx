@@ -1,13 +1,13 @@
 import { Editor } from "@tiptap/react";
 import { Undo2, Redo2, ImageIcon, LinkIcon, EyeOff, ListChecks, Minimize2, Maximize2, Leaf, Settings, Tag, Mic, SplitSquareVertical } from "lucide-react";
-import { FC, useRef } from "react";
+import { FC } from "react";
 
 type FABProps = {
   editor: Editor | null;
   isZenMode: boolean;
   toggleZenMode: () => void;
   isToolbarExpanded: boolean;
-  handleImageUpload: (file: File) => void;
+  openImageModal: () => void;
   handleLinkInsert: () => void;
   insertTaskList: () => void;
   handleParagraphTagging: () => void;
@@ -23,7 +23,7 @@ export const FAB: FC<FABProps> = ({
   isZenMode,
   toggleZenMode,
   isToolbarExpanded,
-  handleImageUpload,
+  openImageModal,
   handleLinkInsert,
   insertTaskList,
   handleParagraphTagging,
@@ -33,22 +33,6 @@ export const FAB: FC<FABProps> = ({
   isDictating,
   handleCutIn,
 }) => {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleImageClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      handleImageUpload(file);
-    }
-    // Reset input value to allow selecting the same file again
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
 
   return (
     <div className={`editor-toolbar ${isToolbarExpanded ? 'expanded' : ''}`}>
@@ -73,19 +57,12 @@ export const FAB: FC<FABProps> = ({
         </div>
         <div className="editor-toolbar-group">
           <button
-            onClick={handleImageClick}
+            onClick={openImageModal}
             className="button-icon"
             title="Insert Image"
           >
             <ImageIcon className="h-4 w-4" />
           </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleFileChange}
-            style={{ display: 'none' }}
-          />
           <button
             onClick={handleLinkInsert}
             className="button-icon"

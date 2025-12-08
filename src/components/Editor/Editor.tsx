@@ -5,6 +5,7 @@ import { useStore } from "../../stores/StoreProvider";
 import { FAB } from "./FAB";
 import { NoteSettingsModal } from "../Modals/NoteSettingsModal";
 import { TextRecognitionModal } from "../Modals/TextRecognitionModal";
+import { InsertImageModal } from "../Modals/InsertImageModal";
 import { DateEditDialog } from "./DateEditDialog";
 import { ImageContextMenu } from "./ImageContextMenu";
 import { AnnotatedLayout } from "./AnnotatedLayout";
@@ -36,6 +37,7 @@ export const Editor: FC<EditorProps> = observer(({
 }) => {
   const { notesStore, settingsStore } = useStore();
   const [isOcrModalOpen, setIsOcrModalOpen] = useState(false);
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [selectedImageUrl, setSelectedImageUrl] = useState<string>('');
   const [isDateDialogOpen, setIsDateDialogOpen] = useState(false);
 
@@ -125,6 +127,12 @@ export const Editor: FC<EditorProps> = observer(({
     }
   };
 
+  const handleDigikamPhotos = (photos: string[]) => {
+    if (editor && photos.length > 0) {
+      editor.commands.setCarousel(photos);
+    }
+  };
+
   if (!notesStore.selectedNote) return null;
 
   const currentTheme = notesStore.selectedNote.theme;
@@ -160,7 +168,7 @@ export const Editor: FC<EditorProps> = observer(({
           isZenMode={settingsStore.isZenMode}
           toggleZenMode={settingsStore.toggleZenMode}
           isToolbarExpanded={settingsStore.isToolbarExpanded}
-          handleImageUpload={handleImageUpload}
+          openImageModal={() => setIsImageModalOpen(true)}
           handleLinkInsert={handleLinkInsert}
           insertTaskList={insertTaskList}
           handleParagraphTagging={handleParagraphTagging}
@@ -197,6 +205,14 @@ export const Editor: FC<EditorProps> = observer(({
           <TextRecognitionModal
             onClose={() => setIsOcrModalOpen(false)}
             imageUrl={selectedImageUrl}
+          />
+        )}
+
+        {isImageModalOpen && (
+          <InsertImageModal
+            onClose={() => setIsImageModalOpen(false)}
+            onFileSelect={handleImageUpload}
+            onDigikamPhotos={handleDigikamPhotos}
           />
         )}
 

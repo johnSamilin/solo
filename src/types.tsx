@@ -100,6 +100,7 @@ export interface ElectronAPI {
   renameNote: (relativePath: string, newName: string) => Promise<{ success: boolean; newPath?: string; error?: string }>;
   renameNotebook: (relativePath: string, newName: string) => Promise<{ success: boolean; newPath?: string; error?: string }>;
   selectFile: (filters?: { name: string; extensions: string[] }[]) => Promise<{ success: boolean; path?: string; error?: string }>;
+  queryDigikam: (dbPath: string, query: string, params?: any[]) => Promise<{ success: boolean; rows?: any[]; error?: string }>;
 }
 
 declare global {
