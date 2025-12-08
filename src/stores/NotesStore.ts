@@ -70,6 +70,8 @@ export class NotesStore {
       this.notebooks = result.notebooks;
       this.notes = result.notes;
 
+      this.loadNotebookStates();
+
       this.cacheNotebooks();
       this.cacheNotes();
     } catch (error) {
@@ -85,6 +87,34 @@ export class NotesStore {
       this.cacheNotes();
     } finally {
       this.isLoading = false;
+    }
+  };
+
+  private loadNotebookStates = () => {
+    try {
+      const savedStates = localStorage.getItem('notebook-states');
+      if (savedStates) {
+        const states: Record<string, boolean> = JSON.parse(savedStates);
+        this.notebooks.forEach(notebook => {
+          if (states.hasOwnProperty(notebook.id)) {
+            notebook.isExpanded = states[notebook.id];
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error loading notebook states from localStorage:', error);
+    }
+  };
+
+  private saveNotebookStates = () => {
+    try {
+      const states: Record<string, boolean> = {};
+      this.notebooks.forEach(notebook => {
+        states[notebook.id] = notebook.isExpanded;
+      });
+      localStorage.setItem('notebook-states', JSON.stringify(states));
+    } catch (error) {
+      console.error('Error saving notebook states to localStorage:', error);
     }
   };
 
@@ -139,6 +169,7 @@ export class NotesStore {
       const notebook = this.notebooks.find(n => n.id === targetNotebookId);
       if (notebook && !notebook.isExpanded) {
         notebook.isExpanded = true;
+        this.saveNotebookStates();
       }
 
       return newNote;
@@ -308,6 +339,7 @@ export class NotesStore {
 
     this.cacheNotebooks();
     this.cacheNotes();
+    this.saveNotebookStates();
   };
 
   deleteNotebook = async (notebookId: string) => {
@@ -333,6 +365,7 @@ export class NotesStore {
 
     this.notebooks = this.notebooks.filter(notebook => notebook.id !== notebookId);
     this.cacheNotebooks();
+    this.saveNotebookStates();
   };
 
 
@@ -403,6 +436,7 @@ export class NotesStore {
           this.notebooks = this.notebooks.concat(newNotebook);
           this.cacheNotebooks();
           this.cacheNotes();
+          this.saveNotebookStates();
         });
         return newNotebook;
       } else {
@@ -414,6 +448,7 @@ export class NotesStore {
     const notebook = this.notebooks.find(n => n.id === notebookId);
     if (notebook) {
       notebook.isExpanded = !notebook.isExpanded;
+      this.saveNotebookStates();
     }
   };
 
