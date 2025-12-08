@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
+    "better-sqlite3": "^11.8.1",
     "lucide-react": "^0.344.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
@@ -38,6 +39,7 @@
     "@electron-forge/plugin-vite": "^7.10.2",
     "@electron/get": "^4.0.2",
     "@eslint/js": "^9.9.1",
+    "@types/better-sqlite3": "^7.6.12",
     "@types/node": "^24.10.1",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
