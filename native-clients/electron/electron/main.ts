@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import { existsSync } from 'fs';
 import Database from 'better-sqlite3';
+import { electronDb } from './database';
 
 let mainWindow: BrowserWindow | null = null;
 let dataFolder: string | null = null;
@@ -111,6 +112,7 @@ async function getFile(filePath: string) {
 }
 
 app.whenReady().then(async () => {
+  await electronDb.initialize();
   await loadSettings();
 
   protocol.handle('image', async (request) => {
