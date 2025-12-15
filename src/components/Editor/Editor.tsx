@@ -20,6 +20,7 @@ import './Editor.css';
 type EditorProps = {
   editor: TEditor | null;
   handleImageUpload: (file: File) => void;
+  handleImageClick: () => void;
   handleLinkInsert: () => void;
   insertTaskList: () => void;
   handleParagraphTagging: () => void;
@@ -29,6 +30,7 @@ type EditorProps = {
 export const Editor: FC<EditorProps> = observer(({
   editor,
   handleImageUpload,
+  handleImageClick,
   handleLinkInsert,
   insertTaskList,
   handleParagraphTagging,
@@ -160,7 +162,7 @@ export const Editor: FC<EditorProps> = observer(({
           isZenMode={settingsStore.isZenMode}
           toggleZenMode={settingsStore.toggleZenMode}
           isToolbarExpanded={settingsStore.isToolbarExpanded}
-          handleImageUpload={handleImageUpload}
+          handleImageClick={handleImageClick}
           handleLinkInsert={handleLinkInsert}
           insertTaskList={insertTaskList}
           handleParagraphTagging={handleParagraphTagging}

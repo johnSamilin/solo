@@ -11,6 +11,7 @@ import { observer } from 'mobx-react-lite';
 import { ParagraphTags } from './extensions/ParagraphTags';
 import { FullWidthImage } from './extensions/FullWidthImage';
 import { CutIn } from './extensions/CutIn';
+import { Carousel } from './extensions/Carousel';
 import { buildTagTree } from './utils';
 import { useStore } from './stores/StoreProvider';
 import { SettingsModal } from './components/Modals/SettingsModal/SettingsModal';
@@ -25,6 +26,7 @@ import { TagNode } from './types';
 import { themes } from './constants';
 import { Plus } from 'lucide-react';
 import { TagModal } from './components/Modals/TagModal/TagModal';
+import { ImageInsertModal } from './components/Modals/ImageInsertModal';
 
 const App = observer(() => {
   const { notesStore, settingsStore, tagsStore } = useStore();
@@ -34,6 +36,7 @@ const App = observer(() => {
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
   const [isParagraphTagModalOpen, setIsParagraphTagModalOpen] = useState(false);
   const [currentParagraphTags, setCurrentParagraphTags] = useState<Tag[]>([]);
+  const [isImageInsertModalOpen, setIsImageInsertModalOpen] = useState(false);
   const imageUploadRef = useRef<((file: File) => Promise<void>) | null>(null);
 
   const editor = useEditor({
@@ -67,6 +70,7 @@ const App = observer(() => {
       }),
       ParagraphTags,
       CutIn,
+      Carousel,
     ],
     content: '',
     editorProps: {
@@ -191,6 +195,16 @@ const App = observer(() => {
   };
 
   imageUploadRef.current = handleImageUpload;
+
+  const handleImageInsertClick = () => {
+    setIsImageInsertModalOpen(true);
+  };
+
+  const handleInsertCarousel = (images: string[]) => {
+    if (editor && images.length > 0) {
+      editor.chain().focus().setCarousel(images).run();
+    }
+  };
 
   const handleParagraphTagging = () => {
     if (!editor) return;
@@ -328,6 +342,7 @@ const App = observer(() => {
           <Editor
             editor={editor}
             handleImageUpload={handleImageUpload}
+            handleImageClick={handleImageInsertClick}
             handleLinkInsert={handleLinkInsert}
             insertTaskList={insertTaskList}
             handleParagraphTagging={handleParagraphTagging}
@@ -365,6 +380,14 @@ const App = observer(() => {
           appliedTags={currentParagraphTags}
           onApply={handleParagraphTagsApply}
           title="Add Tags to Paragraph"
+        />
+      )}
+
+      {isImageInsertModalOpen && (
+        <ImageInsertModal
+          onClose={() => setIsImageInsertModalOpen(false)}
+          onInsertFile={handleImageUpload}
+          onInsertCarousel={handleInsertCarousel}
         />
       )}
     </div>

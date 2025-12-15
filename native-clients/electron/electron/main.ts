@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, dialog, protocol, net, shell } from 'elect
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import { existsSync } from 'fs';
+import Database from 'better-sqlite3';
 
 let mainWindow: BrowserWindow | null = null;
 let dataFolder: string | null = null;
@@ -835,5 +836,78 @@ ipcMain.handle('upload-image', async (_event, imageData: string, fileName: strin
     };
   } catch (error) {
     return { success: false, error: (error as Error).message };
+  }
+});
+
+ipcMain.handle('get-digikam-tags', async (_event, dbPath: string) => {
+  let db: Database.Database | null = null;
+
+  try {
+    if (!existsSync(dbPath)) {
+      return { success: false, error: 'Database file not found' };
+    }
+
+    db = new Database(dbPath, { readonly: true, fileMustExist: true });
+
+    const query = `
+      SELECT id, pid as parentId, name
+      FROM Tags
+      ORDER BY pid, name
+    `;
+    const stmt = db.prepare(query);
+    const tags = stmt.all();
+
+    return { success: true, tags };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  } finally {
+    if (db) {
+      try {
+        db.close();
+      } catch (closeError) {
+        console.error('Error closing database:', closeError);
+      }
+    }
+  }
+});
+
+ipcMain.handle('get-digikam-images-by-tag', async (_event, dbPath: string, tagId: number, limit: number = 10) => {
+  let db: Database.Database | null = null;
+
+  try {
+    if (!existsSync(dbPath)) {
+      return { success: false, error: 'Database file not found' };
+    }
+
+    db = new Database(dbPath, { readonly: true, fileMustExist: true });
+
+    const query = `
+      SELECT DISTINCT
+        i.id,
+        i.name,
+        ar.relativePath,
+        ar.specificPath
+      FROM Images i
+      INNER JOIN ImageTags it ON i.id = it.imageid
+      INNER JOIN AlbumRoots ar ON i.album = ar.id
+      WHERE it.tagid = ?
+      ORDER BY i.modificationDate DESC
+      LIMIT ?
+    `;
+
+    const stmt = db.prepare(query);
+    const images = stmt.all(tagId, limit);
+
+    return { success: true, images };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  } finally {
+    if (db) {
+      try {
+        db.close();
+      } catch (closeError) {
+        console.error('Error closing database:', closeError);
+      }
+    }
   }
 });

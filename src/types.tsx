@@ -100,6 +100,21 @@ export interface ElectronAPI {
   renameNote: (relativePath: string, newName: string) => Promise<{ success: boolean; newPath?: string; error?: string }>;
   renameNotebook: (relativePath: string, newName: string) => Promise<{ success: boolean; newPath?: string; error?: string }>;
   selectFile: (filters?: { name: string; extensions: string[] }[]) => Promise<{ success: boolean; path?: string; error?: string }>;
+  getDigikamTags: (dbPath: string) => Promise<{ success: boolean; tags?: DigikamTag[]; error?: string }>;
+  getDigikamImagesByTag: (dbPath: string, tagId: number, limit?: number) => Promise<{ success: boolean; images?: DigikamImage[]; error?: string }>;
+}
+
+export interface DigikamTag {
+  id: number;
+  parentId: number | null;
+  name: string;
+}
+
+export interface DigikamImage {
+  id: number;
+  name: string;
+  relativePath: string;
+  specificPath: string;
 }
 
 declare global {

@@ -35,6 +35,8 @@ const api = {
   renameNote: (relativePath: string, newName: string) => ipcRenderer.invoke('rename-note', relativePath, newName),
   renameNotebook: (relativePath: string, newName: string) => ipcRenderer.invoke('rename-notebook', relativePath, newName),
   uploadImage: (imageData: string, fileName: string) => ipcRenderer.invoke('upload-image', imageData, fileName),
+  getDigikamTags: (dbPath: string) => ipcRenderer.invoke('get-digikam-tags', dbPath),
+  getDigikamImagesByTag: (dbPath: string, tagId: number, limit?: number) => ipcRenderer.invoke('get-digikam-images-by-tag', dbPath, tagId, limit),
 };
 
 contextBridge.exposeInMainWorld('electronAPI', api);
