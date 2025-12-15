@@ -104,7 +104,7 @@ export const ImageInsertModal: FC<ImageInsertModalProps> = observer(({
 
       if (result.success && result.images) {
         const imagePaths = result.images.map(img => {
-          const fullPath = `${img.specificPath}/${img.relativePath}/${img.name}`;
+          const fullPath = `${img.specificPath}/${img.name}`;
           return `file://${fullPath}`;
         });
 
