@@ -5,7 +5,7 @@ export default {
     icon: './build/icon',
     asar: true,
     extraResource: [
-      './dist'
+      './electron/dist'
     ],
   },
   rebuildConfig: {},
@@ -25,7 +25,7 @@ export default {
       config: {
         options: {
           maintainer: 'Alexander Saltykov',
-          homepage: 'https://github.com/alexandersaltykov/solo',
+          homepage: 'https://github.com/johnSamilin/solo',
         },
       },
     },
