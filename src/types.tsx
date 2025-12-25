@@ -20,8 +20,10 @@ export interface Note {
   createdAt: Date;
   tags: Tag[];
   notebookId: string;
-  isCensored?: boolean;
   theme?: string;
+  filePath?: string;
+  path?: string;
+  isLoaded: boolean;
 }
 
 export interface Notebook {
@@ -29,7 +31,7 @@ export interface Notebook {
   name: string;
   parentId: string | null;
   isExpanded: boolean;
-  isCensored?: boolean;
+  path?: string;
 }
 
 export interface TypographySettings {
@@ -51,49 +53,74 @@ export interface TypographySettings {
   autoZenMode: boolean;
 }
 
-export interface CensorshipSettings {
-  pin: string | null;
-  enabled: boolean;
-}
-
-export interface WebDAVSettings {
-  url: string;
-  username: string;
-  password: string;
-  enabled: boolean;
-}
-
-export interface ServerSettings {
-  url: string;
-  username: string;
-  password: string;
-  enabled: boolean;
-  token?: string;
-}
 
 export interface Toast {
   message: string;
   type: 'success' | 'error';
 }
 
-export type ImportMode = 'merge' | 'replace';
-export type SyncMode = 'webdav' | 'server' | 'none';
 
 export interface Bridge {
   loadFromStorage: (key: string) => Promise<any>;
   saveToStorage: (key: string, data: any) => Promise<boolean>;
-  pickExportFolder: () => Promise<string>;
-  pickImportFolder: () => Promise<string>;
-  exportData: (data: string, exportPath: string) => void;
-  importFromJoplin: (settings: string) => Promise<{ notes: Note[], notebooks: Notebook[] } | null>;
   openExternal: (url: string) => Promise<void>;
-  testWebDAV?: (settings: string) => Promise<boolean>;
-  syncWebDAV?: (settings: string) => Promise<boolean>;
-  restoreWebDAV?: (settings: string) => Promise<boolean>;
+}
+
+export interface FileMetadata {
+  id: string;
+  tags: string[];
+  createdAt: string;
+  theme?: string;
+  paragraphTags?: string[];
+}
+
+export interface FileNode {
+  name: string;
+  path: string;
+  type: 'file' | 'folder';
+  children?: FileNode[];
+  metadata?: FileMetadata;
+}
+
+export interface ElectronAPI {
+  selectFolder: () => Promise<{ success: boolean; path?: string; error?: string }>;
+  getDataFolder: () => Promise<{ success: boolean; path?: string | null }>;
+  selectParentFolder: () => Promise<{ success: boolean; path?: string; error?: string }>;
+  openFile: (relativePath: string) => Promise<{ success: boolean; content?: string; error?: string }>;
+  updateFile: (relativePath: string, content: string) => Promise<{ success: boolean; error?: string }>;
+  updateMetadata: (relativePath: string, metadata: FileMetadata) => Promise<{ success: boolean; path?: string; error?: string }>;
+  readStructure: () => Promise<{ success: boolean; structure?: FileNode[]; error?: string }>;
+  scanAllTags: () => Promise<{ success: boolean; tags?: string[]; error?: string }>;
+  toggleZenMode: (enable: boolean) => Promise<{ success: boolean; isZenMode?: boolean; error?: string }>;
+  getZenMode: () => Promise<{ success: boolean; isZenMode?: boolean; error?: string }>;
+  search: (searchString?: string, tags?: string[]) => Promise<{ success: boolean; results?: any[]; error?: string }>;
+  createNotebook: (parentPath: string, name: string) => Promise<{ success: boolean; path?: string; error?: string }>;
+  createNote: (parentPath: string, name: string) => Promise<{ success: boolean; htmlPath?: string; jsonPath?: string; error?: string, id: string }>;
+  deleteNote: (relativePath: string) => Promise<{ success: boolean; error?: string }>;
+  deleteNotebook: (relativePath: string) => Promise<{ success: boolean; error?: string }>;
+  renameNote: (relativePath: string, newName: string) => Promise<{ success: boolean; newPath?: string; error?: string }>;
+  renameNotebook: (relativePath: string, newName: string) => Promise<{ success: boolean; newPath?: string; error?: string }>;
+  selectFile: (filters?: { name: string; extensions: string[] }[]) => Promise<{ success: boolean; path?: string; error?: string }>;
+  getDigikamTags: (dbPath: string) => Promise<{ success: boolean; tags?: DigikamTag[]; error?: string }>;
+  getDigikamImagesByTag: (dbPath: string, tagId: number, limit?: number) => Promise<{ success: boolean; images?: DigikamImage[]; error?: string }>;
+}
+
+export interface DigikamTag {
+  id: number;
+  parentId: number | null;
+  name: string;
+}
+
+export interface DigikamImage {
+  id: number;
+  name: string;
+  relativePath: string;
+  specificPath: string;
 }
 
 declare global {
   interface Window {
     bridge?: Bridge;
+    electronAPI: ElectronAPI;
   }
 }

@@ -1,4 +1,4 @@
-import { FC, useState, useMemo } from 'react';
+import { FC, useState, useMemo, useEffect } from 'react';
 import { observer } from 'mobx-react-lite';
 import { ArrowLeft } from 'lucide-react';
 import { useStore } from '../../stores/StoreProvider';
@@ -19,10 +19,14 @@ interface TagFilter {
 }
 
 export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect }) => {
-  const { notesStore, settingsStore } = useStore();
+  const { notesStore, settingsStore, tagsStore } = useStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [tagFilters, setTagFilters] = useState<TagFilter[]>([]);
   const [selectedTagOperator, setSelectedTagOperator] = useState<'AND' | 'OR' | 'NOT'>('AND');
+
+  useEffect(() => {
+    tagsStore.loadTagsFromElectron();
+  }, [tagsStore]);
 
   // Fuzzy search function
   const fuzzyMatch = (text: string, query: string): boolean => {
@@ -91,7 +95,7 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
 
   // Filter notes based on search query and tag filters
   const filteredNotes = useMemo(() => {
-    let notes = notesStore.getVisibleNotes(settingsStore.isCensorshipEnabled());
+    let notes = notesStore.getVisibleNotes();
 
     // Apply text search
     if (searchQuery.trim()) {
@@ -147,7 +151,7 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
       
       return b.createdAt.getTime() - a.createdAt.getTime();
     });
-  }, [searchQuery, tagFilters, notesStore.notes, settingsStore.isCensorshipEnabled()]);
+  }, [searchQuery, tagFilters, notesStore.notes]);
 
   const addTagFilter = (tagPath: string) => {
     if (!tagFilters.some(f => f.path === tagPath)) {

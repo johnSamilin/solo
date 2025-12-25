@@ -142,6 +142,10 @@
   overflow-y: auto;
 }
 
+.zen-mode .editor.annotated .editor-content {
+  grid-template-columns: 50% 50%;
+}
+
 .editor.annotated .add-image-button {
   display: flex;
   align-items: center;
@@ -608,4 +612,183 @@
 .button-secondary:hover {
   background: var(--color-bg);
   border-color: var(--color-text-light);
+}
+
+.carousel-container {
+  margin: 2rem 0;
+  width: 100%;
+  max-width: 100%;
+}
+
+.carousel {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.carousel-input {
+  display: none;
+}
+
+.carousel-slides {
+  display: flex;
+  transition: transform 0.5s ease-in-out;
+  width: 100%;
+}
+
+.carousel-slide {
+  min-width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: var(--color-bg);
+}
+
+.carousel-slide img {
+  width: 100%;
+  height: auto;
+  max-height: 500px;
+  object-fit: contain;
+  display: block;
+}
+
+.carousel-input:nth-of-type(1):checked ~ .carousel-slides {
+  transform: translateX(0%);
+}
+
+.carousel-input:nth-of-type(2):checked ~ .carousel-slides {
+  transform: translateX(-100%);
+}
+
+.carousel-input:nth-of-type(3):checked ~ .carousel-slides {
+  transform: translateX(-200%);
+}
+
+.carousel-input:nth-of-type(4):checked ~ .carousel-slides {
+  transform: translateX(-300%);
+}
+
+.carousel-input:nth-of-type(5):checked ~ .carousel-slides {
+  transform: translateX(-400%);
+}
+
+.carousel-input:nth-of-type(6):checked ~ .carousel-slides {
+  transform: translateX(-500%);
+}
+
+.carousel-input:nth-of-type(7):checked ~ .carousel-slides {
+  transform: translateX(-600%);
+}
+
+.carousel-input:nth-of-type(8):checked ~ .carousel-slides {
+  transform: translateX(-700%);
+}
+
+.carousel-input:nth-of-type(9):checked ~ .carousel-slides {
+  transform: translateX(-800%);
+}
+
+.carousel-input:nth-of-type(10):checked ~ .carousel-slides {
+  transform: translateX(-900%);
+}
+
+.carousel-controls {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem 0;
+  background: var(--color-white);
+  border-radius: 0 0 0.5rem 0.5rem;
+}
+
+.carousel-dot {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+  background: var(--color-text-light);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  opacity: 0.5;
+}
+
+.carousel-dot:hover {
+  opacity: 0.8;
+  transform: scale(1.2);
+}
+
+.carousel-input:checked + .carousel-slides + .carousel-controls .carousel-dot:nth-child(1),
+.carousel-input:nth-of-type(1):checked ~ .carousel-controls .carousel-dot:nth-child(1) {
+  opacity: 1;
+  background: var(--color-text);
+  transform: scale(1.2);
+}
+
+.carousel-input:nth-of-type(2):checked ~ .carousel-controls .carousel-dot:nth-child(2) {
+  opacity: 1;
+  background: var(--color-text);
+  transform: scale(1.2);
+}
+
+.carousel-input:nth-of-type(3):checked ~ .carousel-controls .carousel-dot:nth-child(3) {
+  opacity: 1;
+  background: var(--color-text);
+  transform: scale(1.2);
+}
+
+.carousel-input:nth-of-type(4):checked ~ .carousel-controls .carousel-dot:nth-child(4) {
+  opacity: 1;
+  background: var(--color-text);
+  transform: scale(1.2);
+}
+
+.carousel-input:nth-of-type(5):checked ~ .carousel-controls .carousel-dot:nth-child(5) {
+  opacity: 1;
+  background: var(--color-text);
+  transform: scale(1.2);
+}
+
+.carousel-input:nth-of-type(6):checked ~ .carousel-controls .carousel-dot:nth-child(6) {
+  opacity: 1;
+  background: var(--color-text);
+  transform: scale(1.2);
+}
+
+.carousel-input:nth-of-type(7):checked ~ .carousel-controls .carousel-dot:nth-child(7) {
+  opacity: 1;
+  background: var(--color-text);
+  transform: scale(1.2);
+}
+
+.carousel-input:nth-of-type(8):checked ~ .carousel-controls .carousel-dot:nth-child(8) {
+  opacity: 1;
+  background: var(--color-text);
+  transform: scale(1.2);
+}
+
+.carousel-input:nth-of-type(9):checked ~ .carousel-controls .carousel-dot:nth-child(9) {
+  opacity: 1;
+  background: var(--color-text);
+  transform: scale(1.2);
+}
+
+.carousel-input:nth-of-type(10):checked ~ .carousel-controls .carousel-dot:nth-child(10) {
+  opacity: 1;
+  background: var(--color-text);
+  transform: scale(1.2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .carousel-slides {
+    transition: none;
+  }
+
+  .carousel-dot {
+    transition: none;
+  }
+
+  .carousel-dot:hover {
+    transform: none;
+  }
 }

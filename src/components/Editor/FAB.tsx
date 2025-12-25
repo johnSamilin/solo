@@ -7,7 +7,7 @@ type FABProps = {
   isZenMode: boolean;
   toggleZenMode: () => void;
   isToolbarExpanded: boolean;
-  handleImageUpload: (file: File) => void;
+  handleImageClick: () => void;
   handleLinkInsert: () => void;
   insertTaskList: () => void;
   handleParagraphTagging: () => void;
@@ -23,7 +23,7 @@ export const FAB: FC<FABProps> = ({
   isZenMode,
   toggleZenMode,
   isToolbarExpanded,
-  handleImageUpload,
+  handleImageClick,
   handleLinkInsert,
   insertTaskList,
   handleParagraphTagging,
@@ -33,22 +33,6 @@ export const FAB: FC<FABProps> = ({
   isDictating,
   handleCutIn,
 }) => {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleImageClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      handleImageUpload(file);
-    }
-    // Reset input value to allow selecting the same file again
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
 
   return (
     <div className={`editor-toolbar ${isToolbarExpanded ? 'expanded' : ''}`}>
@@ -79,26 +63,12 @@ export const FAB: FC<FABProps> = ({
           >
             <ImageIcon className="h-4 w-4" />
           </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleFileChange}
-            style={{ display: 'none' }}
-          />
           <button
             onClick={handleLinkInsert}
             className="button-icon"
             title="Insert Link"
           >
             <LinkIcon className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => editor?.commands.toggleCensored()}
-            className="button-icon"
-            title="Toggle Censored Text (Ctrl+Alt+X)"
-          >
-            <EyeOff className="h-4 w-4" />
           </button>
           <button
             onClick={insertTaskList}

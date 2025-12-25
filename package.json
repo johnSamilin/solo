@@ -1,14 +1,16 @@
 {
   "name": "solo",
   "private": false,
-  "version": "2.4.0",
-  "type": "module",
+  "version": "3.0.0",
   "scripts": {
     "dev": "vite",
     "build": "vite build && npm run copy-assets",
     "lint": "eslint .",
     "preview": "vite preview",
-    "copy-assets": "cp -R assets dist/assets"
+    "copy-assets": "cp -R assets dist/assets && cp -R dist/* native-clients/electron/electron/dist",
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:headed": "playwright test --headed"
   },
   "dependencies": {
     "@tiptap/core": "^2.2.4",
@@ -33,6 +35,7 @@
     "@babel/preset-env": "^7.24.3",
     "@babel/runtime": "^7.24.1",
     "@eslint/js": "^9.9.1",
+    "@playwright/test": "^1.57.0",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
@@ -43,8 +46,6 @@
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.3.0",
     "vite": "^5.4.2",
-    "vite-plugin-pwa": "^0.19.8",
-    "vite-plugin-singlefile": "^2.2.0",
-    "workbox-window": "^7.3.0"
+    "vite-plugin-singlefile": "^2.2.0"
   }
 }

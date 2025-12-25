@@ -1,7 +1,6 @@
 import { useState, useRef } from 'react';
 import { Editor } from '@tiptap/react';
 import { useStore } from '../../../stores/StoreProvider';
-import { analytics } from '../../../utils/analytics';
 
 export const useSpeechRecognition = (editor: Editor | null) => {
   const { settingsStore } = useStore();
@@ -71,7 +70,6 @@ export const useSpeechRecognition = (editor: Editor | null) => {
     if (recognition) {
       recognitionRef.current = recognition;
       recognition.start();
-      analytics.dictationUsed();
     }
   };
 

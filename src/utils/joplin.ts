@@ -118,8 +118,7 @@ export async function importFromJoplin(dbPath: string): Promise<{ notes: Note[],
                   content: turndown.turndown(note.body),
                   createdAt: new Date(note.created_time),
                   notebookId,
-                  tags: noteTags,
-                  isCensored: false
+                  tags: noteTags
                 });
               });
 

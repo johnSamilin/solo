@@ -1,0 +1,45 @@
+import { contextBridge, ipcRenderer } from 'electron';
+
+interface FileMetadata {
+  id: string;
+  tags: string[];
+  date: string;
+  theme?: string;
+}
+
+interface ApiResponse<T = unknown> {
+  success: boolean;
+  error?: string;
+  data?: T;
+}
+
+const api = {
+  selectFolder: () => ipcRenderer.invoke('select-folder'),
+  getDataFolder: () => ipcRenderer.invoke('get-data-folder'),
+  selectParentFolder: () => ipcRenderer.invoke('select-parent-folder'),
+  selectFile: (filters?: { name: string; extensions: string[] }[]) => ipcRenderer.invoke('select-file', filters),
+  openFile: (relativePath: string) => ipcRenderer.invoke('open-file', relativePath),
+  updateFile: (relativePath: string, content: string) =>
+    ipcRenderer.invoke('update-file', relativePath, content),
+  updateMetadata: (relativePath: string, metadata: FileMetadata) =>
+    ipcRenderer.invoke('update-metadata', relativePath, metadata),
+  readStructure: () => ipcRenderer.invoke('read-structure'),
+  scanAllTags: () => ipcRenderer.invoke('scan-all-tags'),
+  toggleZenMode: (enable: boolean) => ipcRenderer.invoke('toggle-zen-mode', enable),
+  getZenMode: () => ipcRenderer.invoke('get-zen-mode'),
+  search: (searchString?: string, tags?: string[]) => ipcRenderer.invoke('search', searchString, tags),
+  createNotebook: (parentPath: string, name: string) => ipcRenderer.invoke('create-notebook', parentPath, name),
+  createNote: (parentPath: string, name: string) => ipcRenderer.invoke('create-note', parentPath, name),
+  deleteNote: (relativePath: string) => ipcRenderer.invoke('delete-note', relativePath),
+  deleteNotebook: (relativePath: string) => ipcRenderer.invoke('delete-notebook', relativePath),
+  renameNote: (relativePath: string, newName: string) => ipcRenderer.invoke('rename-note', relativePath, newName),
+  renameNotebook: (relativePath: string, newName: string) => ipcRenderer.invoke('rename-notebook', relativePath, newName),
+  uploadImage: (imageData: string, fileName: string) => ipcRenderer.invoke('upload-image', imageData, fileName),
+  getDigikamTags: (dbPath: string) => ipcRenderer.invoke('get-digikam-tags', dbPath),
+  getDigikamImagesByTag: (dbPath: string, tagId: number, limit?: number) => ipcRenderer.invoke('get-digikam-images-by-tag', dbPath, tagId, limit),
+  openLogFile: () => ipcRenderer.invoke('open-log-file'),
+};
+
+contextBridge.exposeInMainWorld('electronAPI', api);
+
+export type ElectronAPI = typeof api;

@@ -1,13 +1,8 @@
-import { makeObservable, observable } from 'mobx';
-import { Note, Tag, Notebook, ImportMode } from '../types';
-import { generateUniqueId } from '../utils';
-import { db } from '../utils/database';
-import { migrationManager } from '../utils/migration';
-import { analytics } from '../utils/analytics';
+import { makeObservable, observable, runInAction } from 'mobx';
+import { Note, Tag, Notebook } from '../types';
+import { loadFromElectron, loadNoteContent } from '../utils/electron';
+import { extractParagraphTags } from '../utils';
 
-interface SyncMetadata {
-  lastLocalChange: number;
-}
 
 export class NotesStore {
   notes: Note[] = [];
@@ -15,20 +10,18 @@ export class NotesStore {
     id: 'default',
     name: 'Main notebook',
     parentId: null,
-    isExpanded: true,
-    isCensored: false
+    isExpanded: true
   }];
   selectedNote: Note | null = null;
   focusedNotebookId: string | null = null;
   isEditing = false;
   isLoading = false;
   isLoadingNoteContent = false;
-  syncMetadata: SyncMetadata = {
-    lastLocalChange: 0,
-  };
-  private notebooksByParentId = new Map<string | null, Notebook[]>();
-  private notesByNotebookId = new Map<string | null, Note[]>();
+  notebooksByParentId = new Map<string | null, Notebook[]>();
+  notesByNotebookId = new Map<string | null, Note[]>();
   private _rootStore: any = null;
+  private saveDebounceTimer: NodeJS.Timeout | null = null;
+  private pendingSave: { noteId: string; content: string } | null = null;
 
   constructor() {
     makeObservable(this, {
@@ -39,7 +32,8 @@ export class NotesStore {
       isEditing: observable,
       isLoading: observable,
       isLoadingNoteContent: observable,
-      syncMetadata: observable,
+      notebooksByParentId: observable,
+      notesByNotebookId: observable,
     });
     this.loadFromStorage();
   }
@@ -73,315 +67,354 @@ export class NotesStore {
   loadFromStorage = async () => {
     this.isLoading = true;
     try {
-      // Check and perform migration if needed
-      await migrationManager.checkAndMigrate();
-      
-      // Initialize database
-      await db.initialize();
-      
-      // Load data from IndexedDB
-      await this.loadFromDatabase();
+      const result = await loadFromElectron();
+      this.notebooks = result.notebooks;
+      this.notes = result.notes;
+
+      this.loadNotebookStates();
+
+      this.cacheNotebooks();
+      this.cacheNotes();
     } catch (error) {
-      console.error('Error loading data:', error);
-      // Fallback to default data
+      console.error('Error loading data from Electron:', error);
       this.notebooks = [{
         id: 'default',
         name: 'Main notebook',
         parentId: null,
         isExpanded: true,
-        isCensored: false
       }];
       this.notes = [];
+      this.cacheNotebooks();
+      this.cacheNotes();
     } finally {
       this.isLoading = false;
     }
   };
 
-  private async loadFromDatabase() {
-    // Load notebooks
-    const dbNotebooks = await db.getAllNotebooks();
-    this.notebooks = dbNotebooks.map(notebook => ({
-      id: notebook.id,
-      name: notebook.name,
-      parentId: notebook.parentId,
-      isExpanded: notebook.isExpanded,
-      isCensored: notebook.isCensored
-    }));
-
-    // Ensure default notebook exists
-    if (this.notebooks.length === 0) {
-      const defaultNotebook = {
-        id: 'default',
-        name: 'Main notebook',
-        parentId: null,
-        isExpanded: true,
-        isCensored: false
-      };
-      this.notebooks = [defaultNotebook];
-      await db.saveNotebook(defaultNotebook);
-    }
-
-    // Load note metadata (without content for performance)
-    const dbNotes = await db.getAllNotes();
-    this.notes = dbNotes.map(note => ({
-      id: note.id,
-      title: note.title,
-      content: '', // Content will be loaded on demand
-      createdAt: new Date(note.createdAt),
-      notebookId: note.notebookId,
-      isCensored: note.isCensored,
-      theme: note.theme,
-      tags: JSON.parse(note.tags || '[]')
-    }));
-
-    this.cacheNotebooks();
-    this.cacheNotes();
-
-    // Load selected note and focused notebook from settings
+  private loadNotebookStates = () => {
     try {
-      // Load sync metadata
-      const syncMeta = await db.getSetting('syncMetadata');
-      if (syncMeta) {
-        this.syncMetadata = syncMeta;
-      }
-
-      const selectedNoteId = await db.getSetting('selectedNoteId');
-      if (selectedNoteId) {
-        const note = this.notes.find(n => n.id === selectedNoteId);
-        if (note) {
-          await this.loadNoteContent(note);
-          this.selectedNote = note;
-        }
-      }
-
-      const focusedNotebookId = await db.getSetting('focusedNotebookId');
-      if (focusedNotebookId) {
-        this.focusedNotebookId = focusedNotebookId;
+      const savedStates = localStorage.getItem('notebook-states');
+      if (savedStates) {
+        const states: Record<string, boolean> = JSON.parse(savedStates);
+        this.notebooks.forEach(notebook => {
+          if (states.hasOwnProperty(notebook.id)) {
+            notebook.isExpanded = states[notebook.id];
+          }
+        });
       }
     } catch (error) {
-      console.error('Error loading settings:', error);
+      console.error('Error loading notebook states from localStorage:', error);
     }
-  }
-
-  freshStart = () => {
-    this.notes = [];
-    this.notebooks = [{
-      id: 'default',
-      name: 'Main notebook',
-      parentId: null,
-      isExpanded: true,
-      isCensored: false
-    }];
-    this.cacheNotebooks();
-    this.cacheNotes();
-    this.selectedNote = null;
-    this.focusedNotebookId = null;
-    this.isEditing = false;
-    this.clearAllData();
   };
 
-  private async clearAllData() {
+  private saveNotebookStates = () => {
     try {
-      await db.clearAllData();
-      await this.saveToDatabase();
-    } catch (error) {
-      console.error('Error clearing all data:', error);
-    }
-  }
-
-  importData = (data: { notes: Note[], notebooks: Notebook[] }, mode: ImportMode) => {
-    if (mode === 'replace') {
-      this.notes = data.notes.map(note => ({
-        ...note,
-        createdAt: new Date(note.createdAt)
-      }));
-      this.notebooks = data.notebooks;
-      this.selectedNote = null;
-      this.focusedNotebookId = null;
-    } else {
-      // Create a map of existing notebooks by name for deduplication
-      const existingNotebooks = new Map(this.notebooks.map(n => [n.id, n]));
-      
-      // Import notebooks, reusing existing IDs where possible
-      data.notebooks.forEach(notebook => {
-        const existing = existingNotebooks.get(notebook.id);
-        if (!existing) {
-          this.notebooks.push(notebook);
-        }
+      const states: Record<string, boolean> = {};
+      this.notebooks.forEach(notebook => {
+        states[notebook.id] = notebook.isExpanded;
       });
-
-      // Create a map for notebook name to ID mapping
-      const notebookMap = new Map(this.notebooks.map(n => [n.name, n.id]));
-
-      // Import notes with new IDs and updated notebook references
-      const importedNotes = data.notes.map(note => {
-        const notebookName = data.notebooks.find(n => n.id === note.notebookId)?.name;
-        return {
-          ...note,
-          id: generateUniqueId(),
-          createdAt: new Date(note.createdAt),
-          notebookId: notebookName ? notebookMap.get(notebookName) || 'default' : 'default',
-          tags: note.tags.map(tag => ({
-            ...tag,
-            id: generateUniqueId()
-          }))
-        };
-      });
-
-      this.notes = [...this.notes, ...importedNotes];
-    }
-    this.cacheNotebooks();
-    this.cacheNotes();
-    this.saveToDatabase();
-    analytics.dataImported(mode);
-  };
-
-  updateLastLocalChange = () => {
-    // Only track changes when server sync is properly configured
-    if (!this._rootStore || !this._rootStore.settingsStore) {
-      return;
-    }
-    
-    const settingsStore = this._rootStore.settingsStore;
-    if (settingsStore.syncMode !== 'server' || !settingsStore.server.enabled || !settingsStore.server.token) {
-      return;
-    }
-    
-    this.syncMetadata.lastLocalChange = Date.now();
-    this.saveSyncMetadata();
-  };
-
-
-  private async saveSyncMetadata() {
-    try {
-      await db.saveSetting('syncMetadata', this.syncMetadata);
+      localStorage.setItem('notebook-states', JSON.stringify(states));
     } catch (error) {
-      console.error('Error saving sync metadata:', error);
+      console.error('Error saving notebook states to localStorage:', error);
     }
-  }
+  };
 
-  createNote = (notebookId?: string) => {
-    const targetNotebookId = notebookId || this.focusedNotebookId || 'default';
-    
+
+
+  createNote = async (notebookId?: string) => {
+    let targetNotebookId = notebookId || this.focusedNotebookId || 'default';
+
     // Generate localized title with day and month
     const now = new Date();
-    const title = now.toLocaleDateString(undefined, { 
-      day: 'numeric', 
-      month: 'long' 
+    const title = now.toLocaleDateString(undefined, {
+      day: 'numeric',
+      month: 'long'
     });
-    
-    const newNote: Note = {
-      id: generateUniqueId(),
-      title: title,
-      content: '',
-      createdAt: new Date(),
-      tags: [],
-      notebookId: targetNotebookId,
-      isCensored: false
-    };
-    this.notes.push(newNote);
-    this.selectedNote = newNote;
-    this.isEditing = true;
 
-    // Ensure the parent notebook is expanded
-    const notebook = this.notebooks.find(n => n.id === targetNotebookId);
-    if (notebook && !notebook.isExpanded) {
-      notebook.isExpanded = true;
+    if (this.notebooks.length === 0) {
+      const mainNotebookResult = await window.electronAPI.createNotebook('', 'Main notebook');
+      if (mainNotebookResult.success && mainNotebookResult.path) {
+        const mainNotebook: Notebook = {
+          id: mainNotebookResult.path,
+          name: 'Main notebook',
+          parentId: null,
+          isExpanded: true
+        };
+        this.notebooks.push(mainNotebook);
+        targetNotebookId = mainNotebook.id;
+      }
     }
 
-    this.updateLastLocalChange();
-    this.saveNote(newNote);
-    this.cacheNotes();
-    analytics.noteCreated();
-    return newNote;
+    const path = this.notebooks.find((notebook) => notebook.id === notebookId)?.path;
+    console.log("create note", { path, notebookId })
+    if (!path) {
+      throw "no such notebook";
+    }
+    const result = await window.electronAPI.createNote(path, title);
+    if (result.success && result.htmlPath) {
+      const newNote: Note = {
+        id: result.id,
+        title: title,
+        content: '',
+        createdAt: new Date(),
+        tags: [],
+        notebookId: targetNotebookId,
+        isLoaded: true,
+        path: result.htmlPath,
+      };
+      this.notes.push(newNote);
+      this.selectedNote = newNote;
+      this.isEditing = true;
+
+      // Ensure the parent notebook is expanded
+      const notebook = this.notebooks.find(n => n.id === targetNotebookId);
+      if (notebook && !notebook.isExpanded) {
+        notebook.isExpanded = true;
+        this.saveNotebookStates();
+      }
+
+      return newNote;
+    } else {
+      throw new Error(result.error || 'Failed to create note');
+    }
   };
 
-  updateNote = (noteId: string, updates: Partial<Note>) => {
+  updateNote = async (noteId: string, updates: Partial<Note>) => {
     const noteIndex = this.notes.findIndex(note => note.id === noteId);
-    if (noteIndex !== -1) {
-      this.notes[noteIndex] = { ...this.notes[noteIndex], ...updates };
+    if (noteIndex === -1) return;
+
+    const note = this.notes[noteIndex];
+
+    if (window.electronAPI?.renameNote && note?.path && updates.title && updates.title !== note.title) {
+      const result = await window.electronAPI.renameNote(note.path, updates.title);
+      if (!result.success) {
+        console.error('Failed to rename note file:', result.error);
+        return;
+      }
+
+      if (result.newPath) {
+        this.notes[noteIndex] = {
+          ...note,
+          ...updates,
+          id: result.newPath,
+          path: result.newPath,
+          filePath: result.newPath
+        };
+
+        if (this.selectedNote?.id === noteId) {
+          this.selectedNote = this.notes[noteIndex];
+        }
+      }
+    } else {
+      this.notes[noteIndex] = { ...note, ...updates };
       if (this.selectedNote?.id === noteId) {
         this.selectedNote = this.notes[noteIndex];
       }
-      this.updateLastLocalChange();
-      this.saveNote(this.notes[noteIndex]);
-      this.cacheNotes();
-      
-      // Track theme changes
-      if (updates.theme !== undefined) {
-        analytics.themeChanged(updates.theme || 'default');
-      }
+    }
+
+    this.cacheNotes();
+
+    if (updates.content !== undefined) {
+      this.debouncedSave(this.notes[noteIndex].id, updates.content);
+    }
+
+    this.updateNoteMetadata(this.notes[noteIndex]);
+
+    if (updates.theme !== undefined) {
     }
   };
 
-  updateNotebook = (notebookId: string, updates: Partial<Notebook>) => {
+  private updateNoteMetadata = async (note: Note) => {
+    if (!window.electronAPI?.updateMetadata || !note.path) return;
+
+    const paragraphTags = extractParagraphTags(note.content);
+
+    const metadata = {
+      id: note.id,
+      tags: note.tags.map(tag => tag.path),
+      createdAt: new Date(note.createdAt).toISOString().split('T')[0],
+      theme: note.theme,
+      paragraphTags: paragraphTags.length > 0 ? paragraphTags : [],
+    };
+
+    try {
+      const result = await window.electronAPI.updateMetadata(note.path, metadata);
+      if (!result.success) {
+        console.error('Failed to update note metadata:', result.error);
+      }
+    } catch (error) {
+      console.error('Error updating note metadata:', error);
+    }
+  };
+
+  private debouncedSave = (noteId: string, content: string) => {
+    if (!window.electronAPI) return;
+
+    this.pendingSave = { noteId, content };
+
+    if (this.saveDebounceTimer) {
+      clearTimeout(this.saveDebounceTimer);
+    }
+
+    this.saveDebounceTimer = setTimeout(() => {
+      if (this.pendingSave) {
+        this.saveNoteContent(this.pendingSave.noteId, this.pendingSave.content);
+        this.pendingSave = null;
+      }
+    }, 500);
+  };
+
+  private saveNoteContent = async (noteId: string, content: string) => {
+    try {
+      const path = this.notes.find(note => note.id === noteId)?.path;
+      if (!path) {
+        console.log({ noteId, path, notes: [...this.notes] })
+        throw 'No such path';
+      }
+      const result = await window.electronAPI.updateFile(path, content);
+      if (!result.success) {
+        console.error('Failed to save note:', result.error);
+      }
+    } catch (error) {
+      console.error('Error saving note:', error);
+    }
+  };
+
+  saveCurrentNote = async () => {
+    if (this.saveDebounceTimer) {
+      clearTimeout(this.saveDebounceTimer);
+      this.saveDebounceTimer = null;
+    }
+
+    if (this.pendingSave) {
+      await this.saveNoteContent(this.pendingSave.noteId, this.pendingSave.content);
+      this.pendingSave = null;
+    }
+  };
+
+  updateNotebook = async (notebookId: string, updates: Partial<Notebook>) => {
     const notebookIndex = this.notebooks.findIndex(notebook => notebook.id === notebookId);
-    if (notebookIndex !== -1) {
-      this.notebooks[notebookIndex] = { ...this.notebooks[notebookIndex], ...updates };
-      this.updateLastLocalChange();
-      this.saveNotebook(this.notebooks[notebookIndex]);
-      this.cacheNotebooks();
-    }
-  };
+    if (notebookIndex === -1) return;
 
-  toggleNoteCensorship = (noteId: string) => {
-    const note = this.notes.find(n => n.id === noteId);
-    if (note) {
-      note.isCensored = !note.isCensored;
-      if (this.selectedNote?.id === noteId) {
-        this.selectedNote = note;
+    const notebook = this.notebooks[notebookIndex];
+
+    if (window.electronAPI?.renameNotebook && notebook?.path && updates.name && updates.name !== notebook.name) {
+      const result = await window.electronAPI.renameNotebook(notebook.path, updates.name);
+      if (!result.success) {
+        console.error('Failed to rename notebook folder:', result.error);
+        return;
       }
-      this.updateLastLocalChange();
-      this.saveNote(note);
-      this.cacheNotes();
-      analytics.censorshipToggled(note.isCensored);
+
+      if (result.newPath) {
+        const oldPath = notebook.path;
+        const newPath = result.newPath;
+
+        this.notebooks[notebookIndex] = {
+          ...notebook,
+          ...updates,
+          id: newPath,
+          path: newPath
+        };
+
+        this.notebooks.forEach((nb, idx) => {
+          if (nb.parentId === oldPath) {
+            this.notebooks[idx] = { ...nb, parentId: newPath };
+          }
+        });
+
+        this.notes.forEach((note, idx) => {
+          if (note.notebookId === oldPath) {
+            const notePathParts = note.path?.split('/') || [];
+            if (notePathParts.length > 0) {
+              notePathParts[0] = updates.name || notebook.name;
+              const newNotePath = notePathParts.join('/');
+              this.notes[idx] = { ...note, notebookId: newPath, path: newNotePath, filePath: newNotePath };
+            }
+          }
+        });
+
+        if (this.focusedNotebookId === oldPath) {
+          this.focusedNotebookId = newPath;
+        }
+      }
+    } else {
+      this.notebooks[notebookIndex] = { ...notebook, ...updates };
     }
+
+    this.cacheNotebooks();
+    this.cacheNotes();
+    this.saveNotebookStates();
   };
 
-  toggleNotebookCensorship = (notebookId: string) => {
+  deleteNotebook = async (notebookId: string) => {
     const notebook = this.notebooks.find(n => n.id === notebookId);
-    if (notebook) {
-      notebook.isCensored = !notebook.isCensored;
-      this.updateLastLocalChange();
-      this.saveNotebook(notebook);
-      this.cacheNotebooks();
-      analytics.censorshipToggled(notebook.isCensored);
+
+    if (window.electronAPI && notebook?.path) {
+      const result = await window.electronAPI.deleteNotebook(notebook.path);
+      if (!result.success) {
+        console.error('Failed to delete notebook folder:', result.error);
+        return;
+      }
     }
+
+    const notesToDelete = this.notes.filter(note => note.notebookId === notebookId);
+    for (const note of notesToDelete) {
+      await this.deleteNote(note.id);
+    }
+
+    const childNotebooks = this.notebooks.filter(nb => nb.parentId === notebookId);
+    for (const child of childNotebooks) {
+      await this.deleteNotebook(child.id);
+    }
+
+    this.notebooks = this.notebooks.filter(notebook => notebook.id !== notebookId);
+    this.cacheNotebooks();
+    this.saveNotebookStates();
   };
 
-  deleteNote = (noteId: string) => {
+
+  deleteNote = async (noteId: string) => {
+    if (this.selectedNote?.id === noteId) {
+      await this.saveCurrentNote();
+    }
+
+    const note = this.notes.find(n => n.id === noteId);
+
+    if (window.electronAPI && note?.path) {
+      const result = await window.electronAPI.deleteNote(note.path);
+      if (!result.success) {
+        console.error('Failed to delete note file:', result.error);
+      }
+    }
+
     this.notes = this.notes.filter(note => note.id !== noteId);
     if (this.selectedNote?.id === noteId) {
       this.selectedNote = null;
       this.isEditing = false;
     }
-    this.updateLastLocalChange();
-    this.deleteNoteFromDatabase(noteId);
-    this.saveToDatabase();
     this.cacheNotes();
-    analytics.noteDeleted();
   };
 
-  setSelectedNote = (note: Note | null) => {
-    this.selectedNote = note;
+  setSelectedNote = async (note: Note | null) => {
+    await this.saveCurrentNote();
     if (note) {
+      this.selectedNote = {
+        ...note,
+        isLoaded: false,
+      };
       this.setFocusedNotebook(note.notebookId);
     }
     this.isEditing = !!note;
-    this.saveToDatabase();
   };
 
   setFocusedNotebook = (notebookId: string | null) => {
     this.focusedNotebookId = notebookId;
-    this.saveToDatabase();
   };
 
   addTagToNote = (noteId: string, tag: Tag) => {
     const note = this.notes.find(n => n.id === noteId);
     if (note) {
       note.tags.push(tag);
-      this.updateLastLocalChange();
-      this.saveNote(note);
       this.cacheNotes();
     }
   };
@@ -390,35 +423,36 @@ export class NotesStore {
     const note = this.notes.find(n => n.id === noteId);
     if (note) {
       note.tags = note.tags.filter(tag => tag.id !== tagId);
-      this.updateLastLocalChange();
-      this.saveNote(note);
       this.cacheNotes();
     }
   };
 
-  createNotebook = (name: string, parentId: string | null = null) => {
-    const newNotebook: Notebook = {
-      id: generateUniqueId(),
-      name,
-      parentId,
-      isExpanded: true,
-      isCensored: false
-    };
-    this.notebooks.push(newNotebook);
-    this.updateLastLocalChange();
-    this.saveNotebook(newNotebook);
-    this.cacheNotebooks();
-    this.cacheNotes();
-    analytics.notebookCreated();
-    return newNotebook;
+  createNotebook = async (name: string, parentId: string | null = null) => {
+      const result = await window.electronAPI.createNotebook(parentId || '', name);
+      if (result.success && result.path) {
+        const newNotebook: Notebook = {
+          id: result.path,
+          name,
+          parentId,
+          isExpanded: true
+        };
+        runInAction(() => {
+          this.notebooks = this.notebooks.concat(newNotebook);
+          this.cacheNotebooks();
+          this.cacheNotes();
+          this.saveNotebookStates();
+        });
+        return newNotebook;
+      } else {
+        throw new Error(result.error || 'Failed to create notebook');
+      }
   };
 
   toggleNotebook = (notebookId: string) => {
     const notebook = this.notebooks.find(n => n.id === notebookId);
     if (notebook) {
       notebook.isExpanded = !notebook.isExpanded;
-      this.updateLastLocalChange();
-      this.saveNotebook(notebook);
+      this.saveNotebookStates();
     }
   };
 
@@ -426,23 +460,8 @@ export class NotesStore {
     return this.notesByNotebookId.get(notebookId) ?? [];
   };
 
-  filterCensoredNotes = (notes: Note[], isCensorshipEnabled: boolean) => {
-    return notes.filter(note => {
-      if (!isCensorshipEnabled) {
-        return true;
-      }
-      if (!this.isNotebookCensored(note.notebookId)) {
-        return !note.isCensored;
-      } else {
-        return false;
-      }
-
-      return true;
-    });
-  }
-
-  getVisibleNotes = (isCensorshipEnabled: boolean) => {
-    return this.filterCensoredNotes(this.notes, isCensorshipEnabled);
+  getVisibleNotes = () => {
+    return this.notes;
   };
 
   getChildNotebooks = (parentId: string | null) => {
@@ -458,20 +477,10 @@ export class NotesStore {
     return [...this.getNotebookParentChain(notebook.parentId), notebookId];
   };
 
-  isNotebookCensored = (notebookId: string): boolean => {
-    // Get the chain of parent notebooks
-    const parentChain = this.getNotebookParentChain(notebookId);
-    
-    // Check if any notebook in the chain is censored
-    return parentChain.some(id => {
-      const notebook = this.notebooks.find(n => n.id === id);
-      return notebook?.isCensored || false;
-    });
-  };
 
-  getSiblingNotes(noteId: string, isCensorshipEnabled: boolean): { prev: Note; next: Note } {
+  getSiblingNotes(noteId: string): { prev: Note; next: Note } {
     const notesList = this.notebooks.reduce((agr, notebook) => {
-      const notes = this.filterCensoredNotes(this.getNotebookNotes(notebook.id), isCensorshipEnabled);
+      const notes = this.getNotebookNotes(notebook.id);
       //@ts-expect-error because fuck you
       return agr.concat(notes);
     }, []);
@@ -484,89 +493,151 @@ export class NotesStore {
     };
   }
 
-  // Database operations
-  private async saveToDatabase() {
-    try {
-      // Save current state to database
-      await db.saveSetting('selectedNoteId', this.selectedNote?.id || null);
-      await db.saveSetting('focusedNotebookId', this.focusedNotebookId);
-    } catch (error) {
-      console.error('Error saving to database:', error);
-    }
-  }
 
   async loadNoteContent(note: Note): Promise<void> {
-    if (note.content) return; // Already loaded
-    
+    if (!note.filePath) {
+      this.isLoadingNoteContent = false;
+      return;
+    }
+
     this.isLoadingNoteContent = true;
-    
     try {
-      const dbNote = await db.getNote(note.id);
-      if (dbNote) {
-        note.content = dbNote.content;
+      const content = await loadNoteContent(note.filePath);
+      this.updateNote(note.id, { content });
+      if (this.selectedNote) {
+        this.selectedNote.isLoaded = true;
       }
     } catch (error) {
-      console.error('Error loading note content:', error);
+      console.error('Failed to load note content:', error);
     } finally {
       this.isLoadingNoteContent = false;
     }
   }
 
-  async saveNote(note: Note): Promise<void> {
-    try {
-      const dbNote = {
-        id: note.id,
-        title: note.title,
-        content: note.content,
-        createdAt: note.createdAt.toISOString(),
-        notebookId: note.notebookId,
-        isCensored: note.isCensored,
-        theme: note.theme,
-        tags: JSON.stringify(note.tags)
-      };
-      await db.saveNote(dbNote);
-    } catch (error) {
-      console.error('Error saving note:', error);
+  renameTag = async (oldPath: string, newPath: string) => {
+    if (!window.electronAPI?.updateFile || !window.electronAPI?.updateMetadata) {
+      throw new Error('Electron API not available');
     }
-  }
 
-  async saveNotebook(notebook: Notebook): Promise<void> {
-    try {
-      await db.saveNotebook({
-        id: notebook.id,
-        name: notebook.name,
-        parentId: notebook.parentId,
-        isExpanded: notebook.isExpanded,
-        isCensored: notebook.isCensored
-      });
-    } catch (error) {
-      console.error('Error saving notebook:', error);
+    for (const note of this.notes) {
+      let needsUpdate = false;
+      let updatedContent = note.content;
+      let updatedTags = [...note.tags];
+
+      const tagIndex = note.tags.findIndex(tag => tag.path === oldPath);
+      if (tagIndex !== -1) {
+        updatedTags[tagIndex] = { ...updatedTags[tagIndex], path: newPath };
+        needsUpdate = true;
+      }
+
+      const paragraphTags = extractParagraphTags(note.content);
+      if (paragraphTags.includes(oldPath)) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(note.content, 'text/html');
+        const paragraphs = doc.querySelectorAll('p[data-tags]');
+
+        paragraphs.forEach(paragraph => {
+          const tagsAttr = paragraph.getAttribute('data-tags');
+          if (tagsAttr) {
+            const tags = tagsAttr.split(',').map(tag => tag.trim());
+            const updatedParagraphTags = tags.map(tag => tag === oldPath ? newPath : tag);
+            paragraph.setAttribute('data-tags', updatedParagraphTags.join(','));
+          }
+        });
+
+        updatedContent = doc.body.innerHTML;
+        needsUpdate = true;
+      }
+
+      if (needsUpdate && note.path) {
+        await window.electronAPI.updateFile(note.path, updatedContent);
+
+        const metadata = {
+          id: note.id,
+          tags: updatedTags.map(tag => tag.path),
+          createdAt: new Date(note.createdAt).toISOString().split('T')[0],
+          theme: note.theme,
+          paragraphTags: extractParagraphTags(updatedContent),
+        };
+        await window.electronAPI.updateMetadata(note.path, metadata);
+
+        runInAction(() => {
+          const noteIndex = this.notes.findIndex(n => n.id === note.id);
+          if (noteIndex !== -1) {
+            this.notes[noteIndex] = { ...note, content: updatedContent, tags: updatedTags };
+            if (this.selectedNote?.id === note.id) {
+              this.selectedNote = this.notes[noteIndex];
+            }
+          }
+        });
+      }
     }
-  }
 
-  async deleteNoteFromDatabase(noteId: string): Promise<void> {
-    try {
-      await db.deleteNote(noteId);
-    } catch (error) {
-      console.error('Error deleting note from database:', error);
+    this.cacheNotes();
+  };
+
+  deleteTag = async (tagPath: string) => {
+    if (!window.electronAPI?.updateFile || !window.electronAPI?.updateMetadata) {
+      throw new Error('Electron API not available');
     }
-  }
 
-  async deleteNotebookFromDatabase(notebookId: string): Promise<void> {
-    try {
-      await db.deleteNotebook(notebookId);
-    } catch (error) {
-      console.error('Error deleting notebook from database:', error);
+    for (const note of this.notes) {
+      let needsUpdate = false;
+      let updatedContent = note.content;
+      let updatedTags = note.tags.filter(tag => tag.path !== tagPath);
+
+      if (updatedTags.length !== note.tags.length) {
+        needsUpdate = true;
+      }
+
+      const paragraphTags = extractParagraphTags(note.content);
+      if (paragraphTags.includes(tagPath)) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(note.content, 'text/html');
+        const paragraphs = doc.querySelectorAll('p[data-tags]');
+
+        paragraphs.forEach(paragraph => {
+          const tagsAttr = paragraph.getAttribute('data-tags');
+          if (tagsAttr) {
+            const tags = tagsAttr.split(',').map(tag => tag.trim()).filter(tag => tag !== tagPath);
+            if (tags.length > 0) {
+              paragraph.setAttribute('data-tags', tags.join(','));
+            } else {
+              paragraph.removeAttribute('data-tags');
+            }
+          }
+        });
+
+        updatedContent = doc.body.innerHTML;
+        needsUpdate = true;
+      }
+
+      if (needsUpdate && note.path) {
+        await window.electronAPI.updateFile(note.path, updatedContent);
+
+        const metadata = {
+          id: note.id,
+          tags: updatedTags.map(tag => tag.path),
+          createdAt: new Date(note.createdAt).toISOString().split('T')[0],
+          theme: note.theme,
+          paragraphTags: extractParagraphTags(updatedContent),
+        };
+        await window.electronAPI.updateMetadata(note.path, metadata);
+
+        runInAction(() => {
+          const noteIndex = this.notes.findIndex(n => n.id === note.id);
+          if (noteIndex !== -1) {
+            this.notes[noteIndex] = { ...note, content: updatedContent, tags: updatedTags };
+            if (this.selectedNote?.id === note.id) {
+              this.selectedNote = this.notes[noteIndex];
+            }
+          }
+        });
+      }
     }
-  }
 
-  // Sync operations - export data as JSON for sync
-  async exportForSync(): Promise<{ notes: any[], notebooks: any[] }> {
-    return await db.exportData();
-  }
+    this.cacheNotes();
+  };
 
-  async importFromSync(data: { notes: any[], notebooks: any[] }): Promise<void> {
-    await db.importData(data);
-    await this.loadFromDatabase();
-  }
+
 }

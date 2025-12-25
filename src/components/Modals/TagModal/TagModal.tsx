@@ -27,23 +27,27 @@ export const TagModal: FC<TagModalProps> = observer(({
   const { tagsStore } = useStore();
   const [newTagPath, setNewTagPath] = useState('');
 
-  // Update tag tree when modal opens or closes
   useEffect(() => {
     if (isOpen) {
-      // Mark applied tags as selected
-      const markSelectedTags = (nodes: TagNode[]): TagNode[] => {
-        return nodes.map(node => {
-          const isSelected = appliedTags.some(tag => tag.path.includes(node.name));
-          return {
-            ...node,
-            isChecked: isSelected,
-            children: node.children.length > 0 ? markSelectedTags(node.children) : []
-          };
-        });
+      const loadTags = async () => {
+        await tagsStore.loadTagsFromElectron();
+
+        const markSelectedTags = (nodes: TagNode[]): TagNode[] => {
+          return nodes.map(node => {
+            const isSelected = appliedTags.some(tag => tag.path.includes(node.name));
+            return {
+              ...node,
+              isChecked: isSelected,
+              children: node.children.length > 0 ? markSelectedTags(node.children) : []
+            };
+          });
+        };
+
+        const updatedTree = markSelectedTags(tagsStore.tagTree);
+        tagsStore.setTagTree(updatedTree);
       };
 
-      const updatedTree = markSelectedTags(tagsStore.tagTree);
-      tagsStore.setTagTree(updatedTree);
+      loadTags();
     }
   }, [isOpen, appliedTags, tagsStore]);
 

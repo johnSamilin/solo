@@ -9,9 +9,14 @@
     background-color: var(--color-bg);
 }
 
+.note-item.selected {
+    background-color: var(--color-bg);
+    border-left: 3px solid var(--color-text);
+    padding-left: calc(0.75rem - 3px);
+}
+
 .note-item.selected .note-item-title {
-    /* font-weight: bold; */
-    text-decoration: underline;
+    font-weight: 600;
 }
 
 .note-item-header {

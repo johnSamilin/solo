@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -8,10 +8,10 @@ import Link from '@tiptap/extension-link';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import { observer } from 'mobx-react-lite';
-import { Censored } from './extensions/Censored';
 import { ParagraphTags } from './extensions/ParagraphTags';
 import { FullWidthImage } from './extensions/FullWidthImage';
 import { CutIn } from './extensions/CutIn';
+import { Carousel } from './extensions/Carousel';
 import { buildTagTree } from './utils';
 import { useStore } from './stores/StoreProvider';
 import { SettingsModal } from './components/Modals/SettingsModal/SettingsModal';
@@ -25,8 +25,8 @@ import { generateUniqueId } from './utils';
 import { TagNode } from './types';
 import { themes } from './constants';
 import { Plus } from 'lucide-react';
-import { analytics } from './utils/analytics';
 import { TagModal } from './components/Modals/TagModal/TagModal';
+import { ImageInsertModal } from './components/Modals/ImageInsertModal';
 
 const App = observer(() => {
   const { notesStore, settingsStore, tagsStore } = useStore();
@@ -36,6 +36,8 @@ const App = observer(() => {
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
   const [isParagraphTagModalOpen, setIsParagraphTagModalOpen] = useState(false);
   const [currentParagraphTags, setCurrentParagraphTags] = useState<Tag[]>([]);
+  const [isImageInsertModalOpen, setIsImageInsertModalOpen] = useState(false);
+  const imageUploadRef = useRef<((file: File) => Promise<void>) | null>(null);
 
   const editor = useEditor({
     extensions: [
@@ -62,15 +64,33 @@ const App = observer(() => {
           class: 'text-blue-600 hover:text-blue-800 underline cursor-pointer',
         },
       }),
-      Censored,
       TaskList,
       TaskItem.configure({
         nested: true,
       }),
       ParagraphTags,
       CutIn,
+      Carousel,
     ],
     content: '',
+    editorProps: {
+      handlePaste: (view, event) => {
+        const items = event.clipboardData?.items;
+        if (!items) return false;
+
+        for (const item of Array.from(items)) {
+          if (item.type.indexOf('image') === 0) {
+            event.preventDefault();
+            const file = item.getAsFile();
+            if (file && imageUploadRef.current) {
+              imageUploadRef.current(file);
+            }
+            return true;
+          }
+        }
+        return false;
+      },
+    },
     onUpdate: ({ editor }) => {
       if (notesStore.selectedNote) {
         const content = editor.getHTML();
@@ -84,8 +104,8 @@ const App = observer(() => {
           const currentWords = currentContent.split(/\s+/).filter(word => word.length > 0).length;
           const newWords = currentWords - initialWords;
 
-          const currentSettings = notesStore.selectedNote?.theme ? 
-            themes[notesStore.selectedNote.theme].settings : 
+          const currentSettings = notesStore.selectedNote?.theme ?
+            themes[notesStore.selectedNote.theme].settings :
             settingsStore.settings;
 
           if (newWords > 5 && !settingsStore.isZenMode && !autoZenDisabled && currentSettings.autoZenMode) {
@@ -96,97 +116,23 @@ const App = observer(() => {
     },
   });
 
-  useEffect(() => {
-    const handleKeyDown = async (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        e.preventDefault();
-        
-        if (settingsStore.syncMode === 'server' && settingsStore.server.token) {
-          try {
-            const response = await fetch(`${settingsStore.server.url}/api/data`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${settingsStore.server.token}`,
-              },
-              body: JSON.stringify({
-                notes: notesStore.notes,
-                notebooks: notesStore.notebooks,
-              }),
-            });
-
-            if (response.ok) {
-              settingsStore.setToast('Changes saved to server', 'success');
-              analytics.syncCompleted('server');
-            } else {
-              settingsStore.setToast('Failed to save changes', 'error');
-              analytics.syncFailed('server');
-            }
-          } catch (error) {
-            console.error('Sync failed:', error);
-            settingsStore.setToast('Failed to save changes', 'error');
-            analytics.syncFailed('server');
-          }
-        } else if (settingsStore.syncMode === 'webdav' && window.bridge?.syncWebDAV) {
-          try {
-            const syncData = await notesStore.exportForSync();
-            const success = await window.bridge.syncWebDAV(JSON.stringify(settingsStore.webDAV));
-            settingsStore.setToast(
-              success ? 'Changes saved to WebDAV' : 'Failed to save changes',
-              success ? 'success' : 'error'
-            );
-            if (success) {
-              analytics.syncCompleted('webdav');
-            } else {
-              analytics.syncFailed('webdav');
-            }
-          } catch (error) {
-            console.error('Sync failed:', error);
-            settingsStore.setToast('Failed to save changes', 'error');
-            analytics.syncFailed('webdav');
-          }
-        }
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [settingsStore.syncMode, settingsStore.server, settingsStore.webDAV, notesStore]);
 
   useEffect(() => {
     if (editor && notesStore.selectedNote && !notesStore.isLoadingNoteContent) {
       // Load note content if not already loaded
-      if (!notesStore.selectedNote.content) {
+      if (!notesStore.selectedNote.isLoaded) {
         notesStore.loadNoteContent(notesStore.selectedNote);
-        return; // Don't set content until loading is complete
-      }
-      
-      if (notesStore.selectedNote.isCensored && settingsStore.isCensorshipEnabled()) {
-        editor.commands.setContent('');
-        setInitialContent('');
         return;
       }
 
       const content = notesStore.selectedNote.content;
-      if (settingsStore.isCensorshipEnabled()) {
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = content;
-        const censoredElements = tempDiv.querySelectorAll('span[data-censored]');
-        censoredElements.forEach(el => el.textContent = '');
-        
-        if (tempDiv.innerHTML !== editor.getHTML()) {
-          editor.commands.setContent(tempDiv.innerHTML);
-          setInitialContent(tempDiv.textContent || '');
-        }
-      } else {
-        if (content !== editor.getHTML()) {
-          editor.commands.setContent(content);
-          setInitialContent(editor.state.doc.textContent);
-        }
+      if (content !== editor.getHTML()) {
+        editor.commands.setContent(content);
+        setInitialContent(editor.state.doc.textContent);
       }
       setAutoZenDisabled(false);
     }
-  }, [editor, notesStore.selectedNote, settingsStore.isCensorshipEnabled(), notesStore.isLoadingNoteContent]);
+  }, [editor, notesStore.selectedNote, notesStore.isLoadingNoteContent]);
 
   useEffect(() => {
     if (!settingsStore.isZenMode) {
@@ -227,41 +173,36 @@ const App = observer(() => {
   }, [settingsStore.settings, notesStore.selectedNote?.theme]);
 
   const handleImageUpload = async (file: File) => {
-    if (settingsStore.syncMode === 'server' && settingsStore.server.token) {
+    if (window.electronAPI) {
       try {
-        const formData = new FormData();
-        formData.append('image', file);
-
-        const response = await fetch(`${settingsStore.server.url}/api/upload`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${settingsStore.server.token}`,
-          },
-          body: formData
-        });
-
-        if (response.ok) {
-          const { url } = await response.json();
-          editor?.chain().focus().setImage({ 
-            src: `${settingsStore.server.url}${url}` 
-          }).run();
-          analytics.imageUploaded();
-        } else {
-          settingsStore.setToast('Failed to upload image', 'error');
-        }
+        const reader = new FileReader();
+        reader.onload = async () => {
+          if (typeof reader.result === 'string') {
+            const result = await window.electronAPI.uploadImage(reader.result, file.name);
+            if (result.success && result.url) {
+              editor?.chain().focus().setImage({ src: result.url }).run();
+            } else {
+              settingsStore.setToast(result.error || 'Failed to upload image', 'error');
+            }
+          }
+        };
+        reader.readAsDataURL(file);
       } catch (error) {
         console.error('Image upload failed:', error);
         settingsStore.setToast('Failed to upload image', 'error');
       }
-    } else {
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === 'string') {
-          editor?.chain().focus().setImage({ src: reader.result }).run();
-          analytics.imageUploaded();
-        }
-      };
-      reader.readAsDataURL(file);
+    }
+  };
+
+  imageUploadRef.current = handleImageUpload;
+
+  const handleImageInsertClick = () => {
+    setIsImageInsertModalOpen(true);
+  };
+
+  const handleInsertCarousel = (images: string[]) => {
+    if (editor && images.length > 0) {
+      editor.chain().focus().setCarousel(images).run();
     }
   };
 
@@ -292,10 +233,14 @@ const App = observer(() => {
     setIsParagraphTagModalOpen(false);
   };
 
-  const handleCreateNote = () => {
-    notesStore.createNote();
-    if (editor) {
-      editor.commands.setContent('');
+  const handleCreateNote = async () => {
+    try {
+      await notesStore.createNote();
+      if (editor) {
+        editor.commands.setContent('');
+      }
+    } catch (error) {
+      settingsStore.setToast((error as Error).message || 'Failed to create note', 'error');
     }
   };
 
@@ -303,7 +248,6 @@ const App = observer(() => {
     const url = window.prompt('Enter the URL:');
     if (url) {
       editor?.chain().focus().toggleLink({ href: url }).run();
-      analytics.linkInserted();
     }
   };
 
@@ -312,7 +256,6 @@ const App = observer(() => {
       .focus()
       .toggleTaskList()
       .run();
-    analytics.taskListCreated();
   };
 
   const handleCutIn = () => {
@@ -374,10 +317,32 @@ const App = observer(() => {
       />
 
       <div className="main-content">
-        {notesStore.selectedNote ? (
+        {window.electronAPI && !settingsStore.dataFolder ? (
+          <div className="empty-state">
+            <div className="empty-state-content">
+              <p className="empty-state-text">No data folder selected</p>
+              <p style={{ marginTop: '1rem', color: '#666', textAlign: 'center' }}>
+                To start working, please select a folder where your notes will be stored.
+                Go to Settings → Data and choose a folder on your computer.
+              </p>
+              <div className="empty-state-buttons">
+                <button
+                  onClick={() => {
+                    settingsStore.setSettingsOpen(true);
+                    settingsStore.setActiveSettingsTab('data');
+                  }}
+                  className="button-primary"
+                >
+                  Open Settings
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : notesStore.selectedNote ? (
           <Editor
             editor={editor}
             handleImageUpload={handleImageUpload}
+            handleImageClick={handleImageInsertClick}
             handleLinkInsert={handleLinkInsert}
             insertTaskList={insertTaskList}
             handleParagraphTagging={handleParagraphTagging}
@@ -415,6 +380,14 @@ const App = observer(() => {
           appliedTags={currentParagraphTags}
           onApply={handleParagraphTagsApply}
           title="Add Tags to Paragraph"
+        />
+      )}
+
+      {isImageInsertModalOpen && (
+        <ImageInsertModal
+          onClose={() => setIsImageInsertModalOpen(false)}
+          onInsertFile={handleImageUpload}
+          onInsertCarousel={handleInsertCarousel}
         />
       )}
     </div>

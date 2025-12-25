@@ -32,7 +32,7 @@ export const Typography: FC<TypographyProps> = ({ settings, setSettings }) => {
     setSettings({ ...settings, typewriterSound: sound });
     // Play the selected sound
     const newSound = new Howl({
-      src: [`/${sound}.mp3`],
+      src: [`audio://${sound}.mp3`],
       volume: 1,
       rate: 2.0
     });

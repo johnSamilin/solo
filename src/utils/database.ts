@@ -4,7 +4,6 @@ interface DBNote {
   content: string;
   createdAt: string;
   notebookId: string;
-  isCensored?: boolean;
   theme?: string;
   tags: string; // JSON string of tags array
 }
@@ -14,7 +13,6 @@ interface DBNotebook {
   name: string;
   parentId: string | null;
   isExpanded: boolean;
-  isCensored?: boolean;
 }
 
 interface DBSettings {
@@ -164,76 +162,6 @@ class DatabaseManager {
     });
   }
 
-  // Migration and sync operations
-  async clearAllData(): Promise<void> {
-    const stores = ['notes', 'notebooks', 'settings'];
-    const promises = stores.map(storeName => 
-      new Promise<void>((resolve, reject) => {
-        const store = this.getStore(storeName, 'readwrite');
-        const request = store.clear();
-        request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
-      })
-    );
-    await Promise.all(promises);
-  }
-
-  async importData(data: { notes: any[], notebooks: any[] }): Promise<void> {
-    // Convert and save notebooks
-    for (const notebook of data.notebooks) {
-      const dbNotebook: DBNotebook = {
-        id: notebook.id,
-        name: notebook.name,
-        parentId: notebook.parentId,
-        isExpanded: notebook.isExpanded,
-        isCensored: notebook.isCensored
-      };
-      await this.saveNotebook(dbNotebook);
-    }
-
-    // Convert and save notes
-    for (const note of data.notes) {
-      const dbNote: DBNote = {
-        id: note.id,
-        title: note.title,
-        content: note.content,
-        createdAt: typeof note.createdAt === 'string' ? note.createdAt : note.createdAt.toISOString(),
-        notebookId: note.notebookId,
-        isCensored: note.isCensored,
-        theme: note.theme,
-        tags: JSON.stringify(note.tags || [])
-      };
-      await this.saveNote(dbNote);
-    }
-  }
-
-  async exportData(): Promise<{ notes: any[], notebooks: any[] }> {
-    const [dbNotes, dbNotebooks] = await Promise.all([
-      this.getAllNotes(),
-      this.getAllNotebooks()
-    ]);
-
-    const notes = dbNotes.map(note => ({
-      id: note.id,
-      title: note.title,
-      content: note.content,
-      createdAt: new Date(note.createdAt),
-      notebookId: note.notebookId,
-      isCensored: note.isCensored,
-      theme: note.theme,
-      tags: JSON.parse(note.tags || '[]')
-    }));
-
-    const notebooks = dbNotebooks.map(notebook => ({
-      id: notebook.id,
-      name: notebook.name,
-      parentId: notebook.parentId,
-      isExpanded: notebook.isExpanded,
-      isCensored: notebook.isCensored
-    }));
-
-    return { notes, notebooks };
-  }
 }
 
 export const db = new DatabaseManager();

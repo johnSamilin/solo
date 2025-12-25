@@ -1,6 +1,5 @@
 import { FC, useState } from 'react';
 import { X, Copy, Loader2, Languages, Settings } from 'lucide-react';
-import { analytics } from '../../utils/analytics';
 import './Modals.css';
 
 interface TextRecognitionModalProps {
@@ -210,7 +209,6 @@ export const TextRecognitionModal: FC<TextRecognitionModalProps> = ({
     setError('');
     setHasStarted(true);
     setProgress('Initializing...');
-    analytics.ocrUsed();
     
     try {
       let text = '';
@@ -223,11 +221,9 @@ export const TextRecognitionModal: FC<TextRecognitionModalProps> = ({
       }
       
       setRecognizedText(text);
-      analytics.ocrCompleted(true);
     } catch (err) {
       console.error('OCR Error:', err);
       setError(err instanceof Error ? err.message : 'Failed to recognize text from image. Please try again.');
-      analytics.ocrCompleted(false);
     } finally {
       setIsProcessing(false);
       setProgress('');
@@ -237,7 +233,6 @@ export const TextRecognitionModal: FC<TextRecognitionModalProps> = ({
   const copyToClipboard = async () => {
     try {
       await navigator.clipboard.writeText(recognizedText);
-      analytics.textCopied();
       // Show success feedback
       const button = document.activeElement as HTMLButtonElement;
       if (button) {
@@ -256,7 +251,6 @@ export const TextRecognitionModal: FC<TextRecognitionModalProps> = ({
       textArea.select();
       document.execCommand('copy');
       document.body.removeChild(textArea);
-      analytics.textCopied();
     }
   };
 

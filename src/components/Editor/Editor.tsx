@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { FC, useState } from 'react';
 import { observer } from 'mobx-react-lite';
 import { Editor as TEditor } from "@tiptap/react";
 import { useStore } from "../../stores/StoreProvider";
@@ -20,6 +20,7 @@ import './Editor.css';
 type EditorProps = {
   editor: TEditor | null;
   handleImageUpload: (file: File) => void;
+  handleImageClick: () => void;
   handleLinkInsert: () => void;
   insertTaskList: () => void;
   handleParagraphTagging: () => void;
@@ -29,6 +30,7 @@ type EditorProps = {
 export const Editor: FC<EditorProps> = observer(({
   editor,
   handleImageUpload,
+  handleImageClick,
   handleLinkInsert,
   insertTaskList,
   handleParagraphTagging,
@@ -82,9 +84,13 @@ export const Editor: FC<EditorProps> = observer(({
     }
   };
 
-  const handleCreateNote = () => {
+  const handleCreateNote = async () => {
     if (notesStore.selectedNote) {
-      notesStore.createNote(notesStore.selectedNote.notebookId);
+      try {
+        await notesStore.createNote(notesStore.selectedNote.notebookId);
+      } catch (error) {
+        settingsStore.setToast((error as Error).message || 'Failed to create note', 'error');
+      }
     }
   };
 
@@ -118,7 +124,6 @@ export const Editor: FC<EditorProps> = observer(({
     if (contextMenu) {
       setSelectedImageUrl(contextMenu.target.src);
       setIsOcrModalOpen(true);
-      setContextMenu(null);
     }
   };
 
@@ -157,7 +162,7 @@ export const Editor: FC<EditorProps> = observer(({
           isZenMode={settingsStore.isZenMode}
           toggleZenMode={settingsStore.toggleZenMode}
           isToolbarExpanded={settingsStore.isToolbarExpanded}
-          handleImageUpload={handleImageUpload}
+          handleImageClick={handleImageClick}
           handleLinkInsert={handleLinkInsert}
           insertTaskList={insertTaskList}
           handleParagraphTagging={handleParagraphTagging}
@@ -185,8 +190,6 @@ export const Editor: FC<EditorProps> = observer(({
             currentNotebookId={notesStore.selectedNote.notebookId}
             onMoveNote={handleMoveNote}
             onDeleteNote={handleDeleteNote}
-            onToggleCensorship={() => notesStore.toggleNoteCensorship(notesStore?.selectedNote?.id ?? '')}
-            isCensored={notesStore.selectedNote.isCensored}
             currentTheme={notesStore.selectedNote.theme || ''}
             onThemeChange={handleThemeChange}
           />
