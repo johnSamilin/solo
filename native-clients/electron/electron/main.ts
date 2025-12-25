@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, protocol, net, shell, Menu } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, protocol, net, shell, Menu, ipcRenderer } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import { existsSync } from 'fs';
@@ -86,24 +86,6 @@ const createWindow = () => {
 
 const createMenu = () => {
   const template: Electron.MenuItemConstructorOptions[] = [
-    ...(process.platform === 'darwin'
-      ? [
-          {
-            label: app.name,
-            submenu: [
-              { role: 'about' },
-              { type: 'separator' },
-              { role: 'services' },
-              { type: 'separator' },
-              { role: 'hide' },
-              { role: 'hideOthers' },
-              { role: 'unhide' },
-              { type: 'separator' },
-              { role: 'quit' },
-            ],
-          },
-        ]
-      : []),
     {
       label: 'Help',
       submenu: [
@@ -111,7 +93,7 @@ const createMenu = () => {
           label: 'Open Logs',
           click: async () => {
             try {
-              await mainWindow?.webContents.invoke('open-log-file');
+              await ipcRenderer.invoke('open-log-file');
             } catch (error) {
               console.error('Failed to open logs:', error);
             }
@@ -963,11 +945,12 @@ ipcMain.handle('get-digikam-images-by-tag', async (_event, dbPath: string, tagId
       SELECT DISTINCT
         i.id,
         i.name,
-        ar.specificPath,
+        al.relativePath,
         it.tagid
       FROM Images i
       INNER JOIN ImageTags it ON i.id = it.imageid
-      INNER JOIN AlbumRoots ar ON i.album = ar.id
+      INNER JOIN Albums al ON i.album = al.id
+	    INNER JOIN AlbumRoots ar ON ar.id = 1
       WHERE it.tagid=?
       ORDER BY i.modificationDate DESC
       LIMIT ?
@@ -975,6 +958,7 @@ ipcMain.handle('get-digikam-images-by-tag', async (_event, dbPath: string, tagId
 
     const stmt = db.prepare(query);
     const images = stmt.all(tagId, limit);
+    console.log('Digikam query: ' + query + ` (results: ${images.length}). params: ${JSON.stringify({tagId})}`);
 
     return { success: true, images };
   } catch (error) {
