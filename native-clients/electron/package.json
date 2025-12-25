@@ -1,7 +1,7 @@
 {
   "name": "solo",
-  "private": true,
-  "version": "1.0.0",
+  "private": false,
+  "version": "3.0.0",
   "main": "electron/dist/main.js",
   "author": "Alexander Saltykov",
   "description": "Solo",
