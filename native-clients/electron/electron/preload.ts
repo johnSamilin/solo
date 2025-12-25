@@ -37,6 +37,7 @@ const api = {
   uploadImage: (imageData: string, fileName: string) => ipcRenderer.invoke('upload-image', imageData, fileName),
   getDigikamTags: (dbPath: string) => ipcRenderer.invoke('get-digikam-tags', dbPath),
   getDigikamImagesByTag: (dbPath: string, tagId: number, limit?: number) => ipcRenderer.invoke('get-digikam-images-by-tag', dbPath, tagId, limit),
+  openLogFile: () => ipcRenderer.invoke('open-log-file'),
 };
 
 contextBridge.exposeInMainWorld('electronAPI', api);

@@ -1,8 +1,9 @@
-import { app, BrowserWindow, ipcMain, dialog, protocol, net, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, protocol, net, shell, Menu } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import { existsSync } from 'fs';
 import Database from 'better-sqlite3';
+import { logger } from './logger';
 
 let mainWindow: BrowserWindow | null = null;
 let dataFolder: string | null = null;
@@ -79,6 +80,49 @@ const createWindow = () => {
     shell.openExternal(details.url); // Open URL in user's browser.
     return { action: "deny" }; // Prevent the app from opening the URL.
   });
+
+  createMenu();
+};
+
+const createMenu = () => {
+  const template: Electron.MenuItemConstructorOptions[] = [
+    ...(process.platform === 'darwin'
+      ? [
+          {
+            label: app.name,
+            submenu: [
+              { role: 'about' },
+              { type: 'separator' },
+              { role: 'services' },
+              { type: 'separator' },
+              { role: 'hide' },
+              { role: 'hideOthers' },
+              { role: 'unhide' },
+              { type: 'separator' },
+              { role: 'quit' },
+            ],
+          },
+        ]
+      : []),
+    {
+      label: 'Help',
+      submenu: [
+        {
+          label: 'Open Logs',
+          click: async () => {
+            try {
+              await mainWindow?.webContents.invoke('open-log-file');
+            } catch (error) {
+              console.error('Failed to open logs:', error);
+            }
+          },
+        },
+      ],
+    },
+  ];
+
+  const menu = Menu.buildFromTemplate(template);
+  Menu.setApplicationMenu(menu);
 };
 
 async function getFile(filePath: string) {
@@ -111,6 +155,33 @@ async function getFile(filePath: string) {
 }
 
 app.whenReady().then(async () => {
+  await logger.init();
+
+  const originalLog = console.log;
+  const originalError = console.error;
+  const originalWarn = console.warn;
+  const originalInfo = console.info;
+
+  console.log = (...args: any[]) => {
+    originalLog(...args);
+    logger.log(...args);
+  };
+
+  console.error = (...args: any[]) => {
+    originalError(...args);
+    logger.error(...args);
+  };
+
+  console.warn = (...args: any[]) => {
+    originalWarn(...args);
+    logger.warn(...args);
+  };
+
+  console.info = (...args: any[]) => {
+    originalInfo(...args);
+    logger.info(...args);
+  };
+
   await loadSettings();
 
   protocol.handle('image', async (request) => {
@@ -909,5 +980,16 @@ ipcMain.handle('get-digikam-images-by-tag', async (_event, dbPath: string, tagId
         console.error('Error closing database:', closeError);
       }
     }
+  }
+});
+
+ipcMain.handle('open-log-file', async () => {
+  try {
+    const logFile = logger.getLogFile();
+    await shell.openPath(logFile);
+    return { success: true };
+  } catch (error) {
+    console.error('Failed to open log file:', error);
+    return { success: false, error: (error as Error).message };
   }
 });
