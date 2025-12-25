@@ -4,6 +4,7 @@ import { useStore } from "../../../stores/StoreProvider";
 import { Edit2, Trash2, ChevronRight, ChevronDown } from "lucide-react";
 import { Note } from "../../../types";
 import { extractParagraphTags } from "../../../utils";
+import "./Tags.css";
 
 interface TagUsage {
   path: string;
@@ -121,26 +122,11 @@ export const Tags: FC = observer(() => {
 
     return (
       <div key={tag.path} style={{ marginLeft: `${level * 1.5}rem` }}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            padding: "0.5rem 0",
-            borderBottom: "1px dotted #e0e0e0",
-            gap: "0.5rem",
-          }}
-        >
+        <div className="tag-item">
           {hasChildren && (
             <button
               onClick={() => toggleExpanded(tag.path)}
-              style={{
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                padding: "0",
-                display: "flex",
-                alignItems: "center",
-              }}
+              className="tag-expand-button"
             >
               {isExpanded ? (
                 <ChevronDown className="h-4 w-4" />
@@ -150,7 +136,7 @@ export const Tags: FC = observer(() => {
             </button>
           )}
 
-          {!hasChildren && <span style={{ width: "1rem" }} />}
+          {!hasChildren && <span className="tag-spacer" />}
 
           {isEditing ? (
             <input
@@ -167,37 +153,15 @@ export const Tags: FC = observer(() => {
                 }
               }}
               autoFocus
-              style={{
-                flex: 1,
-                padding: "0.25rem 0.5rem",
-                border: "1px solid #ccc",
-                borderRadius: "4px",
-                fontFamily: "var(--editor-font-family)",
-                fontSize: "0.9rem",
-              }}
+              className="tag-edit-input"
             />
           ) : (
-            <span
-              style={{
-                flex: 1,
-                fontFamily: "var(--editor-font-family)",
-                fontSize: "0.9rem",
-                fontWeight: level === 0 ? 500 : 400,
-              }}
-            >
+            <span className={`tag-name ${level === 0 ? 'level-0' : 'level-nested'}`}>
               {displayName}
             </span>
           )}
 
-          <span
-            style={{
-              fontSize: "0.8rem",
-              color: "#666",
-              fontStyle: "italic",
-              minWidth: "2rem",
-              textAlign: "right",
-            }}
-          >
+          <span className="tag-count">
             {tag.count > 0 ? tag.count : ""}
           </span>
 
@@ -208,30 +172,14 @@ export const Tags: FC = observer(() => {
                   setEditingTag(tag.path);
                   setNewTagName(tag.path);
                 }}
-                style={{
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  padding: "0.25rem",
-                  display: "flex",
-                  alignItems: "center",
-                  color: "#666",
-                }}
+                className="tag-action-button"
                 title="Rename tag"
               >
                 <Edit2 className="h-3 w-3" />
               </button>
               <button
                 onClick={() => handleDeleteTag(tag.path)}
-                style={{
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  padding: "0.25rem",
-                  display: "flex",
-                  alignItems: "center",
-                  color: "#dc2626",
-                }}
+                className="tag-action-button delete"
                 title="Delete tag"
               >
                 <Trash2 className="h-3 w-3" />
@@ -247,33 +195,12 @@ export const Tags: FC = observer(() => {
 
   return (
     <div className="settings-group">
-      <h3 style={{
-        fontFamily: "var(--editor-font-family)",
-        fontSize: "1.1rem",
-        marginBottom: "1rem",
-        textAlign: "center",
-        textTransform: "uppercase",
-        letterSpacing: "0.1em",
-        fontWeight: 600
-      }}>
-        Index
-      </h3>
+      <h3 className="tags-title">Index</h3>
 
       {tagUsage.length === 0 ? (
-        <p style={{
-          textAlign: "center",
-          color: "#666",
-          fontFamily: "var(--editor-font-family)",
-          fontStyle: "italic"
-        }}>
-          No tags found
-        </p>
+        <p className="tags-empty">No tags found</p>
       ) : (
-        <div style={{
-          maxHeight: "60vh",
-          overflowY: "auto",
-          padding: "0 1rem",
-        }}>
+        <div className="tags-container">
           {tagUsage.map((tag) => renderTagItem(tag))}
         </div>
       )}
