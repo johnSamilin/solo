@@ -117,6 +117,13 @@ const createMenu = () => {
             }
           },
         },
+        { type: 'separator' },
+        {
+          label: 'Open DevTools',
+          click: () => {
+            mainWindow?.webContents.openDevTools();
+          },
+        },
       ],
     },
   ];
