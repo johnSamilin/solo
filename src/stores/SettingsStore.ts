@@ -16,7 +16,7 @@ export class SettingsStore {
   isNewNotebookModalOpen = false;
   isNoteSettingsOpen = false;
   toast: Toast | null = null;
-  activeSettingsTab: 'typography' | 'layout' | 'data' = 'typography';
+  activeSettingsTab: 'typography' | 'layout' | 'data' | 'tags' = 'typography';
   dataFolder: string | null = null;
   digikamDbPath: string | null = null;
 
@@ -142,7 +142,7 @@ export class SettingsStore {
     this.isNoteSettingsOpen = isOpen;
   };
 
-  setActiveSettingsTab = (tab: 'typography' | 'layout' | 'data') => {
+  setActiveSettingsTab = (tab: 'typography' | 'layout' | 'data' | 'tags') => {
     this.activeSettingsTab = tab;
   };
 

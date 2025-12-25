@@ -514,5 +514,130 @@ export class NotesStore {
     }
   }
 
+  renameTag = async (oldPath: string, newPath: string) => {
+    if (!window.electronAPI?.updateFile || !window.electronAPI?.updateMetadata) {
+      throw new Error('Electron API not available');
+    }
+
+    for (const note of this.notes) {
+      let needsUpdate = false;
+      let updatedContent = note.content;
+      let updatedTags = [...note.tags];
+
+      const tagIndex = note.tags.findIndex(tag => tag.path === oldPath);
+      if (tagIndex !== -1) {
+        updatedTags[tagIndex] = { ...updatedTags[tagIndex], path: newPath };
+        needsUpdate = true;
+      }
+
+      const paragraphTags = extractParagraphTags(note.content);
+      if (paragraphTags.includes(oldPath)) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(note.content, 'text/html');
+        const paragraphs = doc.querySelectorAll('p[data-tags]');
+
+        paragraphs.forEach(paragraph => {
+          const tagsAttr = paragraph.getAttribute('data-tags');
+          if (tagsAttr) {
+            const tags = tagsAttr.split(',').map(tag => tag.trim());
+            const updatedParagraphTags = tags.map(tag => tag === oldPath ? newPath : tag);
+            paragraph.setAttribute('data-tags', updatedParagraphTags.join(','));
+          }
+        });
+
+        updatedContent = doc.body.innerHTML;
+        needsUpdate = true;
+      }
+
+      if (needsUpdate && note.path) {
+        await window.electronAPI.updateFile(note.path, updatedContent);
+
+        const metadata = {
+          id: note.id,
+          tags: updatedTags.map(tag => tag.path),
+          createdAt: new Date(note.createdAt).toISOString().split('T')[0],
+          theme: note.theme,
+          paragraphTags: extractParagraphTags(updatedContent),
+        };
+        await window.electronAPI.updateMetadata(note.path, metadata);
+
+        runInAction(() => {
+          const noteIndex = this.notes.findIndex(n => n.id === note.id);
+          if (noteIndex !== -1) {
+            this.notes[noteIndex] = { ...note, content: updatedContent, tags: updatedTags };
+            if (this.selectedNote?.id === note.id) {
+              this.selectedNote = this.notes[noteIndex];
+            }
+          }
+        });
+      }
+    }
+
+    this.cacheNotes();
+  };
+
+  deleteTag = async (tagPath: string) => {
+    if (!window.electronAPI?.updateFile || !window.electronAPI?.updateMetadata) {
+      throw new Error('Electron API not available');
+    }
+
+    for (const note of this.notes) {
+      let needsUpdate = false;
+      let updatedContent = note.content;
+      let updatedTags = note.tags.filter(tag => tag.path !== tagPath);
+
+      if (updatedTags.length !== note.tags.length) {
+        needsUpdate = true;
+      }
+
+      const paragraphTags = extractParagraphTags(note.content);
+      if (paragraphTags.includes(tagPath)) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(note.content, 'text/html');
+        const paragraphs = doc.querySelectorAll('p[data-tags]');
+
+        paragraphs.forEach(paragraph => {
+          const tagsAttr = paragraph.getAttribute('data-tags');
+          if (tagsAttr) {
+            const tags = tagsAttr.split(',').map(tag => tag.trim()).filter(tag => tag !== tagPath);
+            if (tags.length > 0) {
+              paragraph.setAttribute('data-tags', tags.join(','));
+            } else {
+              paragraph.removeAttribute('data-tags');
+            }
+          }
+        });
+
+        updatedContent = doc.body.innerHTML;
+        needsUpdate = true;
+      }
+
+      if (needsUpdate && note.path) {
+        await window.electronAPI.updateFile(note.path, updatedContent);
+
+        const metadata = {
+          id: note.id,
+          tags: updatedTags.map(tag => tag.path),
+          createdAt: new Date(note.createdAt).toISOString().split('T')[0],
+          theme: note.theme,
+          paragraphTags: extractParagraphTags(updatedContent),
+        };
+        await window.electronAPI.updateMetadata(note.path, metadata);
+
+        runInAction(() => {
+          const noteIndex = this.notes.findIndex(n => n.id === note.id);
+          if (noteIndex !== -1) {
+            this.notes[noteIndex] = { ...note, content: updatedContent, tags: updatedTags };
+            if (this.selectedNote?.id === note.id) {
+              this.selectedNote = this.notes[noteIndex];
+            }
+          }
+        });
+      }
+    }
+
+    this.cacheNotes();
+  };
+
 
 }
