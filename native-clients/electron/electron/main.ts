@@ -946,6 +946,7 @@ ipcMain.handle('get-digikam-images-by-tag', async (_event, dbPath: string, tagId
         i.id,
         i.name,
         al.relativePath,
+        ar.specificPath,
         it.tagid
       FROM Images i
       INNER JOIN ImageTags it ON i.id = it.imageid
