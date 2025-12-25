@@ -1,6 +1,7 @@
 import { makeObservable, observable, runInAction } from 'mobx';
 import { Note, Tag, Notebook } from '../types';
 import { loadFromElectron, loadNoteContent } from '../utils/electron';
+import { extractParagraphTags } from '../utils';
 
 
 export class NotesStore {
@@ -226,11 +227,14 @@ export class NotesStore {
   private updateNoteMetadata = async (note: Note) => {
     if (!window.electronAPI?.updateMetadata || !note.path) return;
 
+    const paragraphTags = extractParagraphTags(note.content);
+
     const metadata = {
       id: note.id,
       tags: note.tags.map(tag => tag.path),
       createdAt: new Date(note.createdAt).toISOString().split('T')[0],
       theme: note.theme,
+      paragraphTags: paragraphTags.length > 0 ? paragraphTags : [],
     };
 
     try {

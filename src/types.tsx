@@ -71,6 +71,7 @@ export interface FileMetadata {
   tags: string[];
   createdAt: string;
   theme?: string;
+  paragraphTags?: string[];
 }
 
 export interface FileNode {
