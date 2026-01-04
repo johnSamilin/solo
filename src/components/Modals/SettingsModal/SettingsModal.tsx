@@ -6,6 +6,7 @@ import { Tags } from "./Tags";
 import { Statistics } from "./Statistics";
 import { observer } from "mobx-react-lite";
 import { useStore } from "../../../stores/StoreProvider";
+import "./SettingsModal.css";
 
 type SettingsModalProps = {
   onClose: () => void;
@@ -59,75 +60,43 @@ export const SettingsModal: FC<SettingsModalProps> = observer(({ onClose}) => {
             <h3>Data</h3>
             <div className="setting-item">
               <label>Data Folder</label>
-              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <div className="data-folder-controls">
                 <input
                   type="text"
                   value={settingsStore.dataFolder || 'No folder selected'}
                   readOnly
-                  style={{
-                    flex: 1,
-                    padding: '0.5rem',
-                    border: '1px solid #ccc',
-                    borderRadius: '4px',
-                    backgroundColor: '#f5f5f5'
-                  }}
+                  className="data-folder-input"
                 />
                 <button
                   onClick={handleSelectFolder}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    padding: '0.5rem 1rem',
-                    backgroundColor: '#007bff',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer'
-                  }}
+                  className="data-folder-button"
                 >
                   <FolderOpen className="h-4 w-4" />
                   Browse
                 </button>
               </div>
-              <small style={{ color: '#666', marginTop: '0.5rem', display: 'block' }}>
+              <small className="data-folder-help">
                 Select the folder where your notes are stored
               </small>
             </div>
             <div className="setting-item">
               <label>digiKam Database (optional)</label>
-              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <div className="data-folder-controls">
                 <input
                   type="text"
                   value={settingsStore.digikamDbPath || 'No database selected'}
                   readOnly
-                  style={{
-                    flex: 1,
-                    padding: '0.5rem',
-                    border: '1px solid #ccc',
-                    borderRadius: '4px',
-                    backgroundColor: '#f5f5f5'
-                  }}
+                  className="data-folder-input"
                 />
                 <button
                   onClick={handleSelectDigikamDb}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    padding: '0.5rem 1rem',
-                    backgroundColor: '#007bff',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer'
-                  }}
+                  className="data-folder-button"
                 >
                   <FolderOpen className="h-4 w-4" />
                   Browse
                 </button>
               </div>
-              <small style={{ color: '#666', marginTop: '0.5rem', display: 'block' }}>
+              <small className="data-folder-help">
                 Optional: Path to digiKam database file
               </small>
             </div>

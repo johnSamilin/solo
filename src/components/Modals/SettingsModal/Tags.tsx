@@ -121,7 +121,7 @@ export const Tags: FC = observer(() => {
     const displayName = tag.path.split("/").pop() || tag.path;
 
     return (
-      <div key={tag.path} style={{ marginLeft: `${level * 1.5}rem` }}>
+      <div key={tag.path} className={`tag-item-wrapper ${level > 0 ? `level-${Math.min(level, 5)}` : ''}`}>
         <div className="tag-item">
           {hasChildren && (
             <button
