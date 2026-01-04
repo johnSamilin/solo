@@ -18,6 +18,8 @@ interface SearchFiltersProps {
   selectedTagOperator: 'AND' | 'OR' | 'NOT';
   onSetSelectedTagOperator: (operator: 'AND' | 'OR' | 'NOT') => void;
   searchQuery: string;
+  showOnlyEmptyNotes: boolean;
+  onToggleEmptyNotes: (show: boolean) => void;
 }
 
 export const SearchFilters: FC<SearchFiltersProps> = observer(({
@@ -28,7 +30,9 @@ export const SearchFilters: FC<SearchFiltersProps> = observer(({
   onClearAllFilters,
   selectedTagOperator,
   onSetSelectedTagOperator,
-  searchQuery
+  searchQuery,
+  showOnlyEmptyNotes,
+  onToggleEmptyNotes
 }) => {
   const { tagsStore } = useStore();
   const [isFiltersCollapsed, setIsFiltersCollapsed] = useState(false);
@@ -78,6 +82,18 @@ export const SearchFilters: FC<SearchFiltersProps> = observer(({
       
       {!isFiltersCollapsed && (
         <div className="tag-filters-section">
+          <div style={{ marginBottom: '1rem', padding: '0.75rem', backgroundColor: '#f8f9fa', borderRadius: '8px', border: '1px solid #e9ecef' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={showOnlyEmptyNotes}
+                onChange={(e) => onToggleEmptyNotes(e.target.checked)}
+                style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+              />
+              <span style={{ fontWeight: '500' }}>Show only empty notes</span>
+            </label>
+          </div>
+
           <div className="tag-filters-header">
             <h3>Tag Filters</h3>
             <div className="tag-operator-selector">

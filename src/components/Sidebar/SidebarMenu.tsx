@@ -21,6 +21,9 @@ export const SidebarMenu: FC<SidebarMenuProps> = observer(({
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
+  const stats = notesStore.getStatistics();
+  const hasEmptyNotes = stats.emptyNoteCount > 0;
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -133,9 +136,22 @@ export const SidebarMenu: FC<SidebarMenuProps> = observer(({
               className="sidebar-dropdown-item"
               onClick={handleOpenSettings}
               role="menuitem"
+              style={{ position: 'relative' }}
             >
               <Settings className="h-4 w-4" />
               Settings
+              {hasEmptyNotes && (
+                <span style={{
+                  position: 'absolute',
+                  top: '0.5rem',
+                  right: '0.5rem',
+                  width: '8px',
+                  height: '8px',
+                  backgroundColor: '#dc3545',
+                  borderRadius: '50%',
+                  border: '1px solid white'
+                }} />
+              )}
             </button>
           </div>
         )}

@@ -639,5 +639,39 @@ export class NotesStore {
     this.cacheNotes();
   };
 
+  getStatistics = () => {
+    const emptyNotes = this.notes.filter(note => this.isNoteEmpty(note));
+    const totalWords = this.notes.reduce((sum, note) => {
+      return sum + this.countWords(note.content);
+    }, 0);
+
+    return {
+      notebookCount: this.notebooks.length,
+      noteCount: this.notes.length,
+      totalWords,
+      emptyNoteCount: emptyNotes.length,
+    };
+  };
+
+  isNoteEmpty = (note: Note): boolean => {
+    if (!note.content) return true;
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(note.content, 'text/html');
+    const text = doc.body.textContent || '';
+    return text.trim().length === 0;
+  };
+
+  private countWords = (content: string): number => {
+    if (!content) return 0;
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(content, 'text/html');
+    const text = doc.body.textContent || '';
+    const words = text.trim().split(/\s+/).filter(word => word.length > 0);
+    return words.length;
+  };
+
+  getEmptyNotes = (): Note[] => {
+    return this.notes.filter(note => this.isNoteEmpty(note));
+  };
 
 }

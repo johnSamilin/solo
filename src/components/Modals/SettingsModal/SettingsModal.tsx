@@ -3,6 +3,7 @@ import { FC, useCallback, useState, useEffect } from "react";
 import { Typography } from "./Typography";
 import { Layout } from "./Layout";
 import { Tags } from "./Tags";
+import { Statistics } from "./Statistics";
 import { observer } from "mobx-react-lite";
 import { useStore } from "../../../stores/StoreProvider";
 
@@ -10,7 +11,7 @@ type SettingsModalProps = {
   onClose: () => void;
 };
 
-type TabType = 'typography' | 'layout' | 'data' | 'tags';
+type TabType = 'typography' | 'layout' | 'data' | 'tags' | 'statistics';
 
 export const SettingsModal: FC<SettingsModalProps> = observer(({ onClose}) => {
   const { settingsStore, notesStore } = useStore();
@@ -50,6 +51,8 @@ export const SettingsModal: FC<SettingsModalProps> = observer(({ onClose}) => {
         return <Layout settings={settingsStore.settings} setSettings={settingsStore.updateSettings} />;
       case 'tags':
         return <Tags />;
+      case 'statistics':
+        return <Statistics />;
       case 'data':
         return (
           <div className="settings-group">
@@ -162,6 +165,12 @@ export const SettingsModal: FC<SettingsModalProps> = observer(({ onClose}) => {
             onClick={() => settingsStore.setActiveSettingsTab('tags')}
           >
             Tags
+          </button>
+          <button
+            className={`modal-tab ${settingsStore.activeSettingsTab === 'statistics' ? 'active' : ''}`}
+            onClick={() => settingsStore.setActiveSettingsTab('statistics')}
+          >
+            Statistics
           </button>
           <button
             className={`modal-tab ${settingsStore.activeSettingsTab === 'data' ? 'active' : ''}`}
