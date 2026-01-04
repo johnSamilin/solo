@@ -11,6 +11,7 @@ export default defineConfig({
   base: './', // Use relative paths
   build: {
     assetsInlineLimit: 4096,
+    minify: process.env.MINIFY === 'true',
     rollupOptions: {
       output: {
         assetFileNames: 'assets/[name]-[hash][extname]',

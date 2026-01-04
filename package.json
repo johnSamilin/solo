@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build && npm run copy-assets",
+    "build:minified": "MINIFY=true vite build && npm run copy-assets",
     "lint": "eslint .",
     "preview": "vite preview",
     "copy-assets": "cp -R assets dist/assets && cp -R dist/* native-clients/electron/electron/dist",
