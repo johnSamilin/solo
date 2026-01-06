@@ -6,6 +6,7 @@ import { Tags } from "./Tags";
 import { Statistics } from "./Statistics";
 import { observer } from "mobx-react-lite";
 import { useStore } from "../../../stores/StoreProvider";
+import { useI18n } from "../../../i18n/I18nContext";
 import "./SettingsModal.css";
 
 type SettingsModalProps = {
@@ -16,6 +17,7 @@ type TabType = 'typography' | 'layout' | 'data' | 'tags' | 'statistics';
 
 export const SettingsModal: FC<SettingsModalProps> = observer(({ onClose}) => {
   const { settingsStore, notesStore } = useStore();
+  const { t } = useI18n();
 
   const handleSelectFolder = async () => {
     if (!window.electronAPI) return;
@@ -111,7 +113,7 @@ export const SettingsModal: FC<SettingsModalProps> = observer(({ onClose}) => {
     <div className="modal-overlay">
       <div className="modal">
         <div className="modal-header">
-          <h2>Settings</h2>
+          <h2>{t.settings.settings}</h2>
           <button className="button-icon" onClick={() => onClose()}>
             <X className="h-4 w-4" />
           </button>
@@ -121,25 +123,25 @@ export const SettingsModal: FC<SettingsModalProps> = observer(({ onClose}) => {
             className={`modal-tab ${settingsStore.activeSettingsTab === 'typography' ? 'active' : ''}`}
             onClick={() => settingsStore.setActiveSettingsTab('typography')}
           >
-            Typography
+            {t.settings.typography}
           </button>
           <button
             className={`modal-tab ${settingsStore.activeSettingsTab === 'layout' ? 'active' : ''}`}
             onClick={() => settingsStore.setActiveSettingsTab('layout')}
           >
-            Layout
+            {t.settings.layout}
           </button>
           <button
             className={`modal-tab ${settingsStore.activeSettingsTab === 'tags' ? 'active' : ''}`}
             onClick={() => settingsStore.setActiveSettingsTab('tags')}
           >
-            Tags
+            {t.settings.tags}
           </button>
           <button
             className={`modal-tab ${settingsStore.activeSettingsTab === 'statistics' ? 'active' : ''}`}
             onClick={() => settingsStore.setActiveSettingsTab('statistics')}
           >
-            Statistics
+            {t.settings.statistics}
           </button>
           <button
             className={`modal-tab ${settingsStore.activeSettingsTab === 'data' ? 'active' : ''}`}

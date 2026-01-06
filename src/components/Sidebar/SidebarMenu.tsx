@@ -3,6 +3,7 @@ import { MoreVertical, Plus, Search, Clock, FolderPlus, Mail, Settings } from 'l
 import { Editor } from '@tiptap/react';
 import { observer } from 'mobx-react-lite';
 import { useStore } from '../../stores/StoreProvider';
+import { useI18n } from '../../i18n/I18nContext';
 import { isPlugin } from '../../config';
 
 interface SidebarMenuProps {
@@ -17,6 +18,7 @@ export const SidebarMenu: FC<SidebarMenuProps> = observer(({
   onOpenTimeline
 }) => {
   const { notesStore, settingsStore } = useStore();
+  const { t } = useI18n();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -75,7 +77,7 @@ export const SidebarMenu: FC<SidebarMenuProps> = observer(({
           ref={buttonRef}
           className="sidebar-menu-button"
           onClick={() => setIsMenuOpen(!isMenuOpen)}
-          aria-label="Menu"
+          aria-label={t.common.menu}
           aria-expanded={isMenuOpen}
         >
           <MoreVertical className="h-4 w-4" />
@@ -92,7 +94,7 @@ export const SidebarMenu: FC<SidebarMenuProps> = observer(({
               role="menuitem"
             >
               <Plus className="h-4 w-4" />
-              New Note
+              {t.sidebar.newNote}
             </button>
             <button
               className="sidebar-dropdown-item"
@@ -103,7 +105,7 @@ export const SidebarMenu: FC<SidebarMenuProps> = observer(({
               role="menuitem"
             >
               <Search className="h-4 w-4" />
-              Search Notes
+              {t.sidebar.search}
             </button>
             <button
               className="sidebar-dropdown-item"
@@ -114,7 +116,7 @@ export const SidebarMenu: FC<SidebarMenuProps> = observer(({
               role="menuitem"
             >
               <Clock className="h-4 w-4" />
-              Timeline View
+              {t.timeline.timeline}
             </button>
             <button
               className="sidebar-dropdown-item"
@@ -122,7 +124,7 @@ export const SidebarMenu: FC<SidebarMenuProps> = observer(({
               role="menuitem"
             >
               <FolderPlus className="h-4 w-4" />
-              New Notebook
+              {t.sidebar.newNotebook}
             </button>
             <button
               className="sidebar-dropdown-item"
@@ -139,7 +141,7 @@ export const SidebarMenu: FC<SidebarMenuProps> = observer(({
               style={{ position: 'relative' }}
             >
               <Settings className="h-4 w-4" />
-              Settings
+              {t.sidebar.settings}
               {hasEmptyNotes && (
                 <span style={{
                   position: 'absolute',

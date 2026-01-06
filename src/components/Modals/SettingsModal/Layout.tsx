@@ -1,5 +1,7 @@
 import { FC } from "react";
 import { TypographySettings } from "../../../types";
+import { useI18n } from "../../../i18n/I18nContext";
+import type { Locale } from "../../../i18n/translations";
 
 type LayoutProps = {
 	settings: TypographySettings;
@@ -7,9 +9,21 @@ type LayoutProps = {
 };
 
 export const Layout: FC<LayoutProps> = ({ settings, setSettings }) => {
+	const { t, locale, setLocale } = useI18n();
+
 	return (
 		<div className="settings-group">
-			<h3>Layout</h3>
+			<h3>{t.settings.layout}</h3>
+			<div className="setting-item">
+				<label>{t.settings.language}</label>
+				<select
+					value={locale}
+					onChange={(e) => setLocale(e.target.value as Locale)}
+				>
+					<option value="en">English</option>
+					<option value="ru">Русский</option>
+				</select>
+			</div>
 			<div className="setting-item">
 				<label>Page Margins</label>
 				<select
