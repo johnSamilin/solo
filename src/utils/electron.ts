@@ -61,7 +61,7 @@ export function parseFileStructure(structure: FileNode[]): ParseResult {
         ...metadata,
         createdAt: createdAt,
         tags: tags,
-        notebookId: parentPath || 'default',
+        notebookId: parentPath || null,
         filePath: node.path,
         path: node.path,
         isLoaded: false,
@@ -71,15 +71,6 @@ export function parseFileStructure(structure: FileNode[]): ParseResult {
 
   for (const node of structure) {
     processNode(node, '');
-  }
-
-  if (notebooks.length === 0) {
-    notebooks.push({
-      id: 'default',
-      name: 'Main notebook',
-      parentId: null,
-      isExpanded: true,
-    });
   }
 
   return { notebooks, notes };

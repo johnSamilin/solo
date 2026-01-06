@@ -6,12 +6,7 @@ import { extractParagraphTags } from '../utils';
 
 export class NotesStore {
   notes: Note[] = [];
-  notebooks: Notebook[] = [{
-    id: 'default',
-    name: 'Main notebook',
-    parentId: null,
-    isExpanded: true
-  }];
+  notebooks: Notebook[] = [];
   selectedNote: Note | null = null;
   focusedNotebookId: string | null = null;
   isEditing = false;
@@ -54,12 +49,11 @@ export class NotesStore {
 
   private cacheNotes = () => {
     this.notesByNotebookId = this.notes.reduce((agr, note) => {
-      if (note.notebookId) {
-        if (!agr.has(note.notebookId)) {
-          agr.set(note.notebookId, []);
-        }
-        agr.get(note.notebookId)!.push(note);
+      const key = note.notebookId || null;
+      if (!agr.has(key)) {
+        agr.set(key, []);
       }
+      agr.get(key)!.push(note);
       return agr;
     }, new Map());
   }
@@ -77,12 +71,7 @@ export class NotesStore {
       this.cacheNotes();
     } catch (error) {
       console.error('Error loading data from Electron:', error);
-      this.notebooks = [{
-        id: 'default',
-        name: 'Main notebook',
-        parentId: null,
-        isExpanded: true,
-      }];
+      this.notebooks = [];
       this.notes = [];
       this.cacheNotebooks();
       this.cacheNotes();
@@ -122,35 +111,23 @@ export class NotesStore {
 
 
   createNote = async (notebookId?: string) => {
-    let targetNotebookId = notebookId || this.focusedNotebookId || 'default';
+    const targetNotebookId = notebookId !== undefined ? notebookId : this.focusedNotebookId;
 
-    // Generate localized title with day and month
     const now = new Date();
     const title = now.toLocaleDateString(undefined, {
       day: 'numeric',
       month: 'long'
     });
 
-    if (this.notebooks.length === 0) {
-      const mainNotebookResult = await window.electronAPI.createNotebook('', 'Main notebook');
-      if (mainNotebookResult.success && mainNotebookResult.path) {
-        const mainNotebook: Notebook = {
-          id: mainNotebookResult.path,
-          name: 'Main notebook',
-          parentId: null,
-          isExpanded: true
-        };
-        this.notebooks.push(mainNotebook);
-        targetNotebookId = mainNotebook.id;
-      }
+    const path = targetNotebookId
+      ? this.notebooks.find((notebook) => notebook.id === targetNotebookId)?.path
+      : '';
+
+    if (targetNotebookId && !path) {
+      throw new Error("no such notebook");
     }
 
-    const path = this.notebooks.find((notebook) => notebook.id === notebookId)?.path;
-    console.log("create note", { path, notebookId })
-    if (!path) {
-      throw "no such notebook";
-    }
-    const result = await window.electronAPI.createNote(path, title);
+    const result = await window.electronAPI.createNote(path || '', title);
     if (result.success && result.htmlPath) {
       const newNote: Note = {
         id: result.id,
@@ -158,7 +135,7 @@ export class NotesStore {
         content: '',
         createdAt: new Date(),
         tags: [],
-        notebookId: targetNotebookId,
+        notebookId: targetNotebookId || null,
         isLoaded: true,
         path: result.htmlPath,
       };
@@ -166,12 +143,15 @@ export class NotesStore {
       this.selectedNote = newNote;
       this.isEditing = true;
 
-      // Ensure the parent notebook is expanded
-      const notebook = this.notebooks.find(n => n.id === targetNotebookId);
-      if (notebook && !notebook.isExpanded) {
-        notebook.isExpanded = true;
-        this.saveNotebookStates();
+      if (targetNotebookId) {
+        const notebook = this.notebooks.find(n => n.id === targetNotebookId);
+        if (notebook && !notebook.isExpanded) {
+          notebook.isExpanded = true;
+          this.saveNotebookStates();
+        }
       }
+
+      this.cacheNotes();
 
       return newNote;
     } else {
@@ -458,6 +438,10 @@ export class NotesStore {
 
   getNotebookNotes = (notebookId: string) => {
     return this.notesByNotebookId.get(notebookId) ?? [];
+  };
+
+  getRootNotes = () => {
+    return this.notesByNotebookId.get(null) ?? [];
   };
 
   getVisibleNotes = () => {

@@ -20,6 +20,16 @@ export const Sidebar: FC<SidebarProps> = observer(({ editor, onOpenSearch, onOpe
   const sidebarRef = useRef<HTMLDivElement>(null);
   const toggleButtonRef = useRef<HTMLButtonElement>(null);
 
+  const rootNotes = notesStore.getRootNotes();
+
+  const handleNoteSelect = (noteId: string) => {
+    const note = notesStore.notes.find(n => n.id === noteId);
+    if (note) {
+      notesStore.setSelectedNote(note);
+      notesStore.isEditing = true;
+    }
+  };
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       // Handle sidebar clicks when unpinned
@@ -65,6 +75,17 @@ export const Sidebar: FC<SidebarProps> = observer(({ editor, onOpenSearch, onOpe
         />
 
         <div className="notebooks-list">
+          {rootNotes.map(note => (
+            <div
+              key={note.id}
+              onClick={() => handleNoteSelect(note.id)}
+              className={`note-item ${notesStore.selectedNote?.id === note.id ? 'selected' : ''}`}
+            >
+              <div className="note-item-header">
+                <h3 className="note-item-title">{note.title}</h3>
+              </div>
+            </div>
+          ))}
           {notesStore.notebooks
             .filter(notebook => notebook.parentId === null)
             .map(notebook => (
