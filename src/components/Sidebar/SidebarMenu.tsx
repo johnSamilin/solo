@@ -132,7 +132,7 @@ export const SidebarMenu: FC<SidebarMenuProps> = observer(({
               role="menuitem"
             >
               <Mail className="h-4 w-4" />
-              Ask a question
+              {t.sidebar.askQuestion}
             </button>
             <button
               className="sidebar-dropdown-item"

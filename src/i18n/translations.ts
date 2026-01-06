@@ -9,6 +9,7 @@ export interface Translations {
     newNotebook: string;
     newNote: string;
     search: string;
+    askQuestion: string;
   };
   editor: {
     untitled: string;
@@ -19,6 +20,7 @@ export interface Translations {
     createNewNote: string;
     jumpToMonth: string;
     annotation: string;
+    noteTitle: string;
   };
   notebooks: {
     newNotebook: string;
@@ -39,6 +41,11 @@ export interface Translations {
     tagDeleted: string;
     failedToRename: string;
     failedToDelete: string;
+    confirmDelete: string;
+    confirmDeleteMessage: string;
+    index: string;
+    noTags: string;
+    addNewTag: string;
   };
   settings: {
     settings: string;
@@ -62,6 +69,25 @@ export interface Translations {
     language: string;
     tagManagement: string;
     manageTags: string;
+    pageMargins: string;
+    maxWidth: string;
+    paragraphSpacing: string;
+    pinSidebar: string;
+    autoZenMode: string;
+    enableDropCaps: string;
+    dropCapSize: string;
+    dropCapLineHeight: string;
+    narrow: string;
+    medium: string;
+    wide: string;
+    veryWide: string;
+    tight: string;
+    normal: string;
+    relaxed: string;
+    small: string;
+    large: string;
+    compact: string;
+    spacious: string;
   };
   statistics: {
     statistics: string;
@@ -78,6 +104,7 @@ export interface Translations {
     allTags: string;
     results: string;
     noResults: string;
+    searchPlaceholder: string;
   };
   timeline: {
     timeline: string;
@@ -105,6 +132,9 @@ export interface Translations {
     altText: string;
     insert: string;
     cancel: string;
+    toggleFullWidth: string;
+    recognizeText: string;
+    deleteImage: string;
   };
   textRecognition: {
     textRecognition: string;
@@ -135,6 +165,7 @@ export const translations: Record<Locale, Translations> = {
       newNotebook: 'New Notebook',
       newNote: 'New Note',
       search: 'Search',
+      askQuestion: 'Ask a question',
     },
     editor: {
       untitled: 'Untitled',
@@ -145,6 +176,7 @@ export const translations: Record<Locale, Translations> = {
       createNewNote: 'Create new note',
       jumpToMonth: 'Jump to month',
       annotation: 'Annotation',
+      noteTitle: 'Note Title',
     },
     notebooks: {
       newNotebook: 'New Notebook',
@@ -165,6 +197,11 @@ export const translations: Record<Locale, Translations> = {
       tagDeleted: 'Tag deleted successfully',
       failedToRename: 'Failed to rename tag',
       failedToDelete: 'Failed to delete tag',
+      confirmDelete: 'Are you sure you want to delete the tag',
+      confirmDeleteMessage: 'This will remove it from all notes.',
+      index: 'Index',
+      noTags: 'No tags found',
+      addNewTag: 'Add new tag (e.g., work/projects/active)',
     },
     settings: {
       settings: 'Settings',
@@ -188,6 +225,25 @@ export const translations: Record<Locale, Translations> = {
       language: 'Language',
       tagManagement: 'Tag Management',
       manageTags: 'Manage Tags',
+      pageMargins: 'Page Margins',
+      maxWidth: 'Maximum Width',
+      paragraphSpacing: 'Paragraph Spacing',
+      pinSidebar: 'Pin Sidebar',
+      autoZenMode: 'Auto Zen Mode',
+      enableDropCaps: 'Enable Drop Caps',
+      dropCapSize: 'Drop Cap Size',
+      dropCapLineHeight: 'Drop Cap Line Height',
+      narrow: 'Narrow',
+      medium: 'Medium',
+      wide: 'Wide',
+      veryWide: 'Very Wide',
+      tight: 'Tight',
+      normal: 'Normal',
+      relaxed: 'Relaxed',
+      small: 'Small',
+      large: 'Large',
+      compact: 'Compact',
+      spacious: 'Spacious',
     },
     statistics: {
       statistics: 'Statistics',
@@ -204,6 +260,7 @@ export const translations: Record<Locale, Translations> = {
       allTags: 'All Tags',
       results: 'Results',
       noResults: 'No results found',
+      searchPlaceholder: 'Search notes... (fuzzy search supported)',
     },
     timeline: {
       timeline: 'Timeline',
@@ -231,6 +288,9 @@ export const translations: Record<Locale, Translations> = {
       altText: 'Alt Text',
       insert: 'Insert',
       cancel: 'Cancel',
+      toggleFullWidth: 'Toggle Full Width',
+      recognizeText: 'Recognize Text',
+      deleteImage: 'Delete Image',
     },
     textRecognition: {
       textRecognition: 'Text Recognition',
@@ -259,6 +319,7 @@ export const translations: Record<Locale, Translations> = {
       newNotebook: 'Новый блокнот',
       newNote: 'Новая заметка',
       search: 'Поиск',
+      askQuestion: 'Задать вопрос',
     },
     editor: {
       untitled: 'Без названия',
@@ -269,6 +330,7 @@ export const translations: Record<Locale, Translations> = {
       createNewNote: 'Создать новую заметку',
       jumpToMonth: 'Перейти к месяцу',
       annotation: 'Аннотация',
+      noteTitle: 'Название заметки',
     },
     notebooks: {
       newNotebook: 'Новый блокнот',
@@ -289,6 +351,11 @@ export const translations: Record<Locale, Translations> = {
       tagDeleted: 'Тег успешно удалён',
       failedToRename: 'Не удалось переименовать тег',
       failedToDelete: 'Не удалось удалить тег',
+      confirmDelete: 'Вы уверены, что хотите удалить тег',
+      confirmDeleteMessage: 'Это удалит его из всех заметок.',
+      index: 'Индекс',
+      noTags: 'Теги не найдены',
+      addNewTag: 'Добавить новый тег (например, работа/проекты/активные)',
     },
     settings: {
       settings: 'Настройки',
@@ -312,6 +379,25 @@ export const translations: Record<Locale, Translations> = {
       language: 'Язык',
       tagManagement: 'Управление тегами',
       manageTags: 'Управление тегами',
+      pageMargins: 'Поля страницы',
+      maxWidth: 'Максимальная ширина',
+      paragraphSpacing: 'Интервал между абзацами',
+      pinSidebar: 'Закрепить боковую панель',
+      autoZenMode: 'Автоматический режим дзен',
+      enableDropCaps: 'Включить буквицы',
+      dropCapSize: 'Размер буквицы',
+      dropCapLineHeight: 'Высота строки буквицы',
+      narrow: 'Узкие',
+      medium: 'Средние',
+      wide: 'Широкие',
+      veryWide: 'Очень широкие',
+      tight: 'Плотный',
+      normal: 'Обычный',
+      relaxed: 'Свободный',
+      small: 'Маленький',
+      large: 'Большой',
+      compact: 'Компактная',
+      spacious: 'Просторная',
     },
     statistics: {
       statistics: 'Статистика',
@@ -328,6 +414,7 @@ export const translations: Record<Locale, Translations> = {
       allTags: 'Все теги',
       results: 'Результаты',
       noResults: 'Ничего не найдено',
+      searchPlaceholder: 'Поиск заметок... (поддерживается нечёткий поиск)',
     },
     timeline: {
       timeline: 'Хронология',
@@ -355,6 +442,9 @@ export const translations: Record<Locale, Translations> = {
       altText: 'Альтернативный текст',
       insert: 'Вставить',
       cancel: 'Отмена',
+      toggleFullWidth: 'Переключить на полную ширину',
+      recognizeText: 'Распознать текст',
+      deleteImage: 'Удалить изображение',
     },
     textRecognition: {
       textRecognition: 'Распознавание текста',

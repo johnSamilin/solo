@@ -173,7 +173,7 @@ export const TagModal: FC<TagModalProps> = observer(({
               value={newTagPath}
               onChange={(e) => setNewTagPath(e.target.value)}
               className="tag-input"
-              placeholder="Add new tag (e.g., work/projects/active)"
+              placeholder={t.tags.addNewTag}
             />
             <button type="submit" className="tag-apply-button">
               <TagIcon className="h-4 w-4" />

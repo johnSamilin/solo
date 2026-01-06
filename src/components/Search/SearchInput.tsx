@@ -1,5 +1,6 @@
 import { FC } from 'react';
 import { Search, X } from 'lucide-react';
+import { useI18n } from '../../i18n/I18nContext';
 
 interface SearchInputProps {
   searchQuery: string;
@@ -10,6 +11,8 @@ export const SearchInput: FC<SearchInputProps> = ({
   searchQuery,
   onSearchChange
 }) => {
+  const { t } = useI18n();
+
   return (
     <div className="search-input-section">
       <div className="search-input-wrapper">
@@ -18,7 +21,7 @@ export const SearchInput: FC<SearchInputProps> = ({
           type="text"
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Search notes... (fuzzy search supported)"
+          placeholder={t.search.searchPlaceholder}
           className="search-input"
           autoFocus
         />

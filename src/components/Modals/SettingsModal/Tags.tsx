@@ -90,7 +90,7 @@ export const Tags: FC = observer(() => {
   };
 
   const handleDeleteTag = async (tagPath: string) => {
-    if (!confirm(`Are you sure you want to delete the tag "${tagPath}"? This will remove it from all notes.`)) {
+    if (!confirm(`${t.tags.confirmDelete} "${tagPath}"? ${t.tags.confirmDeleteMessage}`)) {
       return;
     }
 
@@ -197,10 +197,10 @@ export const Tags: FC = observer(() => {
 
   return (
     <div className="settings-group">
-      <h3 className="tags-title">Index</h3>
+      <h3 className="tags-title">{t.tags.index}</h3>
 
       {tagUsage.length === 0 ? (
-        <p className="tags-empty">No tags found</p>
+        <p className="tags-empty">{t.tags.noTags}</p>
       ) : (
         <div className="tags-container">
           {tagUsage.map((tag) => renderTagItem(tag))}

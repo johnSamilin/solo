@@ -1,6 +1,7 @@
 import { FC, useState, useEffect } from 'react';
 import { observer } from 'mobx-react-lite';
 import { useStore } from '../../stores/StoreProvider';
+import { useI18n } from '../../i18n/I18nContext';
 
 interface NoteHeaderProps {
   onDateClick: () => void;
@@ -8,6 +9,7 @@ interface NoteHeaderProps {
 
 export const NoteHeader: FC<NoteHeaderProps> = observer(({ onDateClick }) => {
   const { notesStore, settingsStore } = useStore();
+  const { t } = useI18n();
   const [localTitle, setLocalTitle] = useState('');
 
   useEffect(() => {
@@ -45,7 +47,7 @@ export const NoteHeader: FC<NoteHeaderProps> = observer(({ onDateClick }) => {
         onBlur={handleTitleBlur}
         onKeyDown={handleKeyDown}
         className="editor-title"
-        placeholder="Note Title"
+        placeholder={t.editor.noteTitle}
       />
       {!settingsStore.isZenMode && (
         <p className="note-item-date">

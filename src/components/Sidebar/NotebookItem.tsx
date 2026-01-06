@@ -5,6 +5,7 @@ import { useStore } from "../../stores/StoreProvider";
 import { Editor } from "@tiptap/react";
 import { useRef, useState, useEffect } from "react";
 import { EditNotebookModal } from "../Modals/EditNotebookModal";
+import { useI18n } from "../../i18n/I18nContext";
 
 import './NotebookItem.css';
 import './NoteItem.css';
@@ -17,6 +18,7 @@ type NotebookItemProps = {
 
 export const NotebookItem = observer(({ notebook, level = 0, editor }: NotebookItemProps) => {
   const { notesStore, settingsStore } = useStore();
+  const { t } = useI18n();
   const [isContextMenuOpen, setIsContextMenuOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
@@ -109,7 +111,7 @@ export const NotebookItem = observer(({ notebook, level = 0, editor }: NotebookI
             onClick={handleEditNotebook}
             role="menuitem"
           >
-            Edit Notebook
+            {t.notebooks.editNotebook}
           </button>
         </div>
       )}
