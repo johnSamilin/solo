@@ -102,7 +102,7 @@
 }
 
 .editor-content img {
-  max-width: var(--editor-width);
+  max-height: 60vh;
   display: block;
   margin: 1rem auto;
   transition: max-width 0.3s ease;
