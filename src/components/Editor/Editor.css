@@ -110,6 +110,7 @@
 
 .editor-content img.full-width {
   max-width: 100%;
+  max-height: initial;
 }
 
 /* Annotated layout styles */
