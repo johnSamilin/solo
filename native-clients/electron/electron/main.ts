@@ -468,6 +468,9 @@ ipcMain.handle('scan-all-tags', async () => {
             if (metadata.tags && Array.isArray(metadata.tags)) {
               metadata.tags.forEach(tag => tags.add(tag));
             }
+            if (metadata.paragraphTags && Array.isArray(metadata.paragraphTags)) {
+              metadata.paragraphTags.forEach(tag => tags.add(tag));
+            }
           } catch (error) {
             continue;
           }
