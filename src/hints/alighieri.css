@@ -1,0 +1,145 @@
+@import url('https://fonts.googleapis.com/css?family=Spectral|Spectral+SC');
+@import url('https://fonts.googleapis.com/css2?family=Martel:wght@200;300;400;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=PT+Serif:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+
+
+#tinymce {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+    font-size: 1rem;
+    font-family: PT Serif, Martel, serif;
+    line-height: 1.75em
+}
+
+#tinymce:focus {
+    outline: none
+}
+
+
+#tinymce h1,
+#tinymce h2,
+#tinymce h3,
+#tinymce h4,
+#tinymce h5,
+#tinymce h6 {
+    margin: 1em 0;
+    font-family: Spectral, serif;
+    line-height: 1.25em;
+    border: none;
+}
+
+#tinymce h1 {
+    font-weight: 800;
+    font-size: 3em
+}
+
+#tinymce h2 {
+    font-weight: 400;
+    font-size: 1.8em
+}
+
+#tinymce h3 {
+    font-weight: 600;
+    font-size: 1.3em
+}
+
+#tinymce h4 {
+    font-weight: 600;
+    font-size: 1.2em
+}
+
+#tinymce h5 {
+    font-weight: 600;
+    font-size: 1.1em
+}
+
+#tinymce h6 {
+    font-weight: 600;
+    font-size: 1em
+}
+
+#tinymce h1+h2,
+#tinymce h2+h3,
+#tinymce h3+h4,
+#tinymce h4+h5,
+#tinymce h5+h6 {
+    margin-top: -1.25em
+}
+
+#tinymce h1+h2 {
+    color: #424242
+}
+
+#tinymce h1+h2+h3 {
+    margin-top: 3em
+}
+
+#tinymce h3,
+#tinymce h4,
+#tinymce h5,
+#tinymce h6 {
+    text-transform: uppercase
+}
+
+#tinymce li p,
+#tinymce p,
+#tinymce pre {
+    margin-bottom: 0
+}
+
+#tinymce code,
+#tinymce pre {
+    border-radius: 0.5rem;
+    color: #fafafa;
+    background-color: #212121
+}
+
+@media print {
+
+    #tinymce code,
+    #tinymce pre {
+        color: #fafafa !important;
+        background-color: #212121 !important
+    }
+}
+
+#tinymce code {
+    padding: 0.25rem 0.5rem
+}
+
+#tinymce pre {
+    padding: 1rem
+}
+
+#tinymce pre code {
+    padding: 0
+}
+
+#tinymce blockquote {
+    margin: 2.5em 0;
+    padding-left: 2rem;
+    padding-right: 2rem;
+    border-left: 5px solid #bdbdbd;
+    font-size: 1.25em;
+    line-height: 1.75em
+}
+
+#tinymce hr {
+    margin: 4rem auto;
+    max-width: 10rem
+}
+
+#tinymce a {
+    color: #a5171e;
+    cursor: pointer
+}
+
+#tinymce img {
+    max-width: 100%
+}
+
+#tinymce b,
+#tinymce strong {
+    font-weight: 800
+}
