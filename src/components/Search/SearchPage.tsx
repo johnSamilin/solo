@@ -146,7 +146,7 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
     }
 
     // Sort by relevance
-    return notes.sort((a, b) => {
+    return notes.slice().sort((a, b) => {
       if (searchQuery.trim()) {
         const aTitle = a.title.toLowerCase().includes(searchQuery.toLowerCase());
         const bTitle = b.title.toLowerCase().includes(searchQuery.toLowerCase());
