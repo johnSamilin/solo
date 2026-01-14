@@ -3,7 +3,6 @@ import { observer } from "mobx-react-lite";
 import { useStore } from "../../../stores/StoreProvider";
 import { Edit2, Trash2, ChevronRight, ChevronDown } from "lucide-react";
 import { Note } from "../../../types";
-import { extractParagraphTags } from "../../../utils";
 import { useI18n } from "../../../i18n/I18nContext";
 import "./Tags.css";
 
@@ -28,7 +27,7 @@ export const Tags: FC = observer(() => {
         countMap.set(tag.path, (countMap.get(tag.path) || 0) + 1);
       });
 
-      const paragraphTags = extractParagraphTags(note.content);
+      const paragraphTags = note.paragraphTags;
       paragraphTags.forEach((tag) => {
         countMap.set(tag, (countMap.get(tag) || 0) + 1);
       });

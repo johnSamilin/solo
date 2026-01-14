@@ -14,25 +14,5 @@ export class RootStore {
     
     // Provide NotesStore with reference to RootStore for accessing other stores
     this.notesStore.setRootStore(this);
-    
-    // Initialize tags from notes when notes are loaded
-    this.initializeTags();
-  }
-
-  private initializeTags = () => {
-    // Wait for notes to load, then initialize tags
-    const checkNotesLoaded = () => {
-      if (!this.notesStore.isLoading && this.notesStore.notes.length > 0) {
-        this.tagsStore.initializeFromNotes(this.notesStore.notes);
-      } else if (!this.notesStore.isLoading) {
-        // Notes loaded but empty, still initialize
-        this.tagsStore.initializeFromNotes([]);
-      } else {
-        // Still loading, check again
-        setTimeout(checkNotesLoaded, 100);
-      }
-    };
-    
-    checkNotesLoaded();
   }
 }

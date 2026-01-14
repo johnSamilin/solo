@@ -5,6 +5,7 @@ import { TagTreeItem } from "../../Sidebar/TagTreeItem";
 import { generateUniqueId } from "../../../utils";
 import { observer } from "mobx-react-lite";
 import { useStore } from "../../../stores/StoreProvider";
+import { useI18n } from "../../../i18n/I18nContext";
 
 import '../Modals.css';
 import './TagModal.css';
@@ -26,6 +27,7 @@ export const TagModal: FC<TagModalProps> = observer(({
 }) => {
   const { tagsStore } = useStore();
   const [newTagPath, setNewTagPath] = useState('');
+  const { t } = useI18n();
 
   useEffect(() => {
     if (isOpen) {

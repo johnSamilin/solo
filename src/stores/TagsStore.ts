@@ -12,6 +12,8 @@ export class TagsStore {
     makeAutoObservable(this);
     if (!window.electronAPI) {
       this.loadFromStorage();
+    } else {
+      this.loadTagsFromElectron();
     }
   }
 
@@ -126,58 +128,6 @@ export class TagsStore {
       id: generateUniqueId(),
       path: path.trim()
     };
-  };
-
-  // Initialize tags from notes if tag tree is empty
-  initializeFromNotes = (notes: any[]) => {
-    // Always ensure special timeline tags are available
-    const specialTags = ['Main events', 'Главные события'];
-    
-    if (this.tagTree.length === 0) {
-      // Collect tags from note-level tags
-      const noteTagPaths = notes.flatMap(note => note.tags?.map((tag: any) => tag.path) || []);
-      
-      // Collect tags from paragraph tags
-      const paragraphTagPaths = notes.flatMap(note => {
-        if (!note.content) return [];
-        
-        // Parse HTML content to find paragraph tags
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = note.content;
-        
-        const taggedElements = tempDiv.querySelectorAll('[data-tags]');
-        const paragraphTags: string[] = [];
-        
-        taggedElements.forEach(element => {
-          const tags = element.getAttribute('data-tags');
-          if (tags) {
-            paragraphTags.push(...tags.split(',').map(tag => tag.trim()).filter(tag => tag));
-          }
-        });
-        
-        return paragraphTags;
-      });
-      
-      // Combine all tags and remove duplicates
-      const allTags = Array.from(new Set([...noteTagPaths, ...paragraphTagPaths, ...specialTags]))
-        .map(path => ({ id: generateUniqueId(), path }));
-
-      if (allTags.length > 0) {
-        const tree = this.buildTagTree(allTags);
-        this.setTagTree(tree);
-      }
-    } else {
-      // Ensure special tags exist in existing tree
-      const existingPaths = this.getAllTagPaths(this.tagTree);
-      const missingTags = specialTags.filter(tag => !existingPaths.includes(tag));
-      
-      if (missingTags.length > 0) {
-        const newTags = missingTags.map(path => ({ id: generateUniqueId(), path }));
-        const allTags = [...this.getAllTags(this.tagTree), ...newTags];
-        const tree = this.buildTagTree(allTags);
-        this.setTagTree(tree);
-      }
-    }
   };
 
   private buildTagTree = (tags: { id: string; path: string }[]): TagNode[] => {

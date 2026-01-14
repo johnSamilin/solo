@@ -19,11 +19,12 @@ export interface Note {
   content: string;
   createdAt: Date;
   tags: Tag[];
-  notebookId: string;
+  notebookId: string | null;
   theme?: string;
   filePath?: string;
   path?: string;
   isLoaded: boolean;
+  paragraphTags: string[];
 }
 
 export interface Notebook {
