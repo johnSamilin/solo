@@ -2,6 +2,7 @@ import { db } from './database';
 import { isPlugin } from '../config';
 
 const MIGRATION_KEY = 'solo-migration-completed';
+const TAG_MIGRATION_KEY = 'solo-tag-migration-completed';
 const OLD_STORAGE_KEY = 'solo-notes-data';
 
 interface LegacyData {
@@ -9,6 +10,11 @@ interface LegacyData {
   notebooks: any[];
   selectedNoteId: string | null;
   focusedNotebookId: string | null;
+}
+
+interface LegacyTag {
+  id: string;
+  path: string;
 }
 
 export class MigrationManager {
@@ -164,6 +170,55 @@ Would you like to migrate your data now?
       localStorage.removeItem(MIGRATION_KEY);
     }
     await this.checkAndMigrate();
+  }
+
+  async migrateTagsToStrings(): Promise<boolean> {
+    try {
+      // Check if migration already completed
+      const migrationCompleted = localStorage.getItem(TAG_MIGRATION_KEY);
+      if (migrationCompleted === 'true') {
+        return true;
+      }
+
+      console.log('Starting tag migration from objects to strings...');
+
+      // Migrate notes in IndexedDB if exists
+      try {
+        await db.initialize();
+        const notes = await db.getAllNotes();
+
+        for (const note of notes) {
+          let needsUpdate = false;
+          const parsedTags = JSON.parse(note.tags);
+
+          // Check if tags are in old format (array of objects with id and path)
+          if (Array.isArray(parsedTags) && parsedTags.length > 0 &&
+              typeof parsedTags[0] === 'object' && 'path' in parsedTags[0]) {
+            console.log(`Migrating tags for note ${note.id}`);
+
+            // Convert from Tag[] to string[]
+            const migratedTags = parsedTags.map((tag: LegacyTag) => tag.path);
+            note.tags = JSON.stringify(migratedTags);
+            needsUpdate = true;
+          }
+
+          if (needsUpdate) {
+            await db.saveNote(note);
+          }
+        }
+
+        console.log('Tag migration completed successfully');
+      } catch (error) {
+        console.log('No IndexedDB data to migrate or error occurred:', error);
+      }
+
+      // Mark migration as completed
+      localStorage.setItem(TAG_MIGRATION_KEY, 'true');
+      return true;
+    } catch (error) {
+      console.error('Tag migration failed:', error);
+      return false;
+    }
   }
 }
 

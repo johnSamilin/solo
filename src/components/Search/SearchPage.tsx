@@ -122,9 +122,9 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
         if (matchingParagraphs.length > 0) {
           return true;
         }
-        
-        const noteTags = note.tags.map(tag => tag.path);
-        
+
+        const noteTags = note.tags;
+
         const andFilters = tagFilters.filter(f => f.operator === 'AND');
         const orFilters = tagFilters.filter(f => f.operator === 'OR');
         const notFilters = tagFilters.filter(f => f.operator === 'NOT');

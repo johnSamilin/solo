@@ -22,7 +22,7 @@ import { SearchPage } from './components/Search/SearchPage';
 import { Timeline } from './components/Timeline/Timeline';
 import { Toast } from './components/Toast/Toast';
 import { generateUniqueId } from './utils';
-import { TagNode } from './types';
+import type { TagNode } from './types';
 import { themes } from './constants';
 import { Plus } from 'lucide-react';
 import { TagModal } from './components/Modals/TagModal/TagModal';
@@ -35,7 +35,7 @@ const App = observer(() => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
   const [isParagraphTagModalOpen, setIsParagraphTagModalOpen] = useState(false);
-  const [currentParagraphTags, setCurrentParagraphTags] = useState<Tag[]>([]);
+  const [currentParagraphTags, setCurrentParagraphTags] = useState<string[]>([]);
   const [isImageInsertModalOpen, setIsImageInsertModalOpen] = useState(false);
   const imageUploadRef = useRef<((file: File) => Promise<void>) | null>(null);
 
@@ -212,24 +212,20 @@ const App = observer(() => {
     const { selection } = editor.state;
     const { $from } = selection;
     const node = $from.node();
-    
-    let currentTags: Tag[] = [];
+
+    let currentTags: string[] = [];
     if (node.type.name === 'paragraph' && node.attrs.tags?.length) {
-      currentTags = node.attrs.tags.map((tagPath: string) => ({
-        id: generateUniqueId(),
-        path: tagPath
-      }));
+      currentTags = node.attrs.tags;
     }
 
     setCurrentParagraphTags(currentTags);
     setIsParagraphTagModalOpen(true);
   };
 
-  const handleParagraphTagsApply = (selectedTags: Tag[]) => {
+  const handleParagraphTagsApply = (selectedTags: string[]) => {
     if (!editor) return;
-    
-    const tagPaths = selectedTags.map(tag => tag.path);
-    editor.chain().focus().setParagraphTags(tagPaths).run();
+
+    editor.chain().focus().setParagraphTags(selectedTags).run();
     setIsParagraphTagModalOpen(false);
   };
 

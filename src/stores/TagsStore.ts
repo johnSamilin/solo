@@ -23,11 +23,7 @@ export class TagsStore {
     try {
       const result = await window.electronAPI.scanAllTags();
       if (result.success && result.tags) {
-        const tags = result.tags.map((path: string) => ({
-          id: generateUniqueId(),
-          path
-        }));
-        this.tagTree = this.buildTagTree(tags);
+        this.tagTree = this.buildTagTree(result.tags);
       }
     } catch (error) {
       console.error('Error loading tags from electron:', error);
@@ -123,18 +119,15 @@ export class TagsStore {
     this.saveToStorage();
   };
 
-  createTag = (path: string): { id: string; path: string } => {
-    return {
-      id: generateUniqueId(),
-      path: path.trim()
-    };
+  createTag = (path: string): string => {
+    return path.trim();
   };
 
-  private buildTagTree = (tags: { id: string; path: string }[]): TagNode[] => {
+  private buildTagTree = (tags: string[]): TagNode[] => {
     const root: { [key: string]: TagNode } = {};
 
-    tags.forEach(tag => {
-      const parts = tag.path.split('/');
+    tags.forEach(tagPath => {
+      const parts = tagPath.split('/');
       let currentLevel = root;
       let currentPath = '';
 
@@ -149,7 +142,7 @@ export class TagsStore {
             isExpanded: false
           };
         }
-        
+
         if (index < parts.length - 1) {
           currentLevel = currentLevel[currentPath].children.reduce((acc, child) => {
             acc[child.name] = child;
@@ -173,15 +166,12 @@ export class TagsStore {
     });
   };
 
-  private getAllTags = (nodes: TagNode[]): { id: string; path: string }[] => {
+  getAllTags = (nodes: TagNode[]): string[] => {
     return nodes.flatMap(node => {
-      const tags = [{ id: node.id, path: node.name }];
+      const tags = [node.name];
       if (node.children.length > 0) {
         const childTags = this.getAllTags(node.children);
-        tags.push(...childTags.map(childTag => ({
-          id: childTag.id,
-          path: `${node.name}/${childTag.path}`
-        })));
+        tags.push(...childTags.map(childTag => `${node.name}/${childTag}`));
       }
       return tags;
     });

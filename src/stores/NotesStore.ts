@@ -1,5 +1,5 @@
 import { makeObservable, observable, runInAction } from 'mobx';
-import { Note, Tag, Notebook, FileMetadata } from '../types';
+import { Note, Notebook, FileMetadata } from '../types';
 import { loadFromElectron, loadNoteContent } from '../utils/electron';
 import { extractParagraphTags } from '../utils';
 
@@ -208,7 +208,7 @@ export class NotesStore {
 
     const metadata = {
       id: note.id,
-      tags: note.tags.map(tag => tag.path),
+      tags: note.tags,
       createdAt: new Date(note.createdAt).toISOString().split('T')[0],
       theme: note.theme,
       paragraphTags: paragraphTags.length > 0 ? paragraphTags : [],
@@ -388,18 +388,20 @@ export class NotesStore {
     this.focusedNotebookId = notebookId;
   };
 
-  addTagToNote = (noteId: string, tag: Tag) => {
+  addTagToNote = (noteId: string, tag: string) => {
     const note = this.notes.find(n => n.id === noteId);
-    if (note) {
+    if (note && !note.tags.includes(tag)) {
       note.tags.push(tag);
+      this.updateNoteMetadata(note);
       this.cacheNotes();
     }
   };
 
-  removeTagFromNote = (noteId: string, tagId: string) => {
+  removeTagFromNote = (noteId: string, tagPath: string) => {
     const note = this.notes.find(n => n.id === noteId);
     if (note) {
-      note.tags = note.tags.filter(tag => tag.id !== tagId);
+      note.tags = note.tags.filter(tag => tag !== tagPath);
+      this.updateNoteMetadata(note);
       this.cacheNotes();
     }
   };
@@ -501,8 +503,8 @@ export class NotesStore {
     }
 
     for (const note of this.notes) {
-      const hasTag = note.tags?.findIndex(({ path }) => path === oldPath) > -1;
-      const hasParagraphTag = note.paragraphTags?.findIndex(({ path }) => path === oldPath) > -1;
+      const hasTag = note.tags?.findIndex(tag => tag === oldPath) > -1;
+      const hasParagraphTag = note.paragraphTags?.findIndex(tag => tag === oldPath) > -1;
       const metadata: FileMetadata = {
         id: note.id,
         tags: note.tags,
@@ -515,10 +517,9 @@ export class NotesStore {
         console.log(`Renaming tag ${oldPath} in note ${note.filePath}`);
         needsUpdate = true;
         metadata.tags = note.tags.map((tag) => {
-          if (tag.path === oldPath) {
-            tag.path = newPath;
+          if (tag === oldPath) {
+            return newPath;
           }
-
           return tag;
         });
       }
@@ -562,8 +563,8 @@ export class NotesStore {
     }
 
     for (const note of this.notes) {
-      const hasTag = note.tags.findIndex(({ path }) => path === tagPath);
-      const hasParagraphTag = note.paragraphTags.findIndex(({ path }) => path === tagPath);
+      const hasTag = note.tags.findIndex(tag => tag === tagPath) > -1;
+      const hasParagraphTag = note.paragraphTags.findIndex(tag => tag === tagPath) > -1;
       const metadata = {
         id: note.id,
         tags: note.tags,
@@ -575,24 +576,12 @@ export class NotesStore {
       if (hasTag) {
         console.log(`Deleting tag ${tagPath} in note ${note.filePath}`);
         needsUpdate = true;
-        metadata.tags = note.tags.reduce((agr, tag) => {
-          if (tag.path !== tagPath) {
-            agr.push(tag);
-          }
-
-          return agr;
-        }, []);
+        metadata.tags = note.tags.filter(tag => tag !== tagPath);
       }
       if (hasParagraphTag) {
         console.log(`Deleting paragraph tag ${tagPath} in note ${note.filePath}`);
         needsUpdate = true;
-        metadata.paragraphTags = note.paragraphTags.reduce((agr, tag) => {
-          if (tag !== tagPath) {
-            agr.push(tag);
-          }
-
-          return agr;
-        }, []);
+        metadata.paragraphTags = note.paragraphTags.filter(tag => tag !== tagPath);
         const parser = new DOMParser();
         const doc = parser.parseFromString(note.content, 'text/html');
         const paragraphs = doc.querySelectorAll('p[data-tags]');

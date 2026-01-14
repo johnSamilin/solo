@@ -24,7 +24,7 @@ export const Tags: FC = observer(() => {
 
     notesStore.notes.forEach((note: Note) => {
       note.tags.forEach((tag) => {
-        countMap.set(tag.path, (countMap.get(tag.path) || 0) + 1);
+        countMap.set(tag, (countMap.get(tag) || 0) + 1);
       });
 
       const paragraphTags = note.paragraphTags;

@@ -36,10 +36,10 @@ export const Timeline: FC<TimelinePageProps> = observer(({ onClose, onNoteSelect
     const timelineTags = ['Main events', 'Главные события'];
     const visibleNotes = notesStore.getVisibleNotes()
       .filter(note => {
-        const hasTimelineTag = note.tags.some(tag => 
-          timelineTags.some(timelineTag => tag.path.includes(timelineTag))
+        const hasTimelineTag = note.tags.some(tag =>
+          timelineTags.some(timelineTag => tag.includes(timelineTag))
         );
-        
+
         if (hasTimelineTag) return true;
         
         const tempDiv = document.createElement('div');

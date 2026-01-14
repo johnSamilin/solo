@@ -1,6 +1,6 @@
 import { X, Tag as TagIcon } from "lucide-react";
 import { FC, useState, useEffect } from "react";
-import { Tag, TagNode } from "../../../types";
+import { TagNode } from "../../../types";
 import { TagTreeItem } from "../../Sidebar/TagTreeItem";
 import { generateUniqueId } from "../../../utils";
 import { observer } from "mobx-react-lite";
@@ -13,8 +13,8 @@ import './TagModal.css';
 interface TagModalProps {
   isOpen: boolean;
   onClose: () => void;
-  appliedTags: Tag[];
-  onApply: (selectedTags: Tag[]) => void;
+  appliedTags: string[];
+  onApply: (selectedTags: string[]) => void;
   title?: string;
 }
 
@@ -36,7 +36,7 @@ export const TagModal: FC<TagModalProps> = observer(({
 
         const markSelectedTags = (nodes: TagNode[]): TagNode[] => {
           return nodes.map(node => {
-            const isSelected = appliedTags.some(tag => tag.path.includes(node.name));
+            const isSelected = appliedTags.some(tag => tag.includes(node.name));
             return {
               ...node,
               isChecked: isSelected,
@@ -65,27 +65,25 @@ export const TagModal: FC<TagModalProps> = observer(({
     e.preventDefault();
     if (!newTagPath.trim()) return;
 
-    // Add new tag to the store
     const newTag = tagsStore.createTag(newTagPath.trim());
-    
-    // Add the new tag to the tree and mark it as selected
+
     const addTagToTree = (nodes: TagNode[], tagPath: string): TagNode[] => {
       const parts = tagPath.split('/');
       const currentPart = parts[0];
       const remainingPath = parts.slice(1).join('/');
 
       const existingNode = nodes.find(node => node.name === currentPart);
-      
+
       if (existingNode) {
         if (remainingPath) {
-          return nodes.map(node => 
-            node.name === currentPart 
+          return nodes.map(node =>
+            node.name === currentPart
               ? { ...node, children: addTagToTree(node.children, remainingPath) }
               : node
           );
         } else {
-          return nodes.map(node => 
-            node.name === currentPart 
+          return nodes.map(node =>
+            node.name === currentPart
               ? { ...node, isChecked: true }
               : node
           );
@@ -102,7 +100,7 @@ export const TagModal: FC<TagModalProps> = observer(({
       }
     };
 
-    const updatedTree = addTagToTree(tagsStore.tagTree, newTag.path);
+    const updatedTree = addTagToTree(tagsStore.tagTree, newTag);
     tagsStore.setTagTree(updatedTree);
     setNewTagPath('');
   };
@@ -121,16 +119,13 @@ export const TagModal: FC<TagModalProps> = observer(({
     return '';
   };
 
-  const getSelectedTags = (nodes: TagNode[], parentPath = ''): Tag[] => {
+  const getSelectedTags = (nodes: TagNode[], parentPath = ''): string[] => {
     return nodes.flatMap(node => {
       const currentPath = parentPath ? `${parentPath}/${node.name}` : node.name;
       const tags = [];
 
       if (node.isChecked) {
-        tags.push({
-          id: generateUniqueId(),
-          path: currentPath
-        });
+        tags.push(currentPath);
       }
 
       if (node.children.length > 0) {
