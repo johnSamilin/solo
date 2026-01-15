@@ -215,7 +215,7 @@ export class NotesStore {
     };
 
     try {
-      const result = await window.electronAPI.updateMetadata(note.path, metadata);
+      const result = await window.electronAPI.updateMetadata(note.path, JSON.parse(JSON.stringify(metadata)));
       if (!result.success) {
         console.error('Failed to update note metadata:', result.error);
       }
@@ -502,6 +502,19 @@ export class NotesStore {
       throw new Error('Electron API not available');
     }
 
+    const updateTag = (tagsList: string[]): string[] => {
+      return tagsList.reduce((agr, tag) => {
+          if (tag === oldPath) {
+            if (newPath !== '') {
+              agr.push(newPath);
+            }
+          } else {
+            agr.push(tag);
+          }
+          return agr;
+        }, [] as string[]);
+    }
+
     for (const note of this.notes) {
       const hasTag = note.tags?.findIndex(tag => tag === oldPath) > -1;
       const hasParagraphTag = note.paragraphTags?.findIndex(tag => tag === oldPath) > -1;
@@ -514,43 +527,36 @@ export class NotesStore {
       };
       let needsUpdate = false;
       if (hasTag) {
-        console.log(`Renaming tag ${oldPath} in note ${note.filePath}`);
+        console.log(`${newPath === '' ? 'Deleting' : 'Renaming'} tag ${oldPath} in note ${note.filePath}`);
         needsUpdate = true;
-        metadata.tags = note.tags.map((tag) => {
-          if (tag === oldPath) {
-            return newPath;
-          }
-          return tag;
-        });
+        metadata.tags = updateTag(note.tags);
       }
       if (hasParagraphTag) {
-        console.log(`Renaming paragraph tag ${oldPath} in note ${note.filePath}`);
+        console.log(`${newPath === '' ? 'Deleting' : 'Renaming'}  paragraph tag ${oldPath} in note ${note.filePath}`);
         needsUpdate = true;
-        metadata.paragraphTags = note.paragraphTags.map((tag) => {
-          if (tag === oldPath) {
-            return newPath;
-          }
-
-          return tag;
-        });
+        metadata.paragraphTags = updateTag(note.paragraphTags);
         const parser = new DOMParser();
-        const doc = parser.parseFromString(note.content, 'text/html');
-        const paragraphs = doc.querySelectorAll('p[data-tags]');
-
+        const content = await loadNoteContent(note.filePath);
+        const doc = parser.parseFromString(content, 'text/html');
+        const paragraphs = doc.querySelectorAll<HTMLParagraphElement>('p[data-tags]');
+  
         paragraphs.forEach(paragraph => {
-          const tagsAttr = paragraph.getAttribute('data-tags');
+          const tagsAttr = paragraph.dataset.tags;
           if (tagsAttr) {
-            const tags = tagsAttr.split(',').map(tag => tag.trim());
-            const updatedParagraphTags = tags.map(tag => tag === oldPath ? newPath : tag);
-            paragraph.setAttribute('data-tags', updatedParagraphTags.join(','));
+            const tags = tagsAttr.split(',');
+            const updatedParagraphTags = updateTag(tags);
+            paragraph.dataset.tags = updatedParagraphTags.join(',');
           }
         });
-
-        const updatedContent = doc.body.innerHTML.toString();
+  
+        const updatedContent = doc.body.innerHTML;
+        console.log({updatedContent}, note.path)
         await window.electronAPI.updateFile(note.path, updatedContent);
       }
       if (needsUpdate) {
-        await window.electronAPI.updateMetadata(note.path, JSON.parse(JSON.stringify(metadata)));
+          await window.electronAPI.updateMetadata(
+            note.path, JSON.parse(JSON.stringify(metadata))
+          )
       }
     }
 
@@ -558,58 +564,7 @@ export class NotesStore {
   };
 
   deleteTag = async (tagPath: string) => {
-    if (!window.electronAPI?.updateFile || !window.electronAPI?.updateMetadata) {
-      throw new Error('Electron API not available');
-    }
-
-    for (const note of this.notes) {
-      const hasTag = note.tags.findIndex(tag => tag === tagPath) > -1;
-      const hasParagraphTag = note.paragraphTags.findIndex(tag => tag === tagPath) > -1;
-      const metadata = {
-        id: note.id,
-        tags: note.tags,
-        createdAt: new Date(note.createdAt).toISOString().split('T')[0],
-        theme: note.theme,
-        paragraphTags: note.paragraphTags,
-      };
-      let needsUpdate = false;
-      if (hasTag) {
-        console.log(`Deleting tag ${tagPath} in note ${note.filePath}`);
-        needsUpdate = true;
-        metadata.tags = note.tags.filter(tag => tag !== tagPath);
-      }
-      if (hasParagraphTag) {
-        console.log(`Deleting paragraph tag ${tagPath} in note ${note.filePath}`);
-        needsUpdate = true;
-        metadata.paragraphTags = note.paragraphTags.filter(tag => tag !== tagPath);
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(note.content, 'text/html');
-        const paragraphs = doc.querySelectorAll('p[data-tags]');
-
-        paragraphs.forEach(paragraph => {
-          const tagsAttr = paragraph.getAttribute('data-tags');
-          if (tagsAttr) {
-            const tags = tagsAttr.split(',').map(tag => tag.trim());
-            const updatedParagraphTags = tags.reduce((agr, tag) => {
-              if (tag !== tagPath) {
-                agr.push(tag);
-              }
-
-              return agr;
-            }, []);
-            paragraph.setAttribute('data-tags', updatedParagraphTags.join(','));
-          }
-        });
-
-        const updatedContent = doc.body.innerHTML;
-        await window.electronAPI.updateFile(note.path, updatedContent);
-      }
-      if (needsUpdate) {
-        await window.electronAPI.updateMetadata(note.path, JSON.parse(JSON.stringify(metadata)));
-      }
-    }
-
-    this.loadFromStorage();
+    this.renameTag(tagPath, '');
   };
 
   getStatistics = () => {
