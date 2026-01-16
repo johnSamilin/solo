@@ -2,7 +2,6 @@ import { X, Tag } from "lucide-react";
 import { FC, useState } from "react";
 import { observer } from "mobx-react-lite";
 import { useStore } from "../../stores/StoreProvider";
-import { Tag as TagType } from "../../types";
 import { TagModal } from "../Modals/TagModal/TagModal";
 
 import './TagsDisplay.css';
@@ -13,7 +12,7 @@ export const TagsDisplay: FC = observer(() => {
 
 	if (!notesStore.selectedNote) return null;
 
-	const handleApplyTags = (selectedTags: TagType[]) => {
+	const handleApplyTags = (selectedTags: string[]) => {
 		if (notesStore.selectedNote) {
 			notesStore.updateNote(notesStore.selectedNote.id, {
 				tags: selectedTags
@@ -25,10 +24,10 @@ export const TagsDisplay: FC = observer(() => {
 		<>
 			<div className="tags-container">
 				{notesStore.selectedNote.tags.map(tag => (
-					<div key={tag.id} className="tag">
-						<span className="tag-path">{tag.path}</span>
+					<div key={tag} className="tag">
+						<span className="tag-path">{tag}</span>
 						<button
-							onClick={() => notesStore.removeTagFromNote(notesStore.selectedNote!.id, tag.id)}
+							onClick={() => notesStore.removeTagFromNote(notesStore.selectedNote!.id, tag)}
 							className="tag-remove"
 						>
 							<X className="h-3 w-3" />

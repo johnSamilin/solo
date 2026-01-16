@@ -3,7 +3,7 @@ import { observer } from "mobx-react-lite";
 import { useStore } from "../../../stores/StoreProvider";
 import { Edit2, Trash2, ChevronRight, ChevronDown } from "lucide-react";
 import { Note } from "../../../types";
-import { extractParagraphTags } from "../../../utils";
+import { useI18n } from "../../../i18n/I18nContext";
 import "./Tags.css";
 
 interface TagUsage {
@@ -14,6 +14,7 @@ interface TagUsage {
 
 export const Tags: FC = observer(() => {
   const { notesStore, tagsStore, settingsStore } = useStore();
+  const { t } = useI18n();
   const [editingTag, setEditingTag] = useState<string | null>(null);
   const [newTagName, setNewTagName] = useState("");
   const [expandedTags, setExpandedTags] = useState<Set<string>>(new Set());
@@ -23,10 +24,10 @@ export const Tags: FC = observer(() => {
 
     notesStore.notes.forEach((note: Note) => {
       note.tags.forEach((tag) => {
-        countMap.set(tag.path, (countMap.get(tag.path) || 0) + 1);
+        countMap.set(tag, (countMap.get(tag) || 0) + 1);
       });
 
-      const paragraphTags = extractParagraphTags(note.content);
+      const paragraphTags = note.paragraphTags;
       paragraphTags.forEach((tag) => {
         countMap.set(tag, (countMap.get(tag) || 0) + 1);
       });
@@ -76,29 +77,29 @@ export const Tags: FC = observer(() => {
     try {
       await notesStore.renameTag(oldPath, newTagName.trim());
       await tagsStore.loadTagsFromElectron();
-      settingsStore.setToast("Tag renamed successfully", "success");
+      settingsStore.setToast(t.tags.tagRenamed, "success");
       setEditingTag(null);
       setNewTagName("");
     } catch (error) {
       settingsStore.setToast(
-        (error as Error).message || "Failed to rename tag",
+        (error as Error).message || t.tags.failedToRename,
         "error"
       );
     }
   };
 
   const handleDeleteTag = async (tagPath: string) => {
-    if (!confirm(`Are you sure you want to delete the tag "${tagPath}"? This will remove it from all notes.`)) {
+    if (!confirm(`${t.tags.confirmDelete} "${tagPath}"? ${t.tags.confirmDeleteMessage}`)) {
       return;
     }
 
     try {
       await notesStore.deleteTag(tagPath);
       await tagsStore.loadTagsFromElectron();
-      settingsStore.setToast("Tag deleted successfully", "success");
+      settingsStore.setToast(t.tags.tagDeleted, "success");
     } catch (error) {
       settingsStore.setToast(
-        (error as Error).message || "Failed to delete tag",
+        (error as Error).message || t.tags.failedToDelete,
         "error"
       );
     }
@@ -121,7 +122,7 @@ export const Tags: FC = observer(() => {
     const displayName = tag.path.split("/").pop() || tag.path;
 
     return (
-      <div key={tag.path} style={{ marginLeft: `${level * 1.5}rem` }}>
+      <div key={tag.path} className={`tag-item-wrapper ${level > 0 ? `level-${Math.min(level, 5)}` : ''}`}>
         <div className="tag-item">
           {hasChildren && (
             <button
@@ -173,14 +174,14 @@ export const Tags: FC = observer(() => {
                   setNewTagName(tag.path);
                 }}
                 className="tag-action-button"
-                title="Rename tag"
+                title={t.tags.renameTag}
               >
                 <Edit2 className="h-3 w-3" />
               </button>
               <button
                 onClick={() => handleDeleteTag(tag.path)}
                 className="tag-action-button delete"
-                title="Delete tag"
+                title={t.tags.deleteTag}
               >
                 <Trash2 className="h-3 w-3" />
               </button>
@@ -195,10 +196,10 @@ export const Tags: FC = observer(() => {
 
   return (
     <div className="settings-group">
-      <h3 className="tags-title">Index</h3>
+      <h3 className="tags-title">{t.tags.index}</h3>
 
       {tagUsage.length === 0 ? (
-        <p className="tags-empty">No tags found</p>
+        <p className="tags-empty">{t.tags.noTags}</p>
       ) : (
         <div className="tags-container">
           {tagUsage.map((tag) => renderTagItem(tag))}

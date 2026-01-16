@@ -1,0 +1,53 @@
+.stats-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.stat-item.warning {
+  background-color: #fff3cd;
+  border-color: #ffc107;
+}
+
+.stat-icon {
+  flex-shrink: 0;
+}
+
+.stat-icon.notebooks {
+  color: #007bff;
+}
+
+.stat-icon.notes {
+  color: #28a745;
+}
+
+.stat-icon.words {
+  color: #6f42c1;
+}
+
+.stat-icon.empty {
+  color: #dc3545;
+}
+
+.stat-label {
+  font-size: 0.875rem;
+  color: #6c757d;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.stat-value.warning {
+  color: #dc3545;
+}

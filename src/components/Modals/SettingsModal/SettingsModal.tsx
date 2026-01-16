@@ -3,17 +3,21 @@ import { FC, useCallback, useState, useEffect } from "react";
 import { Typography } from "./Typography";
 import { Layout } from "./Layout";
 import { Tags } from "./Tags";
+import { Statistics } from "./Statistics";
 import { observer } from "mobx-react-lite";
 import { useStore } from "../../../stores/StoreProvider";
+import { useI18n } from "../../../i18n/I18nContext";
+import "./SettingsModal.css";
 
 type SettingsModalProps = {
   onClose: () => void;
 };
 
-type TabType = 'typography' | 'layout' | 'data' | 'tags';
+type TabType = 'typography' | 'layout' | 'data' | 'tags' | 'statistics';
 
 export const SettingsModal: FC<SettingsModalProps> = observer(({ onClose}) => {
   const { settingsStore, notesStore } = useStore();
+  const { t } = useI18n();
 
   const handleSelectFolder = async () => {
     if (!window.electronAPI) return;
@@ -50,81 +54,51 @@ export const SettingsModal: FC<SettingsModalProps> = observer(({ onClose}) => {
         return <Layout settings={settingsStore.settings} setSettings={settingsStore.updateSettings} />;
       case 'tags':
         return <Tags />;
+      case 'statistics':
+        return <Statistics />;
       case 'data':
         return (
           <div className="settings-group">
             <h3>Data</h3>
             <div className="setting-item">
               <label>Data Folder</label>
-              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <div className="data-folder-controls">
                 <input
                   type="text"
                   value={settingsStore.dataFolder || 'No folder selected'}
                   readOnly
-                  style={{
-                    flex: 1,
-                    padding: '0.5rem',
-                    border: '1px solid #ccc',
-                    borderRadius: '4px',
-                    backgroundColor: '#f5f5f5'
-                  }}
+                  className="data-folder-input"
                 />
                 <button
                   onClick={handleSelectFolder}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    padding: '0.5rem 1rem',
-                    backgroundColor: '#007bff',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer'
-                  }}
+                  className="data-folder-button"
                 >
                   <FolderOpen className="h-4 w-4" />
                   Browse
                 </button>
               </div>
-              <small style={{ color: '#666', marginTop: '0.5rem', display: 'block' }}>
+              <small className="data-folder-help">
                 Select the folder where your notes are stored
               </small>
             </div>
             <div className="setting-item">
               <label>digiKam Database (optional)</label>
-              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <div className="data-folder-controls">
                 <input
                   type="text"
                   value={settingsStore.digikamDbPath || 'No database selected'}
                   readOnly
-                  style={{
-                    flex: 1,
-                    padding: '0.5rem',
-                    border: '1px solid #ccc',
-                    borderRadius: '4px',
-                    backgroundColor: '#f5f5f5'
-                  }}
+                  className="data-folder-input"
                 />
                 <button
                   onClick={handleSelectDigikamDb}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    padding: '0.5rem 1rem',
-                    backgroundColor: '#007bff',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer'
-                  }}
+                  className="data-folder-button"
                 >
                   <FolderOpen className="h-4 w-4" />
                   Browse
                 </button>
               </div>
-              <small style={{ color: '#666', marginTop: '0.5rem', display: 'block' }}>
+              <small className="data-folder-help">
                 Optional: Path to digiKam database file
               </small>
             </div>
@@ -139,7 +113,7 @@ export const SettingsModal: FC<SettingsModalProps> = observer(({ onClose}) => {
     <div className="modal-overlay">
       <div className="modal">
         <div className="modal-header">
-          <h2>Settings</h2>
+          <h2>{t.settings.settings}</h2>
           <button className="button-icon" onClick={() => onClose()}>
             <X className="h-4 w-4" />
           </button>
@@ -149,19 +123,25 @@ export const SettingsModal: FC<SettingsModalProps> = observer(({ onClose}) => {
             className={`modal-tab ${settingsStore.activeSettingsTab === 'typography' ? 'active' : ''}`}
             onClick={() => settingsStore.setActiveSettingsTab('typography')}
           >
-            Typography
+            {t.settings.typography}
           </button>
           <button
             className={`modal-tab ${settingsStore.activeSettingsTab === 'layout' ? 'active' : ''}`}
             onClick={() => settingsStore.setActiveSettingsTab('layout')}
           >
-            Layout
+            {t.settings.layout}
           </button>
           <button
             className={`modal-tab ${settingsStore.activeSettingsTab === 'tags' ? 'active' : ''}`}
             onClick={() => settingsStore.setActiveSettingsTab('tags')}
           >
-            Tags
+            {t.settings.tags}
+          </button>
+          <button
+            className={`modal-tab ${settingsStore.activeSettingsTab === 'statistics' ? 'active' : ''}`}
+            onClick={() => settingsStore.setActiveSettingsTab('statistics')}
+          >
+            {t.settings.statistics}
           </button>
           <button
             className={`modal-tab ${settingsStore.activeSettingsTab === 'data' ? 'active' : ''}`}

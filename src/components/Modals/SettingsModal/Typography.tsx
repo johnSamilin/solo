@@ -2,6 +2,7 @@ import { FC, useEffect, useRef } from "react";
 import { themes } from "../../../constants";
 import { TypographySettings } from "../../../types";
 import { Howl } from 'howler';
+import { useI18n } from "../../../i18n/I18nContext";
 
 type TypographyProps = {
   settings: TypographySettings;
@@ -9,6 +10,7 @@ type TypographyProps = {
 };
 
 export const Typography: FC<TypographyProps> = ({ settings, setSettings }) => {
+  const { t } = useI18n();
   const soundRef = useRef<Howl>();
 
   useEffect(() => {
@@ -84,7 +86,7 @@ export const Typography: FC<TypographyProps> = ({ settings, setSettings }) => {
         </div>
         {isTypewriterFont(settings.editorFontFamily) && (
           <div className="setting-item">
-            <label>Typewriter Sound</label>
+            <label>{t.settings.typewriterSound}</label>
             <select
               value={settings.typewriterSound}
               onChange={(e) => handleSoundChange(e.target.value)}
@@ -95,7 +97,7 @@ export const Typography: FC<TypographyProps> = ({ settings, setSettings }) => {
           </div>
         )}
         <div className="setting-item">
-          <label>Font Size</label>
+          <label>{t.settings.fontSize}</label>
           <select
             value={settings.editorFontSize}
             onChange={(e) => setSettings({ ...settings, editorFontSize: e.target.value })}
@@ -106,7 +108,7 @@ export const Typography: FC<TypographyProps> = ({ settings, setSettings }) => {
           </select>
         </div>
         <div className="setting-item">
-          <label>Line Height</label>
+          <label>{t.settings.lineHeight}</label>
           <select
             value={settings.editorLineHeight}
             onChange={(e) => setSettings({ ...settings, editorLineHeight: e.target.value })}

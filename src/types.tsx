@@ -1,10 +1,5 @@
 import { Editor } from "@tiptap/react";
 
-export interface Tag {
-  id: string;
-  path: string;
-}
-
 export interface TagNode {
   id: string;
   name: string;
@@ -18,12 +13,13 @@ export interface Note {
   title: string;
   content: string;
   createdAt: Date;
-  tags: Tag[];
-  notebookId: string;
+  tags: string[];
+  notebookId: string | null;
   theme?: string;
   filePath?: string;
   path?: string;
   isLoaded: boolean;
+  paragraphTags: string[];
 }
 
 export interface Notebook {

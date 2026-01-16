@@ -2,6 +2,7 @@ import { db } from './database';
 import { isPlugin } from '../config';
 
 const MIGRATION_KEY = 'solo-migration-completed';
+const TAG_MIGRATION_KEY = 'solo-tag-migration-completed';
 const OLD_STORAGE_KEY = 'solo-notes-data';
 
 interface LegacyData {
@@ -9,6 +10,11 @@ interface LegacyData {
   notebooks: any[];
   selectedNoteId: string | null;
   focusedNotebookId: string | null;
+}
+
+interface LegacyTag {
+  id: string;
+  path: string;
 }
 
 export class MigrationManager {

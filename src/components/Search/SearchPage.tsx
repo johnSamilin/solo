@@ -23,6 +23,7 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
   const [searchQuery, setSearchQuery] = useState('');
   const [tagFilters, setTagFilters] = useState<TagFilter[]>([]);
   const [selectedTagOperator, setSelectedTagOperator] = useState<'AND' | 'OR' | 'NOT'>('AND');
+  const [showOnlyEmptyNotes, setShowOnlyEmptyNotes] = useState(false);
 
   useEffect(() => {
     tagsStore.loadTagsFromElectron();
@@ -97,6 +98,11 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
   const filteredNotes = useMemo(() => {
     let notes = notesStore.getVisibleNotes();
 
+    // Apply empty notes filter
+    if (showOnlyEmptyNotes) {
+      notes = notes.filter(note => notesStore.isNoteEmpty(note));
+    }
+
     // Apply text search
     if (searchQuery.trim()) {
       notes = notes.filter(note => {
@@ -116,9 +122,9 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
         if (matchingParagraphs.length > 0) {
           return true;
         }
-        
-        const noteTags = note.tags.map(tag => tag.path);
-        
+
+        const noteTags = note.tags;
+
         const andFilters = tagFilters.filter(f => f.operator === 'AND');
         const orFilters = tagFilters.filter(f => f.operator === 'OR');
         const notFilters = tagFilters.filter(f => f.operator === 'NOT');
@@ -140,7 +146,7 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
     }
 
     // Sort by relevance
-    return notes.sort((a, b) => {
+    return notes.slice().sort((a, b) => {
       if (searchQuery.trim()) {
         const aTitle = a.title.toLowerCase().includes(searchQuery.toLowerCase());
         const bTitle = b.title.toLowerCase().includes(searchQuery.toLowerCase());
@@ -148,10 +154,10 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
         if (aTitle && !bTitle) return -1;
         if (!aTitle && bTitle) return 1;
       }
-      
+
       return b.createdAt.getTime() - a.createdAt.getTime();
     });
-  }, [searchQuery, tagFilters, notesStore.notes]);
+  }, [searchQuery, tagFilters, showOnlyEmptyNotes, notesStore.notes]);
 
   const addTagFilter = (tagPath: string) => {
     if (!tagFilters.some(f => f.path === tagPath)) {
@@ -172,6 +178,7 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
   const clearAllFilters = () => {
     setSearchQuery('');
     setTagFilters([]);
+    setShowOnlyEmptyNotes(false);
   };
 
   return (
@@ -199,6 +206,8 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
           selectedTagOperator={selectedTagOperator}
           onSetSelectedTagOperator={setSelectedTagOperator}
           searchQuery={searchQuery}
+          showOnlyEmptyNotes={showOnlyEmptyNotes}
+          onToggleEmptyNotes={setShowOnlyEmptyNotes}
         />
 
         <SearchResults

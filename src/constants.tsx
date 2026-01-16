@@ -125,4 +125,25 @@ export const themes: Record<string, { name: string; settings: TypographySettings
       autoZenMode: true
     },
   },
+  alighieri: {
+    name: 'Alighieri',
+    settings: {
+      editorFontFamily: 'Crimson Pro',
+      editorFontSize: '1.125rem',
+      editorLineHeight: '1.8',
+      titleFontFamily: 'Crimson Pro',
+      titleFontSize: '2rem',
+      sidebarFontFamily: 'Crimson Pro',
+      sidebarFontSize: '0.9375rem',
+      pageMargins: '4rem',
+      paragraphSpacing: '1.25em',
+      enableDropCaps: false,
+      dropCapSize: '3.5em',
+      dropCapLineHeight: '3.5',
+      maxEditorWidth: '65%',
+      sidebarPinned: false,
+      typewriterSound: 'typewriter',
+      autoZenMode: true
+    },
+  },
 };

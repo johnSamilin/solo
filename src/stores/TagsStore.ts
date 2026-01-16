@@ -12,6 +12,8 @@ export class TagsStore {
     makeAutoObservable(this);
     if (!window.electronAPI) {
       this.loadFromStorage();
+    } else {
+      this.loadTagsFromElectron();
     }
   }
 
@@ -21,11 +23,7 @@ export class TagsStore {
     try {
       const result = await window.electronAPI.scanAllTags();
       if (result.success && result.tags) {
-        const tags = result.tags.map((path: string) => ({
-          id: generateUniqueId(),
-          path
-        }));
-        this.tagTree = this.buildTagTree(tags);
+        this.tagTree = this.buildTagTree(result.tags);
       }
     } catch (error) {
       console.error('Error loading tags from electron:', error);
@@ -121,70 +119,15 @@ export class TagsStore {
     this.saveToStorage();
   };
 
-  createTag = (path: string): { id: string; path: string } => {
-    return {
-      id: generateUniqueId(),
-      path: path.trim()
-    };
+  createTag = (path: string): string => {
+    return path.trim();
   };
 
-  // Initialize tags from notes if tag tree is empty
-  initializeFromNotes = (notes: any[]) => {
-    // Always ensure special timeline tags are available
-    const specialTags = ['Main events', 'Главные события'];
-    
-    if (this.tagTree.length === 0) {
-      // Collect tags from note-level tags
-      const noteTagPaths = notes.flatMap(note => note.tags?.map((tag: any) => tag.path) || []);
-      
-      // Collect tags from paragraph tags
-      const paragraphTagPaths = notes.flatMap(note => {
-        if (!note.content) return [];
-        
-        // Parse HTML content to find paragraph tags
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = note.content;
-        
-        const taggedElements = tempDiv.querySelectorAll('[data-tags]');
-        const paragraphTags: string[] = [];
-        
-        taggedElements.forEach(element => {
-          const tags = element.getAttribute('data-tags');
-          if (tags) {
-            paragraphTags.push(...tags.split(',').map(tag => tag.trim()).filter(tag => tag));
-          }
-        });
-        
-        return paragraphTags;
-      });
-      
-      // Combine all tags and remove duplicates
-      const allTags = Array.from(new Set([...noteTagPaths, ...paragraphTagPaths, ...specialTags]))
-        .map(path => ({ id: generateUniqueId(), path }));
-
-      if (allTags.length > 0) {
-        const tree = this.buildTagTree(allTags);
-        this.setTagTree(tree);
-      }
-    } else {
-      // Ensure special tags exist in existing tree
-      const existingPaths = this.getAllTagPaths(this.tagTree);
-      const missingTags = specialTags.filter(tag => !existingPaths.includes(tag));
-      
-      if (missingTags.length > 0) {
-        const newTags = missingTags.map(path => ({ id: generateUniqueId(), path }));
-        const allTags = [...this.getAllTags(this.tagTree), ...newTags];
-        const tree = this.buildTagTree(allTags);
-        this.setTagTree(tree);
-      }
-    }
-  };
-
-  private buildTagTree = (tags: { id: string; path: string }[]): TagNode[] => {
+  private buildTagTree = (tags: string[]): TagNode[] => {
     const root: { [key: string]: TagNode } = {};
 
-    tags.forEach(tag => {
-      const parts = tag.path.split('/');
+    tags.forEach(tagPath => {
+      const parts = tagPath.split('/');
       let currentLevel = root;
       let currentPath = '';
 
@@ -199,7 +142,7 @@ export class TagsStore {
             isExpanded: false
           };
         }
-        
+
         if (index < parts.length - 1) {
           currentLevel = currentLevel[currentPath].children.reduce((acc, child) => {
             acc[child.name] = child;
@@ -223,15 +166,12 @@ export class TagsStore {
     });
   };
 
-  private getAllTags = (nodes: TagNode[]): { id: string; path: string }[] => {
+  getAllTags = (nodes: TagNode[]): string[] => {
     return nodes.flatMap(node => {
-      const tags = [{ id: node.id, path: node.name }];
+      const tags = [node.name];
       if (node.children.length > 0) {
         const childTags = this.getAllTags(node.children);
-        tags.push(...childTags.map(childTag => ({
-          id: childTag.id,
-          path: `${node.name}/${childTag.path}`
-        })));
+        tags.push(...childTags.map(childTag => `${node.name}/${childTag}`));
       }
       return tags;
     });

@@ -1,5 +1,4 @@
-import { FileNode, FileMetadata, Note, Notebook, Tag } from '../types';
-import { generateUniqueId } from '../utils';
+import { FileNode, FileMetadata, Note, Notebook } from '../types';
 
 interface ParseResult {
   notebooks: Notebook[];
@@ -45,10 +44,7 @@ export function parseFileStructure(structure: FileNode[]): ParseResult {
       const noteTitle = node.name.replace(/\.html$/, '');
       const metadata = node.metadata;
 
-      const tags: Tag[] = metadata?.tags?.map(tagPath => ({
-        id: generateUniqueId(),
-        path: tagPath,
-      })) || [];
+      const tags: string[] = metadata?.tags || [];
 
       const createdAt = metadata?.createdAt
         ? new Date(metadata.createdAt)
@@ -61,25 +57,17 @@ export function parseFileStructure(structure: FileNode[]): ParseResult {
         ...metadata,
         createdAt: createdAt,
         tags: tags,
-        notebookId: parentPath || 'default',
+        notebookId: parentPath || null,
         filePath: node.path,
         path: node.path,
         isLoaded: false,
+        paragraphTags: metadata?.paragraphTags || [],
       });
     }
   }
 
   for (const node of structure) {
     processNode(node, '');
-  }
-
-  if (notebooks.length === 0) {
-    notebooks.push({
-      id: 'default',
-      name: 'Main notebook',
-      parentId: null,
-      isExpanded: true,
-    });
   }
 
   return { notebooks, notes };

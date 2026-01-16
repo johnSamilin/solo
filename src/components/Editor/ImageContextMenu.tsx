@@ -1,5 +1,6 @@
 import { FC } from 'react';
 import { Maximize2, ScanText, Trash2 } from 'lucide-react';
+import { useI18n } from '../../i18n/I18nContext';
 
 interface ImageContextMenuProps {
   x: number;
@@ -16,6 +17,8 @@ export const ImageContextMenu: FC<ImageContextMenuProps> = ({
   onRecognizeText,
   onDelete
 }) => {
+  const { t } = useI18n();
+
   return (
     <div
       className="image-context-menu"
@@ -23,15 +26,15 @@ export const ImageContextMenu: FC<ImageContextMenuProps> = ({
     >
       <button className="menu-item" onClick={onToggleWidth}>
         <Maximize2 className="h-4 w-4" />
-        Toggle Full Width
+        {t.imageModal.toggleFullWidth}
       </button>
       <button className="menu-item" onClick={onRecognizeText}>
         <ScanText className="h-4 w-4" />
-        Recognise Text
+        {t.imageModal.recognizeText}
       </button>
       <button className="menu-item" onClick={onDelete}>
         <Trash2 className="h-4 w-4" />
-        Delete Image
+        {t.imageModal.deleteImage}
       </button>
     </div>
   );

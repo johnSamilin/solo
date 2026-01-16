@@ -21,6 +21,30 @@
   padding: 0 1rem;
 }
 
+.tag-item-wrapper {
+  margin-left: 0;
+}
+
+.tag-item-wrapper.level-1 {
+  margin-left: 1.5rem;
+}
+
+.tag-item-wrapper.level-2 {
+  margin-left: 3rem;
+}
+
+.tag-item-wrapper.level-3 {
+  margin-left: 4.5rem;
+}
+
+.tag-item-wrapper.level-4 {
+  margin-left: 6rem;
+}
+
+.tag-item-wrapper.level-5 {
+  margin-left: 7.5rem;
+}
+
 .tag-item {
   display: flex;
   align-items: center;

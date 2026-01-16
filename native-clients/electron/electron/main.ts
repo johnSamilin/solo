@@ -146,30 +146,30 @@ async function getFile(filePath: string) {
 app.whenReady().then(async () => {
   await logger.init();
 
-  const originalLog = console.log;
-  const originalError = console.error;
-  const originalWarn = console.warn;
-  const originalInfo = console.info;
+    const originalLog = console.log;
+    const originalError = console.error;
+    const originalWarn = console.warn;
+    const originalInfo = console.info;
 
-  console.log = (...args: any[]) => {
-    originalLog(...args);
-    logger.log(...args);
-  };
+    console.log = (...args: any[]) => {
+      originalLog(...args);
+      logger.log(...args);
+    };
 
-  console.error = (...args: any[]) => {
-    originalError(...args);
-    logger.error(...args);
-  };
+    console.error = (...args: any[]) => {
+      originalError(...args);
+      logger.error(...args);
+    };
 
-  console.warn = (...args: any[]) => {
-    originalWarn(...args);
-    logger.warn(...args);
-  };
+    console.warn = (...args: any[]) => {
+      originalWarn(...args);
+      logger.warn(...args);
+    };
 
-  console.info = (...args: any[]) => {
-    originalInfo(...args);
-    logger.info(...args);
-  };
+    console.info = (...args: any[]) => {
+      originalInfo(...args);
+      logger.info(...args);
+    };
 
   await loadSettings();
 
@@ -234,6 +234,7 @@ interface FileMetadata {
   id: string;
   tags: string[];
   createdAt: string;
+  paragraphTags?: string[];
 }
 
 interface FileNode {
@@ -404,6 +405,15 @@ ipcMain.handle('read-structure', async () => {
             try {
               const metadataContent = await fs.readFile(metadataPath, 'utf-8');
               metadata = JSON.parse(metadataContent);
+              // migration
+              metadata.tags = metadata?.tags.map((tag) => {
+                if (typeof tag === 'object') {
+                  // @ts-ignore
+                  return tag.path;
+                } else {
+                  return tag;
+                }
+              }) ?? [];
               processedMetadata.add(path.basename(metadataPath));
             } catch (error) {
               console.error(`Failed to read metadata for ${entry.name}:`, error);
@@ -466,7 +476,18 @@ ipcMain.handle('scan-all-tags', async () => {
             const metadata: FileMetadata = JSON.parse(content);
 
             if (metadata.tags && Array.isArray(metadata.tags)) {
-              metadata.tags.forEach(tag => tags.add(tag));
+              metadata.tags.forEach(tag => {
+                // migration
+                if (typeof tag === 'object') {
+                  // @ts-ignore
+                  tags.add(tag.path);
+                } else {
+                  tags.add(tag);
+                }
+              });
+            }
+            if (metadata.paragraphTags && Array.isArray(metadata.paragraphTags)) {
+              metadata.paragraphTags.forEach(tag => tags.add(tag));
             }
           } catch (error) {
             continue;

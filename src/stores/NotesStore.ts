@@ -1,17 +1,12 @@
 import { makeObservable, observable, runInAction } from 'mobx';
-import { Note, Tag, Notebook } from '../types';
+import { Note, Notebook, FileMetadata } from '../types';
 import { loadFromElectron, loadNoteContent } from '../utils/electron';
 import { extractParagraphTags } from '../utils';
 
 
 export class NotesStore {
   notes: Note[] = [];
-  notebooks: Notebook[] = [{
-    id: 'default',
-    name: 'Main notebook',
-    parentId: null,
-    isExpanded: true
-  }];
+  notebooks: Notebook[] = [];
   selectedNote: Note | null = null;
   focusedNotebookId: string | null = null;
   isEditing = false;
@@ -54,12 +49,11 @@ export class NotesStore {
 
   private cacheNotes = () => {
     this.notesByNotebookId = this.notes.reduce((agr, note) => {
-      if (note.notebookId) {
-        if (!agr.has(note.notebookId)) {
-          agr.set(note.notebookId, []);
-        }
-        agr.get(note.notebookId)!.push(note);
+      const key = note.notebookId || null;
+      if (!agr.has(key)) {
+        agr.set(key, []);
       }
+      agr.get(key)!.push(note);
       return agr;
     }, new Map());
   }
@@ -77,12 +71,7 @@ export class NotesStore {
       this.cacheNotes();
     } catch (error) {
       console.error('Error loading data from Electron:', error);
-      this.notebooks = [{
-        id: 'default',
-        name: 'Main notebook',
-        parentId: null,
-        isExpanded: true,
-      }];
+      this.notebooks = [];
       this.notes = [];
       this.cacheNotebooks();
       this.cacheNotes();
@@ -122,35 +111,19 @@ export class NotesStore {
 
 
   createNote = async (notebookId?: string) => {
-    let targetNotebookId = notebookId || this.focusedNotebookId || 'default';
-
-    // Generate localized title with day and month
+    const targetNotebookId = notebookId !== undefined ? notebookId : this.focusedNotebookId;
+    
     const now = new Date();
     const title = now.toLocaleDateString(undefined, {
       day: 'numeric',
       month: 'long'
     });
 
-    if (this.notebooks.length === 0) {
-      const mainNotebookResult = await window.electronAPI.createNotebook('', 'Main notebook');
-      if (mainNotebookResult.success && mainNotebookResult.path) {
-        const mainNotebook: Notebook = {
-          id: mainNotebookResult.path,
-          name: 'Main notebook',
-          parentId: null,
-          isExpanded: true
-        };
-        this.notebooks.push(mainNotebook);
-        targetNotebookId = mainNotebook.id;
-      }
-    }
+    const path = targetNotebookId
+      ? this.notebooks.find((notebook) => notebook.id === targetNotebookId)?.path
+      : '';
 
-    const path = this.notebooks.find((notebook) => notebook.id === notebookId)?.path;
-    console.log("create note", { path, notebookId })
-    if (!path) {
-      throw "no such notebook";
-    }
-    const result = await window.electronAPI.createNote(path, title);
+    const result = await window.electronAPI.createNote(path || '', title);
     if (result.success && result.htmlPath) {
       const newNote: Note = {
         id: result.id,
@@ -158,20 +131,24 @@ export class NotesStore {
         content: '',
         createdAt: new Date(),
         tags: [],
-        notebookId: targetNotebookId,
+        notebookId: targetNotebookId || null,
         isLoaded: true,
         path: result.htmlPath,
+        paragraphTags: [],
       };
       this.notes.push(newNote);
       this.selectedNote = newNote;
       this.isEditing = true;
 
-      // Ensure the parent notebook is expanded
-      const notebook = this.notebooks.find(n => n.id === targetNotebookId);
-      if (notebook && !notebook.isExpanded) {
-        notebook.isExpanded = true;
-        this.saveNotebookStates();
+      if (targetNotebookId) {
+        const notebook = this.notebooks.find(n => n.id === targetNotebookId);
+        if (notebook && !notebook.isExpanded) {
+          notebook.isExpanded = true;
+          this.saveNotebookStates();
+        }
       }
+
+      this.cacheNotes();
 
       return newNote;
     } else {
@@ -231,14 +208,14 @@ export class NotesStore {
 
     const metadata = {
       id: note.id,
-      tags: note.tags.map(tag => tag.path),
+      tags: note.tags,
       createdAt: new Date(note.createdAt).toISOString().split('T')[0],
       theme: note.theme,
       paragraphTags: paragraphTags.length > 0 ? paragraphTags : [],
     };
 
     try {
-      const result = await window.electronAPI.updateMetadata(note.path, metadata);
+      const result = await window.electronAPI.updateMetadata(note.path, JSON.parse(JSON.stringify(metadata)));
       if (!result.success) {
         console.error('Failed to update note metadata:', result.error);
       }
@@ -411,18 +388,20 @@ export class NotesStore {
     this.focusedNotebookId = notebookId;
   };
 
-  addTagToNote = (noteId: string, tag: Tag) => {
+  addTagToNote = (noteId: string, tag: string) => {
     const note = this.notes.find(n => n.id === noteId);
-    if (note) {
+    if (note && !note.tags.includes(tag)) {
       note.tags.push(tag);
+      this.updateNoteMetadata(note);
       this.cacheNotes();
     }
   };
 
-  removeTagFromNote = (noteId: string, tagId: string) => {
+  removeTagFromNote = (noteId: string, tagPath: string) => {
     const note = this.notes.find(n => n.id === noteId);
     if (note) {
-      note.tags = note.tags.filter(tag => tag.id !== tagId);
+      note.tags = note.tags.filter(tag => tag !== tagPath);
+      this.updateNoteMetadata(note);
       this.cacheNotes();
     }
   };
@@ -458,6 +437,10 @@ export class NotesStore {
 
   getNotebookNotes = (notebookId: string) => {
     return this.notesByNotebookId.get(notebookId) ?? [];
+  };
+
+  getRootNotes = () => {
+    return this.notesByNotebookId.get(null) ?? [];
   };
 
   getVisibleNotes = () => {
@@ -519,125 +502,104 @@ export class NotesStore {
       throw new Error('Electron API not available');
     }
 
-    for (const note of this.notes) {
-      let needsUpdate = false;
-      let updatedContent = note.content;
-      let updatedTags = [...note.tags];
-
-      const tagIndex = note.tags.findIndex(tag => tag.path === oldPath);
-      if (tagIndex !== -1) {
-        updatedTags[tagIndex] = { ...updatedTags[tagIndex], path: newPath };
-        needsUpdate = true;
-      }
-
-      const paragraphTags = extractParagraphTags(note.content);
-      if (paragraphTags.includes(oldPath)) {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(note.content, 'text/html');
-        const paragraphs = doc.querySelectorAll('p[data-tags]');
-
-        paragraphs.forEach(paragraph => {
-          const tagsAttr = paragraph.getAttribute('data-tags');
-          if (tagsAttr) {
-            const tags = tagsAttr.split(',').map(tag => tag.trim());
-            const updatedParagraphTags = tags.map(tag => tag === oldPath ? newPath : tag);
-            paragraph.setAttribute('data-tags', updatedParagraphTags.join(','));
-          }
-        });
-
-        updatedContent = doc.body.innerHTML;
-        needsUpdate = true;
-      }
-
-      if (needsUpdate && note.path) {
-        await window.electronAPI.updateFile(note.path, updatedContent);
-
-        const metadata = {
-          id: note.id,
-          tags: updatedTags.map(tag => tag.path),
-          createdAt: new Date(note.createdAt).toISOString().split('T')[0],
-          theme: note.theme,
-          paragraphTags: extractParagraphTags(updatedContent),
-        };
-        await window.electronAPI.updateMetadata(note.path, metadata);
-
-        runInAction(() => {
-          const noteIndex = this.notes.findIndex(n => n.id === note.id);
-          if (noteIndex !== -1) {
-            this.notes[noteIndex] = { ...note, content: updatedContent, tags: updatedTags };
-            if (this.selectedNote?.id === note.id) {
-              this.selectedNote = this.notes[noteIndex];
+    const updateTag = (tagsList: string[]): string[] => {
+      return tagsList.reduce((agr, tag) => {
+          if (tag === oldPath) {
+            if (newPath !== '') {
+              agr.push(newPath);
             }
+          } else {
+            agr.push(tag);
+          }
+          return agr;
+        }, [] as string[]);
+    }
+
+    for (const note of this.notes) {
+      const hasTag = note.tags?.findIndex(tag => tag === oldPath) > -1;
+      const hasParagraphTag = note.paragraphTags?.findIndex(tag => tag === oldPath) > -1;
+      const metadata: FileMetadata = {
+        id: note.id,
+        tags: note.tags,
+        createdAt: new Date(note.createdAt).toISOString().split('T')[0],
+        theme: note.theme,
+        paragraphTags: note.paragraphTags,
+      };
+      let needsUpdate = false;
+      if (hasTag) {
+        console.log(`${newPath === '' ? 'Deleting' : 'Renaming'} tag ${oldPath} in note ${note.filePath}`);
+        needsUpdate = true;
+        metadata.tags = updateTag(note.tags);
+      }
+      if (hasParagraphTag) {
+        console.log(`${newPath === '' ? 'Deleting' : 'Renaming'}  paragraph tag ${oldPath} in note ${note.filePath}`);
+        needsUpdate = true;
+        metadata.paragraphTags = updateTag(note.paragraphTags);
+        const parser = new DOMParser();
+        const content = await loadNoteContent(note.filePath);
+        const doc = parser.parseFromString(content, 'text/html');
+        const paragraphs = doc.querySelectorAll<HTMLParagraphElement>('p[data-tags]');
+  
+        paragraphs.forEach(paragraph => {
+          const tagsAttr = paragraph.dataset.tags;
+          if (tagsAttr) {
+            const tags = tagsAttr.split(',');
+            const updatedParagraphTags = updateTag(tags);
+            paragraph.dataset.tags = updatedParagraphTags.join(',');
           }
         });
+  
+        const updatedContent = doc.body.innerHTML;
+        console.log({updatedContent}, note.path)
+        await window.electronAPI.updateFile(note.path, updatedContent);
+      }
+      if (needsUpdate) {
+          await window.electronAPI.updateMetadata(
+            note.path, JSON.parse(JSON.stringify(metadata))
+          )
       }
     }
 
-    this.cacheNotes();
+    this.loadFromStorage();
   };
 
   deleteTag = async (tagPath: string) => {
-    if (!window.electronAPI?.updateFile || !window.electronAPI?.updateMetadata) {
-      throw new Error('Electron API not available');
-    }
-
-    for (const note of this.notes) {
-      let needsUpdate = false;
-      let updatedContent = note.content;
-      let updatedTags = note.tags.filter(tag => tag.path !== tagPath);
-
-      if (updatedTags.length !== note.tags.length) {
-        needsUpdate = true;
-      }
-
-      const paragraphTags = extractParagraphTags(note.content);
-      if (paragraphTags.includes(tagPath)) {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(note.content, 'text/html');
-        const paragraphs = doc.querySelectorAll('p[data-tags]');
-
-        paragraphs.forEach(paragraph => {
-          const tagsAttr = paragraph.getAttribute('data-tags');
-          if (tagsAttr) {
-            const tags = tagsAttr.split(',').map(tag => tag.trim()).filter(tag => tag !== tagPath);
-            if (tags.length > 0) {
-              paragraph.setAttribute('data-tags', tags.join(','));
-            } else {
-              paragraph.removeAttribute('data-tags');
-            }
-          }
-        });
-
-        updatedContent = doc.body.innerHTML;
-        needsUpdate = true;
-      }
-
-      if (needsUpdate && note.path) {
-        await window.electronAPI.updateFile(note.path, updatedContent);
-
-        const metadata = {
-          id: note.id,
-          tags: updatedTags.map(tag => tag.path),
-          createdAt: new Date(note.createdAt).toISOString().split('T')[0],
-          theme: note.theme,
-          paragraphTags: extractParagraphTags(updatedContent),
-        };
-        await window.electronAPI.updateMetadata(note.path, metadata);
-
-        runInAction(() => {
-          const noteIndex = this.notes.findIndex(n => n.id === note.id);
-          if (noteIndex !== -1) {
-            this.notes[noteIndex] = { ...note, content: updatedContent, tags: updatedTags };
-            if (this.selectedNote?.id === note.id) {
-              this.selectedNote = this.notes[noteIndex];
-            }
-          }
-        });
-      }
-    }
-
-    this.cacheNotes();
+    this.renameTag(tagPath, '');
   };
 
+  getStatistics = () => {
+    const emptyNotes = this.notes.filter(note => this.isNoteEmpty(note));
+    const totalWords = this.notes.reduce((sum, note) => {
+      return sum + this.countWords(note.content);
+    }, 0);
+
+    return {
+      notebookCount: this.notebooks.length,
+      noteCount: this.notes.length,
+      totalWords,
+      emptyNoteCount: emptyNotes.length,
+    };
+  };
+
+  isNoteEmpty = (note: Note): boolean => {
+    if (!note.content) return true;
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(note.content, 'text/html');
+    const text = doc.body.textContent || '';
+    return text.trim().length === 0;
+  };
+
+  private countWords = (content: string): number => {
+    if (!content) return 0;
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(content, 'text/html');
+    const text = doc.body.textContent || '';
+    const words = text.trim().split(/\s+/).filter(word => word.length > 0);
+    return words.length;
+  };
+
+  getEmptyNotes = (): Note[] => {
+    return this.notes.filter(note => this.isNoteEmpty(note));
+  };
 
 }
