@@ -50,10 +50,10 @@ export const SearchFilters: FC<SearchFiltersProps> = observer(({
   const renderTagTree = (nodes: TagNode[], level = 0) => {
     return nodes.map(node => (
       <div key={node.id} style={{ paddingLeft: `${level}rem` }}>
-        <div 
+        <div
           className="tag-selector-item"
           onClick={() => {
-            onAddTagFilter(node.name);
+            onAddTagFilter(node.path);
             setIsTagSelectorOpen(false);
           }}
         >

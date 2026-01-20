@@ -124,35 +124,36 @@ export class TagsStore {
   };
 
   private buildTagTree = (tags: string[]): TagNode[] => {
-    const root: { [key: string]: TagNode } = {};
+    const root: TagNode[] = [];
+    const nodeMap: { [key: string]: TagNode } = {};
 
     tags.forEach(tagPath => {
       const parts = tagPath.split('/');
-      let currentLevel = root;
       let currentPath = '';
+      let parentChildren = root;
 
-      parts.forEach((part, index) => {
+      parts.forEach((part) => {
         currentPath = currentPath ? `${currentPath}/${part}` : part;
-        if (!currentLevel[currentPath]) {
-          currentLevel[currentPath] = {
+
+        if (!nodeMap[currentPath]) {
+          const newNode: TagNode = {
             id: generateUniqueId(),
             name: part,
+            path: currentPath,
             children: [],
             isChecked: false,
             isExpanded: false
           };
+
+          nodeMap[currentPath] = newNode;
+          parentChildren.push(newNode);
         }
 
-        if (index < parts.length - 1) {
-          currentLevel = currentLevel[currentPath].children.reduce((acc, child) => {
-            acc[child.name] = child;
-            return acc;
-          }, {} as { [key: string]: TagNode });
-        }
+        parentChildren = nodeMap[currentPath].children;
       });
     });
 
-    return Object.values(root);
+    return root;
   };
 
   private getAllTagPaths = (nodes: TagNode[]): string[] => {
