@@ -38,6 +38,14 @@ const api = {
   getDigikamTags: (dbPath: string) => ipcRenderer.invoke('get-digikam-tags', dbPath),
   getDigikamImagesByTag: (dbPath: string, tagId: number, limit?: number) => ipcRenderer.invoke('get-digikam-images-by-tag', dbPath, tagId, limit),
   openLogFile: () => ipcRenderer.invoke('open-log-file'),
+  checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+  downloadUpdate: () => ipcRenderer.invoke('download-update'),
+  installUpdate: () => ipcRenderer.invoke('install-update'),
+  onUpdateStatus: (callback: (event: any, data: any) => void) => {
+    const listener = (_: any, data: any) => callback(_, data);
+    ipcRenderer.on('update-status', listener);
+    return () => ipcRenderer.removeListener('update-status', listener);
+  },
 };
 
 contextBridge.exposeInMainWorld('electronAPI', api);

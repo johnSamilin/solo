@@ -4,6 +4,7 @@ import * as fs from 'fs/promises';
 import { existsSync } from 'fs';
 import Database from 'better-sqlite3';
 import { logger } from './logger';
+import { updateManager } from './autoUpdater';
 
 let mainWindow: BrowserWindow | null = null;
 let dataFolder: string | null = null;
@@ -81,6 +82,8 @@ const createWindow = () => {
     return { action: "deny" }; // Prevent the app from opening the URL.
   });
 
+  updateManager.setMainWindow(mainWindow);
+
   createMenu();
 };
 
@@ -89,6 +92,17 @@ const createMenu = () => {
     {
       label: 'Help',
       submenu: [
+        {
+          label: 'Check for Updates...',
+          click: async () => {
+            try {
+              await updateManager.manualCheckForUpdates();
+            } catch (error) {
+              console.error('Failed to check for updates:', error);
+            }
+          },
+        },
+        { type: 'separator' },
         {
           label: 'Open Logs',
           click: async () => {
@@ -216,6 +230,10 @@ app.whenReady().then(async () => {
   });
 
   createWindow();
+
+  if (process.env.NODE_ENV !== 'development') {
+    updateManager.startPeriodicChecks();
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -1003,6 +1021,36 @@ ipcMain.handle('open-log-file', async () => {
     return { success: true };
   } catch (error) {
     console.error('Failed to open log file:', error);
+    return { success: false, error: (error as Error).message };
+  }
+});
+
+ipcMain.handle('check-for-updates', async () => {
+  try {
+    await updateManager.manualCheckForUpdates();
+    return { success: true };
+  } catch (error) {
+    console.error('Failed to check for updates:', error);
+    return { success: false, error: (error as Error).message };
+  }
+});
+
+ipcMain.handle('download-update', async () => {
+  try {
+    updateManager.downloadUpdate();
+    return { success: true };
+  } catch (error) {
+    console.error('Failed to download update:', error);
+    return { success: false, error: (error as Error).message };
+  }
+});
+
+ipcMain.handle('install-update', async () => {
+  try {
+    updateManager.quitAndInstall();
+    return { success: true };
+  } catch (error) {
+    console.error('Failed to install update:', error);
     return { success: false, error: (error as Error).message };
   }
 });

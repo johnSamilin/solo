@@ -7,6 +7,8 @@ export default {
     extraResource: [
       './electron/dist'
     ],
+    osxSign: {},
+    osxNotarize: undefined,
   },
   rebuildConfig: {},
   makers: [
@@ -36,4 +38,17 @@ export default {
       },
     },
   ],
+  publishers: [
+    {
+      name: '@electron-forge/publisher-github',
+      config: {
+        repository: {
+          owner: 'johnSamilin',
+          name: 'solo'
+        },
+        prerelease: false,
+        draft: true
+      }
+    }
+  ]
 };
