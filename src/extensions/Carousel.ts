@@ -30,7 +30,7 @@ export const Carousel = Node.create<CarouselOptions>({
       images: {
         default: [],
         parseHTML: element => {
-          const images = element.getAttribute('data-images');
+          const images = element.dataset.images;
           return images ? JSON.parse(images) : [];
         },
         renderHTML: attributes => {
@@ -51,7 +51,12 @@ export const Carousel = Node.create<CarouselOptions>({
   },
 
   renderHTML({ HTMLAttributes }) {
-    const images = HTMLAttributes.images || [];
+    let images = [];
+    try {
+      images = JSON.parse(HTMLAttributes['data-images']);
+    } catch (er) {
+      // skip
+    }
 
     return [
       'div',
