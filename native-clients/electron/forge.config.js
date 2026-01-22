@@ -2,7 +2,7 @@ export default {
   packagerConfig: {
     name: 'Solo',
     executableName: 'solo',
-    icon: './build/icon',
+    icon: '../../assets/icons/png/512x512.png',
     asar: true,
     extraResource: [
       './electron/dist'
@@ -16,15 +16,13 @@ export default {
       name: '@electron-forge/maker-squirrel',
       config: {
         name: 'solo',
+        icon: '../../assets/icons/win/icon.ico'
       },
-    },
-    {
-      name: '@electron-forge/maker-zip',
-      platforms: ['darwin', 'linux'],
     },
     {
       name: '@electron-forge/maker-deb',
       config: {
+        icon: '../../assets/icons/png/512x512.png',
         options: {
           maintainer: 'Alexander Saltykov',
           homepage: 'https://github.com/johnSamilin/solo',
@@ -35,6 +33,7 @@ export default {
       name: '@electron-forge/maker-dmg',
       config: {
         format: 'ULFO',
+        icon: '../../assets/icons/mac/icon.icns'
       },
     },
   ],
