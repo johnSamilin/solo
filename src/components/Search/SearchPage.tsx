@@ -96,6 +96,14 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
 
   // Filter notes based on search query and tag filters
   const filteredNotes = useMemo(() => {
+    const hasSearchQuery = searchQuery.trim().length > 0;
+    const hasTagFilters = tagFilters.length > 0;
+    const hasAnyFilter = hasSearchQuery || hasTagFilters || showOnlyEmptyNotes;
+
+    if (!hasAnyFilter) {
+      return [];
+    }
+
     let notes = notesStore.getVisibleNotes();
 
     // Apply empty notes filter
@@ -104,19 +112,19 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
     }
 
     // Apply text search
-    if (searchQuery.trim()) {
+    if (hasSearchQuery) {
       notes = notes.filter(note => {
         if (fuzzyMatch(note.title, searchQuery.trim())) {
           return true;
         }
-        
+
         const matchingParagraphs = getTextMatchingParagraphs(note.content, searchQuery.trim());
         return matchingParagraphs.length > 0;
       });
     }
 
     // Apply tag filters
-    if (tagFilters.length > 0) {
+    if (hasTagFilters) {
       notes = notes.filter(note => {
         const matchingParagraphs = getMatchingParagraphs(note.content, tagFilters);
         if (matchingParagraphs.length > 0) {

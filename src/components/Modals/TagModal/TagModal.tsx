@@ -36,7 +36,7 @@ export const TagModal: FC<TagModalProps> = observer(({
 
         const markSelectedTags = (nodes: TagNode[]): TagNode[] => {
           return nodes.map(node => {
-            const isSelected = appliedTags.some(tag => tag.includes(node.name));
+            const isSelected = appliedTags.some(tag => tag === node.path);
             return {
               ...node,
               isChecked: isSelected,
@@ -67,10 +67,11 @@ export const TagModal: FC<TagModalProps> = observer(({
 
     const newTag = tagsStore.createTag(newTagPath.trim());
 
-    const addTagToTree = (nodes: TagNode[], tagPath: string): TagNode[] => {
+    const addTagToTree = (nodes: TagNode[], tagPath: string, parentPath = ''): TagNode[] => {
       const parts = tagPath.split('/');
       const currentPart = parts[0];
       const remainingPath = parts.slice(1).join('/');
+      const currentFullPath = parentPath ? `${parentPath}/${currentPart}` : currentPart;
 
       const existingNode = nodes.find(node => node.name === currentPart);
 
@@ -78,7 +79,7 @@ export const TagModal: FC<TagModalProps> = observer(({
         if (remainingPath) {
           return nodes.map(node =>
             node.name === currentPart
-              ? { ...node, children: addTagToTree(node.children, remainingPath) }
+              ? { ...node, children: addTagToTree(node.children, remainingPath, currentFullPath) }
               : node
           );
         } else {
@@ -92,7 +93,8 @@ export const TagModal: FC<TagModalProps> = observer(({
         const newNode: TagNode = {
           id: generateUniqueId(),
           name: currentPart,
-          children: remainingPath ? addTagToTree([], remainingPath) : [],
+          path: currentFullPath,
+          children: remainingPath ? addTagToTree([], remainingPath, currentFullPath) : [],
           isChecked: !remainingPath,
           isExpanded: false
         };

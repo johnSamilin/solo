@@ -29,3 +29,5 @@ data
 *-lock.json
 *.lock
 certs
+dist
+out

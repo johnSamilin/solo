@@ -34,35 +34,33 @@ export const Tags: FC = observer(() => {
     });
 
     const buildHierarchy = (tags: string[]): TagUsage[] => {
-      const root: { [key: string]: TagUsage } = {};
+      const root: TagUsage[] = [];
+      const nodeMap: { [key: string]: TagUsage } = {};
 
       tags.forEach((tagPath) => {
         const parts = tagPath.split("/");
-        let currentLevel = root;
         let currentPath = "";
+        let parentChildren = root;
 
-        parts.forEach((part, index) => {
+        parts.forEach((part) => {
           currentPath = currentPath ? `${currentPath}/${part}` : part;
-          if (!currentLevel[currentPath]) {
-            currentLevel[currentPath] = {
+
+          if (!nodeMap[currentPath]) {
+            const newNode: TagUsage = {
               path: currentPath,
               count: countMap.get(currentPath) || 0,
               children: [],
             };
+
+            nodeMap[currentPath] = newNode;
+            parentChildren.push(newNode);
           }
 
-          if (index < parts.length - 1) {
-            const children = currentLevel[currentPath].children;
-            const childrenMap = children.reduce((acc, child) => {
-              acc[child.path] = child;
-              return acc;
-            }, {} as { [key: string]: TagUsage });
-            currentLevel = childrenMap;
-          }
+          parentChildren = nodeMap[currentPath].children;
         });
       });
 
-      return Object.values(root);
+      return root;
     };
 
     return buildHierarchy(Array.from(countMap.keys()).sort());

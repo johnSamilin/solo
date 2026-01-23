@@ -3,6 +3,7 @@ import { Editor } from "@tiptap/react";
 export interface TagNode {
   id: string;
   name: string;
+  path: string;
   children: TagNode[];
   isChecked: boolean;
   isExpanded: boolean;
