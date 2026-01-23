@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, protocol, net, shell, Menu, ipcRenderer } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, protocol, net, shell, Menu, ipcRenderer, MenuItem } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import { existsSync } from 'fs';
@@ -59,6 +59,7 @@ const createWindow = () => {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    icon: path.join(process.resourcesPath, 'dist/assets/assets/icons/png', '64x64.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
@@ -88,43 +89,42 @@ const createWindow = () => {
 };
 
 const createMenu = () => {
-  const template: Electron.MenuItemConstructorOptions[] = [
-    {
-      label: 'Help',
-      submenu: [
-        {
-          label: 'Check for Updates...',
-          click: async () => {
-            try {
-              await updateManager.manualCheckForUpdates();
-            } catch (error) {
-              console.error('Failed to check for updates:', error);
-            }
-          },
-        },
-        { type: 'separator' },
-        {
-          label: 'Open Logs',
-          click: async () => {
-            try {
-              await ipcRenderer.invoke('open-log-file');
-            } catch (error) {
-              console.error('Failed to open logs:', error);
-            }
-          },
-        },
-        { type: 'separator' },
-        {
-          label: 'Open DevTools',
-          click: () => {
-            mainWindow?.webContents.openDevTools();
-          },
-        },
-      ],
+  const currentMenu = Menu.getApplicationMenu();
+  const menuTemplate = currentMenu ? currentMenu.items.filter(item => {
+    if (!['windowmenu', 'viewmenu'].includes(item.role ?? '')) {
+      return item;
+    }
+  }) : [];
+  const helpMenu = menuTemplate.find(item => item.role === 'help');
+  helpMenu?.submenu?.append(new MenuItem({
+    label: 'Check for Updates...',
+    click: async () => {
+      try {
+        await updateManager.manualCheckForUpdates();
+      } catch (error) {
+        console.error('Failed to check for updates:', error);
+      }
     },
-  ];
+  }));
+  helpMenu?.submenu?.append(new MenuItem({
+    label: 'Open Logs',
+    click: async () => {
+      try {
+        await openLogFile();
+      } catch (error) {
+        console.error('Failed to open logs:', error);
+      }
+    },
+  }));
+  helpMenu?.submenu?.append(new MenuItem({
+    label: 'Open DevTools',
+    click: () => {
+      mainWindow?.webContents.openDevTools();
+    },
+  }));
 
-  const menu = Menu.buildFromTemplate(template);
+
+  const menu = Menu.buildFromTemplate(menuTemplate);
   Menu.setApplicationMenu(menu);
 };
 
@@ -160,30 +160,30 @@ async function getFile(filePath: string) {
 app.whenReady().then(async () => {
   await logger.init();
 
-    const originalLog = console.log;
-    const originalError = console.error;
-    const originalWarn = console.warn;
-    const originalInfo = console.info;
+  const originalLog = console.log;
+  const originalError = console.error;
+  const originalWarn = console.warn;
+  const originalInfo = console.info;
 
-    console.log = (...args: any[]) => {
-      originalLog(...args);
-      logger.log(...args);
-    };
+  console.log = (...args: any[]) => {
+    originalLog(...args);
+    logger.log(...args);
+  };
 
-    console.error = (...args: any[]) => {
-      originalError(...args);
-      logger.error(...args);
-    };
+  console.error = (...args: any[]) => {
+    originalError(...args);
+    logger.error(...args);
+  };
 
-    console.warn = (...args: any[]) => {
-      originalWarn(...args);
-      logger.warn(...args);
-    };
+  console.warn = (...args: any[]) => {
+    originalWarn(...args);
+    logger.warn(...args);
+  };
 
-    console.info = (...args: any[]) => {
-      originalInfo(...args);
-      logger.info(...args);
-    };
+  console.info = (...args: any[]) => {
+    originalInfo(...args);
+    logger.info(...args);
+  };
 
   await loadSettings();
 
@@ -199,7 +199,7 @@ app.whenReady().then(async () => {
         return pathnameFile.response;
       }
     }
-    
+
     return Promise.reject();
   });
 
@@ -543,7 +543,7 @@ ipcMain.handle('get-zen-mode', async () => {
     const isZenMode = mainWindow.isFullScreen();
     return { success: true, isZenMode };
   } catch (error) {
-    
+
     return { success: false, error: (error as Error).message };
   }
 });
@@ -990,7 +990,7 @@ ipcMain.handle('get-digikam-images-by-tag', async (_event, dbPath: string, tagId
       FROM Images i
       INNER JOIN ImageTags it ON i.id = it.imageid
       INNER JOIN Albums al ON i.album = al.id
-	    INNER JOIN AlbumRoots ar ON ar.id = 1
+      INNER JOIN AlbumRoots ar ON ar.id = 1
       WHERE it.tagid=?
       ORDER BY i.modificationDate DESC
       LIMIT ?
@@ -1014,7 +1014,7 @@ ipcMain.handle('get-digikam-images-by-tag', async (_event, dbPath: string, tagId
   }
 });
 
-ipcMain.handle('open-log-file', async () => {
+const openLogFile = async () => {
   try {
     const logFile = logger.getLogFile();
     await shell.openPath(logFile);
@@ -1023,7 +1023,8 @@ ipcMain.handle('open-log-file', async () => {
     console.error('Failed to open log file:', error);
     return { success: false, error: (error as Error).message };
   }
-});
+};
+ipcMain.handle('open-log-file', openLogFile);
 
 ipcMain.handle('check-for-updates', async () => {
   try {
