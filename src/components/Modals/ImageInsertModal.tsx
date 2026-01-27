@@ -7,7 +7,7 @@ import { DigikamTag } from '../../types';
 interface ImageInsertModalProps {
   onClose: () => void;
   onInsertFile: (file: File) => void;
-  onInsertCarousel: (images: string[]) => void;
+  onInsertCarousel: (images: string[], digikamTag: string) => void;
 }
 
 interface TagNode extends DigikamTag {
@@ -109,7 +109,7 @@ export const ImageInsertModal: FC<ImageInsertModalProps> = observer(({
         });
 
         if (imagePaths.length > 0) {
-          onInsertCarousel(imagePaths);
+          onInsertCarousel(imagePaths, result.digikamTag);
           onClose();
         } else {
           settingsStore.setToast('No images found for this tag', 'error');

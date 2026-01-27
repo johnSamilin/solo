@@ -200,9 +200,9 @@ const App = observer(() => {
     setIsImageInsertModalOpen(true);
   };
 
-  const handleInsertCarousel = (images: string[]) => {
+  const handleInsertCarousel = (images: string[], digikamTag: string) => {
     if (editor && images.length > 0) {
-      editor.chain().focus().setCarousel(images).run();
+      editor.chain().focus().setCarousel(images, digikamTag).run();
     }
   };
 
