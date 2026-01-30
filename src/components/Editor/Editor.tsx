@@ -135,7 +135,7 @@ export const Editor: FC<EditorProps> = observer(({
   return (
     <>
       <div className={`editor ${isAnnotatedLayout ? 'annotated' : ''}`} ref={editorContentRef}>
-        <div className="editor-container">
+        <div id="note-editor-content" className="editor-container">
           {isAnnotatedLayout ? (
             <AnnotatedLayout
               editor={editor}

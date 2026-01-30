@@ -261,6 +261,7 @@ interface FileNode {
   type: 'file' | 'folder';
   children?: FileNode[];
   metadata?: FileMetadata;
+  cssPath?: string;
 }
 
 ipcMain.handle('select-folder', async () => {
@@ -417,7 +418,9 @@ ipcMain.handle('read-structure', async () => {
           });
         } else if (entry.isFile() && entry.name.endsWith('.html')) {
           const metadataPath = fullPath.replace(/\.html$/, '.json');
+          const cssPath = fullPath.replace(/\.html$/, '.css');
           let metadata: FileMetadata | undefined;
+          let cssRelativePath: string | undefined;
 
           if (existsSync(metadataPath)) {
             try {
@@ -438,13 +441,18 @@ ipcMain.handle('read-structure', async () => {
             }
           }
 
+          if (existsSync(cssPath)) {
+            cssRelativePath = path.relative(basePath, cssPath);
+          }
+
           nodes.push({
             name: entry.name,
             path: relativePath,
             type: 'file',
             metadata,
+            cssPath: cssRelativePath,
           });
-        } else if (!entry.name.endsWith('.json')) {
+        } else if (!entry.name.endsWith('.json') && !entry.name.endsWith('.css')) {
           nodes.push({
             name: entry.name,
             path: relativePath,
@@ -855,7 +863,9 @@ ipcMain.handle('rename-note', async (_, relativePath: string, newName: string) =
     const dirPath = path.dirname(fullPath);
     const newHtmlPath = path.join(dirPath, `${sanitizedNewName}.html`);
     const newJsonPath = path.join(dirPath, `${sanitizedNewName}.json`);
+    const newCssPath = path.join(dirPath, `${sanitizedNewName}.css`);
     const oldJsonPath = fullPath.replace(/\.html$/, '.json');
+    const oldCssPath = fullPath.replace(/\.html$/, '.css');
 
     if (existsSync(newHtmlPath)) {
       return { success: false, error: 'A note with this name already exists' };
@@ -864,6 +874,9 @@ ipcMain.handle('rename-note', async (_, relativePath: string, newName: string) =
     await fs.rename(fullPath, newHtmlPath);
     if (existsSync(oldJsonPath)) {
       await fs.rename(oldJsonPath, newJsonPath);
+    }
+    if (existsSync(oldCssPath)) {
+      await fs.rename(oldCssPath, newCssPath);
     }
 
     const relativeNewPath = path.relative(dataFolder, newHtmlPath);

@@ -60,6 +60,7 @@ export function parseFileStructure(structure: FileNode[]): ParseResult {
         notebookId: parentPath || null,
         filePath: node.path,
         path: node.path,
+        cssPath: node.cssPath,
         isLoaded: false,
         paragraphTags: metadata?.paragraphTags || [],
       });
@@ -82,6 +83,20 @@ export async function loadNoteContent(filePath: string): Promise<string> {
 
   if (!result.success || result.content === undefined) {
     throw new Error(result.error || 'Failed to load note content');
+  }
+
+  return result.content;
+}
+
+export async function loadNoteCss(cssPath: string): Promise<string> {
+  if (!window.electronAPI) {
+    throw new Error('ElectronAPI not available');
+  }
+
+  const result = await window.electronAPI.openFile(cssPath);
+
+  if (!result.success || result.content === undefined) {
+    throw new Error(result.error || 'Failed to load CSS content');
   }
 
   return result.content;

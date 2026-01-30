@@ -19,6 +19,7 @@ export interface Note {
   theme?: string;
   filePath?: string;
   path?: string;
+  cssPath?: string;
   isLoaded: boolean;
   paragraphTags: string[];
 }
@@ -77,6 +78,7 @@ export interface FileNode {
   type: 'file' | 'folder';
   children?: FileNode[];
   metadata?: FileMetadata;
+  cssPath?: string;
 }
 
 export interface ElectronAPI {
