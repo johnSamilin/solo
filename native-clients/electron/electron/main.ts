@@ -807,10 +807,14 @@ ipcMain.handle('delete-note', async (_, relativePath: string) => {
     }
 
     const jsonPath = fullPath.replace(/\.html$/, '.json');
+    const cssPath = fullPath.replace(/\.html$/, '.css');
 
     await fs.unlink(fullPath);
     if (existsSync(jsonPath)) {
       await fs.unlink(jsonPath);
+    }
+    if (existsSync(cssPath)) {
+      await fs.unlink(cssPath);
     }
 
     return { success: true };

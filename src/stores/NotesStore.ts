@@ -175,7 +175,8 @@ export class NotesStore {
           ...updates,
           id: result.newPath,
           path: result.newPath,
-          filePath: result.newPath
+          filePath: result.newPath,
+          cssPath: result.newPath.replace('.html', '.css'),
         };
 
         if (this.selectedNote?.id === noteId) {
