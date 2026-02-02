@@ -408,7 +408,21 @@ ipcMain.handle('read-structure', async () => {
         const fullPath = path.join(dirPath, entry.name);
         const relativePath = path.relative(basePath, fullPath);
 
-        if (entry.isDirectory()) {
+        let isDirectory = entry.isDirectory();
+        let isFile = entry.isFile();
+
+        if (entry.isSymbolicLink()) {
+          try {
+            const stats = await fs.stat(fullPath);
+            isDirectory = stats.isDirectory();
+            isFile = stats.isFile();
+          } catch (error) {
+            console.error(`Failed to resolve symlink ${entry.name}:`, error);
+            continue;
+          }
+        }
+
+        if (isDirectory) {
           const children = await readDirectory(fullPath, basePath);
           nodes.push({
             name: entry.name,
@@ -416,7 +430,7 @@ ipcMain.handle('read-structure', async () => {
             type: 'folder',
             children,
           });
-        } else if (entry.isFile() && entry.name.endsWith('.html')) {
+        } else if (isFile && entry.name.endsWith('.html')) {
           const metadataPath = fullPath.replace(/\.html$/, '.json');
           const cssPath = fullPath.replace(/\.html$/, '.css');
           let metadata: FileMetadata | undefined;
