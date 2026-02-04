@@ -175,7 +175,8 @@ export class NotesStore {
           ...updates,
           id: result.newPath,
           path: result.newPath,
-          filePath: result.newPath
+          filePath: result.newPath,
+          cssPath: result.newPath.replace('.html', '.css'),
         };
 
         if (this.selectedNote?.id === noteId) {
@@ -248,7 +249,14 @@ export class NotesStore {
         console.log({ noteId, path, notes: [...this.notes] })
         throw 'No such path';
       }
-      const result = await window.electronAPI.updateFile(path, content);
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(content, 'text/html');
+      // strip the slides so that they won't be duped
+      doc.querySelectorAll('.carousel').forEach(entry => {
+        entry.outerHTML = '';
+      })
+      const updatedContent = doc.body.innerHTML;
+      const result = await window.electronAPI.updateFile(path, updatedContent);
       if (!result.success) {
         console.error('Failed to save note:', result.error);
       }
@@ -550,7 +558,6 @@ export class NotesStore {
         });
   
         const updatedContent = doc.body.innerHTML;
-        console.log({updatedContent}, note.path)
         await window.electronAPI.updateFile(note.path, updatedContent);
       }
       if (needsUpdate) {

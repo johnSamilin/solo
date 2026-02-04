@@ -19,6 +19,7 @@ export interface Note {
   theme?: string;
   filePath?: string;
   path?: string;
+  cssPath?: string;
   isLoaded: boolean;
   paragraphTags: string[];
 }
@@ -77,6 +78,7 @@ export interface FileNode {
   type: 'file' | 'folder';
   children?: FileNode[];
   metadata?: FileMetadata;
+  cssPath?: string;
 }
 
 export interface ElectronAPI {
@@ -99,7 +101,7 @@ export interface ElectronAPI {
   renameNotebook: (relativePath: string, newName: string) => Promise<{ success: boolean; newPath?: string; error?: string }>;
   selectFile: (filters?: { name: string; extensions: string[] }[]) => Promise<{ success: boolean; path?: string; error?: string }>;
   getDigikamTags: (dbPath: string) => Promise<{ success: boolean; tags?: DigikamTag[]; error?: string }>;
-  getDigikamImagesByTag: (dbPath: string, tagId: number, limit?: number) => Promise<{ success: boolean; images?: DigikamImage[]; error?: string }>;
+  getDigikamImagesByTag: (dbPath: string, tagId: number, limit?: number) => Promise<{ success: boolean; images?: DigikamImage[]; digikamTag: string; error?: string }>;
 }
 
 export interface DigikamTag {

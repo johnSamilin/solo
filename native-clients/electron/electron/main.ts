@@ -11,6 +11,52 @@ let dataFolder: string | null = null;
 
 const SETTINGS_FILE = path.join(app.getPath('userData'), 'settings.json');
 
+/**
+ * Validates that a path is safe to access, accounting for symlinks.
+ * Returns true if the path is within dataFolder or is a symlink target that originates from within dataFolder.
+ */
+const isPathSafe = async (fullPath: string, basePath: string): Promise<boolean> => {
+  try {
+    // Check direct path first
+    if (fullPath.startsWith(basePath)) {
+      return true;
+    }
+
+    // Resolve the real path (follows symlinks)
+    const realPath = await fs.realpath(fullPath);
+
+    // Check if the resolved path is within the base path
+    if (realPath.startsWith(basePath)) {
+      return true;
+    }
+
+    // Check if any parent directory is a symlink that originates from within dataFolder
+    let currentPath = fullPath;
+    while (currentPath !== basePath && currentPath !== path.dirname(currentPath)) {
+      try {
+        const stats = await fs.lstat(currentPath);
+        if (stats.isSymbolicLink()) {
+          const linkTarget = await fs.readlink(currentPath);
+          const resolvedLink = path.resolve(path.dirname(currentPath), linkTarget);
+
+          // Check if this symlink is within the base path
+          if (currentPath.startsWith(basePath)) {
+            return true;
+          }
+        }
+      } catch {
+        // Continue checking parent directories
+      }
+      currentPath = path.dirname(currentPath);
+    }
+
+    return false;
+  } catch {
+    // If we can't resolve the path, fall back to basic check
+    return fullPath.startsWith(basePath);
+  }
+};
+
 protocol.registerSchemesAsPrivileged([
   {
     scheme: 'image',
@@ -261,6 +307,7 @@ interface FileNode {
   type: 'file' | 'folder';
   children?: FileNode[];
   metadata?: FileMetadata;
+  cssPath?: string;
 }
 
 ipcMain.handle('select-folder', async () => {
@@ -331,7 +378,7 @@ ipcMain.handle('open-file', async (_, relativePath: string) => {
 
     const fullPath = path.join(dataFolder, relativePath);
 
-    if (!fullPath.startsWith(dataFolder)) {
+    if (!(await isPathSafe(fullPath, dataFolder))) {
       return { success: false, error: 'Invalid path: path traversal detected' };
     }
 
@@ -354,7 +401,7 @@ ipcMain.handle('update-file', async (_, relativePath: string, content: string) =
 
     const fullPath = path.join(dataFolder, relativePath);
 
-    if (!fullPath.startsWith(dataFolder)) {
+    if (!(await isPathSafe(fullPath, dataFolder))) {
       return { success: false, error: 'Invalid path: path traversal detected' };
     }
 
@@ -378,7 +425,7 @@ ipcMain.handle('update-metadata', async (_, relativePath: string, metadata: File
     const metadataPath = path.join(parsedPath.dir, `${parsedPath.name}.json`);
     const fullPath = path.join(dataFolder, metadataPath);
 
-    if (!fullPath.startsWith(dataFolder)) {
+    if (!(await isPathSafe(fullPath, dataFolder))) {
       return { success: false, error: 'Invalid path: path traversal detected' };
     }
 
@@ -407,7 +454,21 @@ ipcMain.handle('read-structure', async () => {
         const fullPath = path.join(dirPath, entry.name);
         const relativePath = path.relative(basePath, fullPath);
 
-        if (entry.isDirectory()) {
+        let isDirectory = entry.isDirectory();
+        let isFile = entry.isFile();
+
+        if (entry.isSymbolicLink()) {
+          try {
+            const stats = await fs.stat(fullPath);
+            isDirectory = stats.isDirectory();
+            isFile = stats.isFile();
+          } catch (error) {
+            console.error(`Failed to resolve symlink ${entry.name}:`, error);
+            continue;
+          }
+        }
+
+        if (isDirectory) {
           const children = await readDirectory(fullPath, basePath);
           nodes.push({
             name: entry.name,
@@ -415,9 +476,11 @@ ipcMain.handle('read-structure', async () => {
             type: 'folder',
             children,
           });
-        } else if (entry.isFile() && entry.name.endsWith('.html')) {
+        } else if (isFile && entry.name.endsWith('.html')) {
           const metadataPath = fullPath.replace(/\.html$/, '.json');
+          const cssPath = fullPath.replace(/\.html$/, '.css');
           let metadata: FileMetadata | undefined;
+          let cssRelativePath: string | undefined;
 
           if (existsSync(metadataPath)) {
             try {
@@ -438,13 +501,18 @@ ipcMain.handle('read-structure', async () => {
             }
           }
 
+          if (existsSync(cssPath)) {
+            cssRelativePath = path.relative(basePath, cssPath);
+          }
+
           nodes.push({
             name: entry.name,
             path: relativePath,
             type: 'file',
             metadata,
+            cssPath: cssRelativePath,
           });
-        } else if (!entry.name.endsWith('.json')) {
+        } else if (!entry.name.endsWith('.json') && !entry.name.endsWith('.css')) {
           nodes.push({
             name: entry.name,
             path: relativePath,
@@ -486,9 +554,24 @@ ipcMain.handle('scan-all-tags', async () => {
       for (const entry of entries) {
         const fullPath = path.join(dirPath, entry.name);
 
-        if (entry.isDirectory()) {
+        let isDirectory = entry.isDirectory();
+        let isFile = entry.isFile();
+
+        // Handle symlinks by resolving their actual type
+        if (entry.isSymbolicLink()) {
+          try {
+            const stats = await fs.stat(fullPath);
+            isDirectory = stats.isDirectory();
+            isFile = stats.isFile();
+          } catch (error) {
+            console.error(`Failed to resolve symlink ${entry.name}:`, error);
+            continue;
+          }
+        }
+
+        if (isDirectory) {
           await scanDirectory(fullPath);
-        } else if (entry.isFile() && entry.name.endsWith('.json')) {
+        } else if (isFile && entry.name.endsWith('.json')) {
           try {
             const content = await fs.readFile(fullPath, 'utf-8');
             const metadata: FileMetadata = JSON.parse(content);
@@ -578,9 +661,24 @@ ipcMain.handle('search', async (_, searchString?: string, tags?: string[]) => {
         const fullPath = path.join(dirPath, entry.name);
         const relativePath = path.relative(basePath, fullPath);
 
-        if (entry.isDirectory()) {
+        let isDirectory = entry.isDirectory();
+        let isFile = entry.isFile();
+
+        // Handle symlinks by resolving their actual type
+        if (entry.isSymbolicLink()) {
+          try {
+            const stats = await fs.stat(fullPath);
+            isDirectory = stats.isDirectory();
+            isFile = stats.isFile();
+          } catch (error) {
+            console.error(`Failed to resolve symlink ${entry.name}:`, error);
+            continue;
+          }
+        }
+
+        if (isDirectory) {
           await searchDirectory(fullPath, basePath);
-        } else if (entry.isFile()) {
+        } else if (isFile) {
           const matches: string[] = [];
           let metadata: FileMetadata | undefined;
 
@@ -702,7 +800,7 @@ ipcMain.handle('create-notebook', async (_, parentPath: string, name: string) =>
     const sanitizedName = name.replace(/[/\\?%*:|"<>]/g, '-');
     const fullParentPath = path.join(dataFolder, parentPath);
 
-    if (!fullParentPath.startsWith(dataFolder)) {
+    if (!(await isPathSafe(fullParentPath, dataFolder))) {
       return { success: false, error: 'Invalid path: path traversal detected' };
     }
 
@@ -734,7 +832,7 @@ ipcMain.handle('create-note', async (_, parentPath: string, name: string) => {
     const sanitizedName = name.replace(/[/\\?%*:|"<>]/g, '-');
     const fullParentPath = path.join(dataFolder, parentPath);
 
-    if (!fullParentPath.startsWith(dataFolder)) {
+    if (!(await isPathSafe(fullParentPath, dataFolder))) {
       return { success: false, error: 'Invalid path: path traversal detected' };
     }
 
@@ -790,7 +888,7 @@ ipcMain.handle('delete-note', async (_, relativePath: string) => {
     }
 
     const fullPath = path.join(dataFolder, relativePath);
-    if (!fullPath.startsWith(dataFolder)) {
+    if (!(await isPathSafe(fullPath, dataFolder))) {
       return { success: false, error: 'Invalid path: path traversal detected' };
     }
 
@@ -799,10 +897,14 @@ ipcMain.handle('delete-note', async (_, relativePath: string) => {
     }
 
     const jsonPath = fullPath.replace(/\.html$/, '.json');
+    const cssPath = fullPath.replace(/\.html$/, '.css');
 
     await fs.unlink(fullPath);
     if (existsSync(jsonPath)) {
       await fs.unlink(jsonPath);
+    }
+    if (existsSync(cssPath)) {
+      await fs.unlink(cssPath);
     }
 
     return { success: true };
@@ -819,7 +921,7 @@ ipcMain.handle('delete-notebook', async (_, relativePath: string) => {
 
     const fullPath = path.join(dataFolder, relativePath);
 
-    if (!fullPath.startsWith(dataFolder)) {
+    if (!(await isPathSafe(fullPath, dataFolder))) {
       return { success: false, error: 'Invalid path: path traversal detected' };
     }
 
@@ -844,7 +946,7 @@ ipcMain.handle('rename-note', async (_, relativePath: string, newName: string) =
     const sanitizedNewName = newName.replace(/[/\\?%*:|"<>]/g, '-');
     const fullPath = path.join(dataFolder, relativePath);
 
-    if (!fullPath.startsWith(dataFolder)) {
+    if (!(await isPathSafe(fullPath, dataFolder))) {
       return { success: false, error: 'Invalid path: path traversal detected' };
     }
 
@@ -855,7 +957,9 @@ ipcMain.handle('rename-note', async (_, relativePath: string, newName: string) =
     const dirPath = path.dirname(fullPath);
     const newHtmlPath = path.join(dirPath, `${sanitizedNewName}.html`);
     const newJsonPath = path.join(dirPath, `${sanitizedNewName}.json`);
+    const newCssPath = path.join(dirPath, `${sanitizedNewName}.css`);
     const oldJsonPath = fullPath.replace(/\.html$/, '.json');
+    const oldCssPath = fullPath.replace(/\.html$/, '.css');
 
     if (existsSync(newHtmlPath)) {
       return { success: false, error: 'A note with this name already exists' };
@@ -864,6 +968,9 @@ ipcMain.handle('rename-note', async (_, relativePath: string, newName: string) =
     await fs.rename(fullPath, newHtmlPath);
     if (existsSync(oldJsonPath)) {
       await fs.rename(oldJsonPath, newJsonPath);
+    }
+    if (existsSync(oldCssPath)) {
+      await fs.rename(oldCssPath, newCssPath);
     }
 
     const relativeNewPath = path.relative(dataFolder, newHtmlPath);
@@ -882,7 +989,7 @@ ipcMain.handle('rename-notebook', async (_, relativePath: string, newName: strin
     const sanitizedNewName = newName.replace(/[/\\?%*:|"<>]/g, '-');
     const fullPath = path.join(dataFolder, relativePath);
 
-    if (!fullPath.startsWith(dataFolder)) {
+    if (!(await isPathSafe(fullPath, dataFolder))) {
       return { success: false, error: 'Invalid path: path traversal detected' };
     }
 

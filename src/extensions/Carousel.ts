@@ -7,7 +7,7 @@ export interface CarouselOptions {
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
     carousel: {
-      setCarousel: (images: string[]) => ReturnType;
+      setCarousel: (images: string[], digikamTag: string) => ReturnType;
     };
   }
 }
@@ -39,6 +39,17 @@ export const Carousel = Node.create<CarouselOptions>({
           };
         },
       },
+      digikamTag: {
+        default: '',
+        parseHTML: element => {
+          return element.dataset.digikamTag;
+        },
+        renderHTML: attributes => {
+          return {
+            'data-digikamTag': attributes.digikamTag,
+          };
+        }
+      }
     };
   },
 
@@ -67,16 +78,6 @@ export const Carousel = Node.create<CarouselOptions>({
       [
         'div',
         { class: 'carousel' },
-        ...images.map((src: string, index: number) => [
-          'input',
-          {
-            type: 'radio',
-            name: `carousel-${Math.random().toString(36).substr(2, 9)}`,
-            id: `slide-${index}`,
-            class: 'carousel-input',
-            ...(index === 0 ? { checked: 'checked' } : {}),
-          },
-        ]),
         [
           'div',
           { class: 'carousel-slides' },
@@ -86,17 +87,6 @@ export const Carousel = Node.create<CarouselOptions>({
             ['img', { src, alt: `Slide ${index + 1}` }],
           ]),
         ],
-        [
-          'div',
-          { class: 'carousel-controls' },
-          ...images.map((_: string, index: number) => [
-            'label',
-            {
-              for: `slide-${index}`,
-              class: 'carousel-dot',
-            },
-          ]),
-        ],
       ],
     ];
   },
@@ -104,11 +94,11 @@ export const Carousel = Node.create<CarouselOptions>({
   addCommands() {
     return {
       setCarousel:
-        (images: string[]) =>
+        (images: string[], digikamTag: string) =>
         ({ commands }) => {
           return commands.insertContent({
             type: this.name,
-            attrs: { images },
+            attrs: { images, digikamTag },
           });
         },
     };

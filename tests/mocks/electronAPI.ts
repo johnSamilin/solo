@@ -222,7 +222,7 @@ export function createMockElectronAPI(initialState?: Partial<MockState>): Electr
     },
 
     getDigikamImagesByTag: async (dbPath: string, tagId: number, limit?: number) => {
-      return { success: true, images: [] };
+      return { success: true, images: [], digikamTag: 'test-tag' };
     },
   };
 }

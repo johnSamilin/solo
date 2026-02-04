@@ -12,7 +12,6 @@ import { ParagraphTags } from './extensions/ParagraphTags';
 import { FullWidthImage } from './extensions/FullWidthImage';
 import { CutIn } from './extensions/CutIn';
 import { Carousel } from './extensions/Carousel';
-import { buildTagTree } from './utils';
 import { useStore } from './stores/StoreProvider';
 import { SettingsModal } from './components/Modals/SettingsModal/SettingsModal';
 import { NewNotebookModal } from './components/Modals/NewNoteBookModal';
@@ -21,12 +20,12 @@ import { Editor } from './components/Editor/Editor';
 import { SearchPage } from './components/Search/SearchPage';
 import { Timeline } from './components/Timeline/Timeline';
 import { Toast } from './components/Toast/Toast';
-import { generateUniqueId } from './utils';
-import type { TagNode } from './types';
 import { themes } from './constants';
 import { Plus } from 'lucide-react';
 import { TagModal } from './components/Modals/TagModal/TagModal';
 import { ImageInsertModal } from './components/Modals/ImageInsertModal';
+import { loadNoteCss } from './utils/electron';
+import { injectNoteStyles, removeNoteStyles } from './utils/cssUtils';
 
 const App = observer(() => {
   const { notesStore, settingsStore, tagsStore } = useStore();
@@ -131,7 +130,27 @@ const App = observer(() => {
         setInitialContent(editor.state.doc.textContent);
       }
       setAutoZenDisabled(false);
+
+      // Load and inject custom CSS if available
+      const loadCustomCss = async () => {
+        removeNoteStyles();
+
+        if (notesStore.selectedNote?.cssPath) {
+          try {
+            const cssContent = await loadNoteCss(notesStore.selectedNote.cssPath);
+            injectNoteStyles(cssContent, '#note-editor-content');
+          } catch (error) {
+            console.error('Failed to load custom CSS:', error);
+          }
+        }
+      };
+
+      loadCustomCss();
     }
+
+    return () => {
+      removeNoteStyles();
+    };
   }, [editor, notesStore.selectedNote, notesStore.isLoadingNoteContent]);
 
   useEffect(() => {
@@ -200,9 +219,9 @@ const App = observer(() => {
     setIsImageInsertModalOpen(true);
   };
 
-  const handleInsertCarousel = (images: string[]) => {
+  const handleInsertCarousel = (images: string[], digikamTag: string) => {
     if (editor && images.length > 0) {
-      editor.chain().focus().setCarousel(images).run();
+      editor.chain().focus().setCarousel(images, digikamTag).run();
     }
   };
 
