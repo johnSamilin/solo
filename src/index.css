@@ -98,7 +98,7 @@ body {
 
 .app.zen-mode .main-content {
   background-color: var(--color-white);
-  --editor-width: 90%;
+  /* --editor-width: 90%; */
 }
 
 .relative {
