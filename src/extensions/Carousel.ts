@@ -84,7 +84,7 @@ export const Carousel = Node.create<CarouselOptions>({
           ...images.map((src: string, index: number) => [
             'div',
             { class: 'carousel-slide' },
-            ['img', { src, alt: `Slide ${index + 1}` }],
+            ['img', { src, alt: `Slide ${index + 1}`, class: 'carousel-img' }],
           ]),
         ],
       ],
