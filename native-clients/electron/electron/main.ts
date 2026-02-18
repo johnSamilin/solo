@@ -1099,7 +1099,7 @@ ipcMain.handle('get-digikam-images-by-tag', async (_event, dbPath: string, tagId
       INNER JOIN Albums al ON i.album = al.id
       INNER JOIN AlbumRoots ar ON ar.id = 1
       WHERE it.tagid=?
-      ORDER BY i.modificationDate DESC
+      ORDER BY i.modificationDate ASC
       LIMIT ?
     `;
 
