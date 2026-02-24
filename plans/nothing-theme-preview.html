@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nothing Theme Preview - Solo</title>
+  <style>
+    /* Reset */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    /* Nothing Theme Variables */
+    :root {
+      /* Colors */
+      --nothing-black: #000000;
+      --nothing-white: #FFFFFF;
+      --nothing-red: #FF0000;
+
+      --nothing-gray-100: #F5F5F5;
+      --nothing-gray-200: #E8E8E8;
+      --nothing-gray-300: #D1D1D1;
+      --nothing-gray-400: #B0B0B0;
+      --nothing-gray-500: #808080;
+      --nothing-gray-600: #606060;
+      --nothing-gray-700: #404040;
+      --nothing-gray-800: #202020;
+      --nothing-gray-900: #0A0A0A;
+
+      --nothing-red-light: #FF3333;
+      --nothing-surface: #0A0A0A;
+      --nothing-surface-elevated: #202020;
+
+      /* Typography */
+      --nothing-font-mono: 'SF Mono', 'Consolas', 'Liberation Mono', monospace;
+      --nothing-font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+      /* Spacing */
+      --nothing-space-2: 0.5rem;
+      --nothing-space-3: 0.75rem;
+      --nothing-space-4: 1rem;
+      --nothing-space-6: 1.5rem;
+      --nothing-space-8: 2rem;
+      --nothing-space-12: 3rem;
+    }
+
+    /* Base Styles */
+    body {
+      background: var(--nothing-black);
+      color: var(--nothing-white);
+      font-family: var(--nothing-font-sans);
+      font-size: 16px;
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* Layout Container */
+    .container {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 280px;
+      background: var(--nothing-black);
+      border-right: 1px solid var(--nothing-gray-800);
+      padding: var(--nothing-space-6);
+      background-image: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.03) 1px, transparent 0);
+      background-size: 8px 8px;
+      flex-shrink: 0;
+    }
+
+    .sidebar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: var(--nothing-space-8);
+      padding-bottom: var(--nothing-space-4);
+      border-bottom: 1px solid var(--nothing-gray-800);
+    }
+
+    .logo {
+      font-weight: 700;
+      font-size: 1.25rem;
+      letter-spacing: -0.02em;
+    }
+
+    .menu-icon {
+      width: 20px;
+      height: 20px;
+      color: var(--nothing-gray-400);
+      cursor: pointer;
+      transition: color 0.15s ease;
+    }
+
+    .menu-icon:hover {
+      color: var(--nothing-red);
+    }
+
+    .sidebar-section {
+      margin-bottom: var(--nothing-space-6);
+    }
+
+    .sidebar-item {
+      padding: var(--nothing-space-2) var(--nothing-space-4);
+      color: var(--nothing-gray-400);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      border-left: 2px solid transparent;
+      margin-left: -24px;
+      padding-left: 22px;
+      font-size: 14px;
+    }
+
+    .sidebar-item:hover {
+      color: var(--nothing-white);
+      background: var(--nothing-surface);
+    }
+
+    .sidebar-item.active {
+      color: var(--nothing-white);
+      border-left-color: var(--nothing-red);
+      background: var(--nothing-surface);
+    }
+
+    .sidebar-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--nothing-space-2);
+      margin-top: var(--nothing-space-4);
+    }
+
+    .tag {
+      background: var(--nothing-surface);
+      color: var(--nothing-white);
+      border: 1px solid var(--nothing-gray-800);
+      padding: 4px 12px;
+      border-radius: 2px;
+      font-size: 11px;
+      font-family: var(--nothing-font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .tag:hover {
+      border-color: var(--nothing-red);
+      color: var(--nothing-red);
+    }
+
+    /* Editor Area */
+    .editor-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .editor-header {
+      padding: var(--nothing-space-6);
+      border-bottom: 1px solid var(--nothing-gray-800);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .editor-title {
+      font-size: 14px;
+      color: var(--nothing-gray-400);
+      font-family: var(--nothing-font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .editor-actions {
+      display: flex;
+      gap: var(--nothing-space-3);
+    }
+
+    .btn {
+      padding: 8px 20px;
+      border: none;
+      border-radius: 2px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-family: var(--nothing-font-sans);
+    }
+
+    .btn-primary {
+      background: var(--nothing-red);
+      color: var(--nothing-white);
+    }
+
+    .btn-primary:hover {
+      background: var(--nothing-red-light);
+      box-shadow: 0 0 20px rgba(255, 0, 0, 0.3);
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--nothing-white);
+      border: 1px solid var(--nothing-white);
+    }
+
+    .btn-secondary:hover {
+      background: var(--nothing-white);
+      color: var(--nothing-black);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--nothing-gray-400);
+    }
+
+    .btn-ghost:hover {
+      color: var(--nothing-white);
+    }
+
+    /* Editor Content */
+    .editor {
+      flex: 1;
+      padding: var(--nothing-space-12) 64px;
+      background: var(--nothing-black);
+      background-image: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.02) 1px, transparent 0);
+      background-size: 16px 16px;
+      overflow-y: auto;
+      max-width: 900px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .editor h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: var(--nothing-space-8);
+      color: var(--nothing-white);
+      position: relative;
+      padding-bottom: var(--nothing-space-4);
+    }
+
+    .editor h1::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 48px;
+      height: 2px;
+      background: var(--nothing-red);
+    }
+
+    .editor h2 {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-top: var(--nothing-space-8);
+      margin-bottom: var(--nothing-space-4);
+      color: var(--nothing-white);
+    }
+
+    .editor h3 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      margin-top: var(--nothing-space-6);
+      margin-bottom: var(--nothing-space-3);
+      color: var(--nothing-white);
+    }
+
+    .editor p {
+      color: var(--nothing-gray-200);
+      line-height: 1.8;
+      margin-bottom: var(--nothing-space-4);
+    }
+
+    .editor a {
+      color: var(--nothing-red);
+      text-decoration: none;
+      border-bottom: 1px solid transparent;
+      transition: border-color 0.2s ease;
+    }
+
+    .editor a:hover {
+      border-bottom-color: var(--nothing-red);
+    }
+
+    .editor strong {
+      color: var(--nothing-white);
+      font-weight: 700;
+    }
+
+    .editor em {
+      color: var(--nothing-gray-300);
+      font-style: italic;
+    }
+
+    .editor code {
+      background: var(--nothing-surface);
+      color: var(--nothing-red);
+      padding: 2px 6px;
+      border-radius: 2px;
+      font-family: var(--nothing-font-mono);
+      font-size: 0.9em;
+    }
+
+    .editor pre {
+      background: var(--nothing-surface);
+      border: 1px solid var(--nothing-gray-800);
+      border-left: 2px solid var(--nothing-red);
+      padding: var(--nothing-space-4);
+      border-radius: 2px;
+      overflow-x: auto;
+      margin: var(--nothing-space-6) 0;
+      font-family: var(--nothing-font-mono);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .editor pre code {
+      background: transparent;
+      color: var(--nothing-gray-200);
+      padding: 0;
+    }
+
+    .editor blockquote {
+      border-left: 3px solid var(--nothing-red);
+      padding-left: var(--nothing-space-6);
+      color: var(--nothing-gray-400);
+      font-style: italic;
+      margin: var(--nothing-space-6) 0;
+    }
+
+    .editor ul,
+    .editor ol {
+      margin: var(--nothing-space-4) 0;
+      padding-left: var(--nothing-space-6);
+      color: var(--nothing-gray-200);
+    }
+
+    .editor li {
+      margin-bottom: var(--nothing-space-2);
+      line-height: 1.8;
+    }
+
+    .editor ul {
+      list-style-type: none;
+    }
+
+    .editor ul li::before {
+      content: '•';
+      color: var(--nothing-red);
+      font-weight: bold;
+      display: inline-block;
+      width: 1em;
+      margin-left: -1em;
+    }
+
+    .editor hr {
+      border: none;
+      border-top: 1px solid var(--nothing-gray-800);
+      margin: var(--nothing-space-8) 0;
+    }
+
+    .editor img {
+      max-width: 100%;
+      height: auto;
+      border: 1px solid var(--nothing-gray-800);
+      border-radius: 2px;
+      margin: var(--nothing-space-6) 0;
+    }
+
+    /* Task List */
+    .editor ul.task-list {
+      list-style: none;
+      padding-left: 0;
+    }
+
+    .editor ul.task-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--nothing-space-3);
+    }
+
+    .editor ul.task-list li::before {
+      content: none;
+    }
+
+    .editor ul.task-list input[type="checkbox"] {
+      margin-top: 4px;
+      width: 18px;
+      height: 18px;
+      border: 1px solid var(--nothing-gray-600);
+      border-radius: 2px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .editor ul.task-list input[type="checkbox"]:checked {
+      background: var(--nothing-red);
+      border-color: var(--nothing-red);
+    }
+
+    /* Note Tags Display */
+    .note-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--nothing-space-2);
+      margin-bottom: var(--nothing-space-8);
+      padding-bottom: var(--nothing-space-4);
+      border-bottom: 1px solid var(--nothing-gray-800);
+    }
+
+    /* Scrollbar */
+    .editor::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .editor::-webkit-scrollbar-track {
+      background: var(--nothing-black);
+    }
+
+    .editor::-webkit-scrollbar-thumb {
+      background: var(--nothing-gray-800);
+      border-radius: 4px;
+    }
+
+    .editor::-webkit-scrollbar-thumb:hover {
+      background: var(--nothing-gray-700);
+    }
+
+    /* Table */
+    .editor table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: var(--nothing-space-6) 0;
+      font-size: 14px;
+    }
+
+    .editor table th,
+    .editor table td {
+      padding: var(--nothing-space-3) var(--nothing-space-4);
+      border: 1px solid var(--nothing-gray-800);
+      text-align: left;
+    }
+
+    .editor table th {
+      background: var(--nothing-surface);
+      color: var(--nothing-white);
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 12px;
+      letter-spacing: 0.05em;
+    }
+
+    .editor table td {
+      color: var(--nothing-gray-200);
+    }
+
+    .editor table tr:hover td {
+      background: var(--nothing-surface);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">SOLO</div>
+        <div class="menu-icon">☰</div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-item">• All Notes</div>
+        <div class="sidebar-item">▸ Work</div>
+        <div class="sidebar-item active">▾ Personal</div>
+        <div class="sidebar-item" style="padding-left: 46px;">• Nothing Theme Demo</div>
+        <div class="sidebar-item" style="padding-left: 46px;">• Weekend Plans</div>
+        <div class="sidebar-item">• Archive</div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-tags">
+          <div class="tag">design</div>
+          <div class="tag">ideas</div>
+          <div class="tag">dev</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Editor Area -->
+    <main class="editor-container">
+      <div class="editor-header">
+        <div class="editor-title">Nothing Theme Preview</div>
+        <div class="editor-actions">
+          <button class="btn btn-ghost">Preview</button>
+          <button class="btn btn-secondary">Export</button>
+          <button class="btn btn-primary">Save</button>
+        </div>
+      </div>
+
+      <article class="editor">
+        <div class="note-tags">
+          <div class="tag">design</div>
+          <div class="tag">theme</div>
+          <div class="tag">nothing</div>
+        </div>
+
+        <h1>The Nothing Theme</h1>
+
+        <p>
+          This is a preview of the <strong>Nothing by CMF</strong> inspired theme for Solo.
+          The design philosophy embraces <em>utilitarian minimalism</em> with bold contrasts
+          and strategic use of <a href="#">red accents</a> throughout the interface.
+        </p>
+
+        <h2>Typography & Readability</h2>
+
+        <p>
+          The theme uses a carefully selected type system that balances modern aesthetics
+          with excellent readability. Body text maintains a comfortable line height of 1.8,
+          while headings use tighter spacing for impact.
+        </p>
+
+        <h3>Inline Elements</h3>
+
+        <p>
+          Text can be <strong>bold</strong>, <em>italic</em>, or include <code>inline code snippets</code>.
+          Links are styled with the signature red color and subtle hover effects. This ensures
+          that all content remains accessible while maintaining the distinctive Nothing aesthetic.
+        </p>
+
+        <h3>Lists</h3>
+
+        <p>Here are some key features of this theme:</p>
+
+        <ul>
+          <li>Pure black background with dot matrix pattern</li>
+          <li>High contrast white text for maximum readability</li>
+          <li>Strategic red accents for interactive elements</li>
+          <li>Monospace fonts for technical elements</li>
+          <li>Minimal rounded corners (2-4px max)</li>
+        </ul>
+
+        <p>Implementation checklist:</p>
+
+        <ol>
+          <li>Define color system and CSS variables</li>
+          <li>Update typography scales</li>
+          <li>Apply dot matrix background patterns</li>
+          <li>Style all interactive components</li>
+          <li>Test accessibility and contrast ratios</li>
+        </ol>
+
+        <h3>Task Lists</h3>
+
+        <ul class="task-list">
+          <li><input type="checkbox" checked> Complete theme specification</li>
+          <li><input type="checkbox" checked> Create HTML preview</li>
+          <li><input type="checkbox"> Implement in React components</li>
+          <li><input type="checkbox"> Add theme switcher</li>
+          <li><input type="checkbox"> Deploy to production</li>
+        </ul>
+
+        <h2>Code Blocks</h2>
+
+        <p>The theme includes special styling for code blocks with a red left border accent:</p>
+
+        <pre><code>const nothingTheme = {
+  colors: {
+    background: '#000000',
+    surface: '#0A0A0A',
+    accent: '#FF0000',
+    text: '#FFFFFF'
+  },
+  spacing: {
+    unit: 8,
+    scale: [4, 8, 12, 16, 24, 32, 48, 64]
+  }
+};</code></pre>
+
+        <h2>Blockquotes</h2>
+
+        <blockquote>
+          "Design is not just what it looks like and feels like. Design is how it works."
+          <br>— Steve Jobs
+        </blockquote>
+
+        <p>
+          The Nothing theme takes this philosophy to heart, ensuring that every visual decision
+          serves a functional purpose while maintaining a distinctive aesthetic.
+        </p>
+
+        <hr>
+
+        <h2>Tables</h2>
+
+        <p>Tables are styled with clear borders and hover states:</p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Element</th>
+              <th>Color</th>
+              <th>Usage</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Background</td>
+              <td>#000000</td>
+              <td>Main canvas, sidebar</td>
+            </tr>
+            <tr>
+              <td>Surface</td>
+              <td>#0A0A0A</td>
+              <td>Cards, code blocks</td>
+            </tr>
+            <tr>
+              <td>Accent</td>
+              <td>#FF0000</td>
+              <td>Links, buttons, highlights</td>
+            </tr>
+            <tr>
+              <td>Text Primary</td>
+              <td>#FFFFFF</td>
+              <td>Headings, important text</td>
+            </tr>
+            <tr>
+              <td>Text Secondary</td>
+              <td>#E8E8E8</td>
+              <td>Body copy</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2>Design Principles</h2>
+
+        <p>The Nothing theme is built on several core principles:</p>
+
+        <h3>1. Utilitarian Minimalism</h3>
+        <p>
+          Every element serves a purpose. No decoration for decoration's sake.
+          The interface is stripped down to its essential components, allowing
+          the content to take center stage.
+        </p>
+
+        <h3>2. High Contrast</h3>
+        <p>
+          Pure black (#000000) meets pure white (#FFFFFF) for maximum readability
+          and visual impact. This creates a striking, modern aesthetic that remains
+          comfortable for extended reading sessions.
+        </p>
+
+        <h3>3. Strategic Red</h3>
+        <p>
+          The signature red accent (#FF0000) is used sparingly but effectively.
+          It highlights interactive elements, draws attention to important actions,
+          and provides visual feedback without overwhelming the interface.
+        </p>
+
+        <h3>4. Technical Aesthetic</h3>
+        <p>
+          Monospace fonts, dot matrix patterns, and grid-based layouts create
+          a tech-forward feel that appeals to developers and designers alike.
+        </p>
+
+        <hr>
+
+        <h2>Conclusion</h2>
+
+        <p>
+          The Nothing theme represents a bold departure from traditional note-taking
+          interfaces. It's designed for writers who want their tools to feel as modern
+          and uncompromising as their ideas. The result is an interface that's both
+          beautiful and highly functional—a perfect embodiment of Nothing's design philosophy.
+        </p>
+
+        <p>
+          Ready to experience the future of minimal, focused writing?
+          <a href="#">Switch to the Nothing theme</a> and see the difference.
+        </p>
+      </article>
+    </main>
+  </div>
+</body>
+</html>

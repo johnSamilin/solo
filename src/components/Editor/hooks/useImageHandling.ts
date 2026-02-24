@@ -28,13 +28,27 @@ export const useImageHandling = (editor: Editor | null) => {
 
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = notesStore.selectedNote.content;
-    const images = tempDiv.querySelectorAll('img');
-    
-    const imageList: AnnotationImage[] = Array.from(images).map((img, index) => ({
+    const images = tempDiv.querySelectorAll('img:not(.carousel-img)');
+    let imageList: AnnotationImage[] = Array.from(images).map((img, index) => ({
       src: img.src,
       id: `img-${index}`
     }));
     
+    const carousels = tempDiv.querySelectorAll('[data-type="carousel"]')
+    carousels.forEach((carousel) => {
+      try {
+        const list = JSON
+          .parse(carousel.dataset.images)
+          .map((path) => ({
+            id: path,
+            src: path,
+          }));
+          imageList = imageList.concat(list);
+      } catch(er) {
+        console.error(er, carousel);
+      }
+    });
+
     setAnnotationImages(imageList);
   }, [notesStore.selectedNote?.content]);
 
