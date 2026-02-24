@@ -131,22 +131,22 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
           return true;
         }
 
-        const noteTags = note.tags;
+        const allTags = [...note.tags, ...(note.paragraphTags || [])];
 
         const andFilters = tagFilters.filter(f => f.operator === 'AND');
         const orFilters = tagFilters.filter(f => f.operator === 'OR');
         const notFilters = tagFilters.filter(f => f.operator === 'NOT');
 
         const andMatch = andFilters.length === 0 || andFilters.every(filter =>
-          noteTags.some(tag => tag.includes(filter.path))
+          allTags.some(tag => tag.includes(filter.path))
         );
 
         const orMatch = orFilters.length === 0 || orFilters.some(filter =>
-          noteTags.some(tag => tag.includes(filter.path))
+          allTags.some(tag => tag.includes(filter.path))
         );
 
         const notMatch = notFilters.every(filter =>
-          !noteTags.some(tag => tag.includes(filter.path))
+          !allTags.some(tag => tag.includes(filter.path))
         );
 
         return andMatch && orMatch && notMatch;
