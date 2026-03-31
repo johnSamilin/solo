@@ -44,39 +44,21 @@
 .es-filter-card {
   display: flex;
   align-items: flex-end;
-  background: var(--color-white);
-  border: 1.5px solid var(--color-border);
-  border-radius: 2px;
+  border: none;
+  border-radius: 6px;
   padding: 1.5rem 1.25rem 1.25rem;
   min-height: 96px;
   cursor: pointer;
   text-align: left;
-  transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+  transition: box-shadow 0.18s, transform 0.12s, filter 0.18s;
   position: relative;
   overflow: hidden;
 }
 
-.es-filter-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: var(--color-text);
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform 0.2s ease;
-}
-
 .es-filter-card:hover {
-  border-color: var(--color-text);
-  box-shadow: 3px 3px 0 var(--color-border);
-  transform: translate(-1px, -1px);
-}
-
-.es-filter-card:hover::before {
-  transform: scaleX(1);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.10);
+  transform: translateY(-2px);
+  filter: brightness(0.97);
 }
 
 .es-filter-label {
