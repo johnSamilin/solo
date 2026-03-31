@@ -21,17 +21,18 @@ import { SearchPage } from './components/Search/SearchPage';
 import { Timeline } from './components/Timeline/Timeline';
 import { Toast } from './components/Toast/Toast';
 import { themes } from './constants';
-import { Plus } from 'lucide-react';
 import { TagModal } from './components/Modals/TagModal/TagModal';
 import { ImageInsertModal } from './components/Modals/ImageInsertModal';
 import { loadNoteCss } from './utils/electron';
 import { injectNoteStyles, removeNoteStyles } from './utils/cssUtils';
+import { EmptyState } from './components/EmptyState/EmptyState';
 
 const App = observer(() => {
   const { notesStore, settingsStore, tagsStore } = useStore();
   const [initialContent, setInitialContent] = useState('');
   const [autoZenDisabled, setAutoZenDisabled] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchInitialTag, setSearchInitialTag] = useState<string | undefined>(undefined);
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
   const [isParagraphTagModalOpen, setIsParagraphTagModalOpen] = useState(false);
   const [currentParagraphTags, setCurrentParagraphTags] = useState<string[]>([]);
@@ -307,11 +308,13 @@ const App = observer(() => {
 
       {isSearchOpen && (
         <SearchPage
-          onClose={() => setIsSearchOpen(false)}
+          onClose={() => { setIsSearchOpen(false); setSearchInitialTag(undefined); }}
           onNoteSelect={(note) => {
             notesStore.setSelectedNote(note);
             setIsSearchOpen(false);
+            setSearchInitialTag(undefined);
           }}
+          initialTagPath={searchInitialTag}
         />
       )}
 
@@ -364,20 +367,13 @@ const App = observer(() => {
             handleCutIn={handleCutIn}
           />
         ) : (
-          <div className="empty-state">
-            <div className="empty-state-content">
-              <p className="empty-state-text">Select a note or create a new one</p>
-              <div className="empty-state-buttons">
-                <button onClick={handleCreateNote} className="button-primary">
-                  <Plus className="h-4 w-4" />
-                  Create Note
-                </button>
-                <a href="/about" target="_blank" className="button-primary">
-                  Learn More
-                </a>
-              </div>
-            </div>
-          </div>
+          <EmptyState
+            onCreateNote={handleCreateNote}
+            onOpenSearch={(tagPath) => {
+              setSearchInitialTag(tagPath);
+              setIsSearchOpen(true);
+            }}
+          />
         )}
       </div>
       {notesStore.isLoading && (
