@@ -1,4 +1,4 @@
-import React, { FC, useState, useMemo } from 'react';
+import React, { FC, useState, useMemo, useEffect } from 'react';
 import { observer } from 'mobx-react-lite';
 import MeshGradient from 'mesh-gradient.js';
 import { Plus, ChevronRight, ChevronDown } from 'lucide-react';
