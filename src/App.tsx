@@ -161,6 +161,36 @@ const App = observer(() => {
   }, [settingsStore.isZenMode]);
 
   useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      const anyModalOpen =
+        settingsStore.isSettingsOpen ||
+        settingsStore.isNewNotebookModalOpen ||
+        settingsStore.isNoteSettingsOpen ||
+        isSearchOpen ||
+        isTimelineOpen ||
+        isParagraphTagModalOpen ||
+        isImageInsertModalOpen;
+      if (!anyModalOpen && notesStore.selectedNote) {
+        notesStore.setSelectedNote(null);
+        editor?.commands.setContent('');
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [
+    settingsStore.isSettingsOpen,
+    settingsStore.isNewNotebookModalOpen,
+    settingsStore.isNoteSettingsOpen,
+    isSearchOpen,
+    isTimelineOpen,
+    isParagraphTagModalOpen,
+    isImageInsertModalOpen,
+    notesStore.selectedNote,
+    editor,
+  ]);
+
+  useEffect(() => {
     const root = document.documentElement;
     const globalSettings = settingsStore.settings;
 
