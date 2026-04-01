@@ -9,6 +9,8 @@ import './EmptyState.css';
 const gradient = new MeshGradient();
 const PASTEL_GRADIENTS = [
   '#fde8e8', '#fce4f3',
+  '#eb75b6', '#ddf3ff',
+  '#6e3deb', '#c92f3c',
   '#e8f4fd', '#e4f3e8',
   '#fdf6e8', '#fde8d0',
   '#eee8fd', '#e8f0fd',
@@ -77,25 +79,27 @@ export const EmptyState: FC<EmptyStateProps> = observer(({ onCreateNote, onOpenS
 
   useEffect(() => {
     EXAMPLE_FILTERS.forEach((filter, i) => {
-      gradient.initGradient("#" + filter.id, PASTEL_GRADIENTS);      
+      gradient.initGradient("#bg-" + filter.id, PASTEL_GRADIENTS); 
+      gradient?.changePosition(filter.label.length);     
     })
   }, []);
 
   return (
     <div className="es-root">
       <div className="es-inner">
-        <section className="es-section">
-          <h2 className="es-section-title">Сохранённые фильтры</h2>
+        <section className="es-section es-section-saved-filters">
           <div className="es-filters-grid">
             {EXAMPLE_FILTERS.map((filter, i) => (
-              <canvas
-                id={filter.id}
-                key={filter.id}
-                className="es-filter-card"
-                onClick={() => onOpenSearch()}
-              >
+              <div className="es-filter-card">
+                <canvas
+                  id={`bg-${filter.id}`}
+                  key={filter.id}
+                  className="es-filter-bg"
+                  onClick={() => onOpenSearch()}
+                >
+                </canvas>
                 <span className="es-filter-label">{filter.label}</span>
-              </canvas>
+              </div>
             ))}
           </div>
         </section>
