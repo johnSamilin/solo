@@ -1,30 +1,26 @@
 import React, { FC, useState, useMemo } from 'react';
 import { observer } from 'mobx-react-lite';
+import MeshGradient from 'mesh-gradient.js';
 import { Plus, ChevronRight, ChevronDown } from 'lucide-react';
 import { useStore } from '../../stores/StoreProvider';
 import { TagNode } from '../../types';
 import './EmptyState.css';
 
+const gradient = new MeshGradient();
+const PASTEL_GRADIENTS = [
+  '#fde8e8', '#fce4f3',
+  '#e8f4fd', '#e4f3e8',
+  '#fdf6e8', '#fde8d0',
+  '#eee8fd', '#e8f0fd',
+  '#e8fdf5', '#e8fdee',
+  '#fdf0e8', '#fde8e8',
+  '#f0fde8', '#e8f9fd',
+  '#fde8f5', '#f5e8fd',
+];
+
 interface EmptyStateProps {
   onCreateNote: () => void;
   onOpenSearch: (tagPath?: string) => void;
-}
-
-const PASTEL_GRADIENTS = [
-  ['#fde8e8', '#fce4f3'],
-  ['#e8f4fd', '#e4f3e8'],
-  ['#fdf6e8', '#fde8d0'],
-  ['#eee8fd', '#e8f0fd'],
-  ['#e8fdf5', '#e8fdee'],
-  ['#fdf0e8', '#fde8e8'],
-  ['#f0fde8', '#e8f9fd'],
-  ['#fde8f5', '#f5e8fd'],
-];
-
-function pickGradient(index: number): string {
-  const pair = PASTEL_GRADIENTS[index % PASTEL_GRADIENTS.length];
-  const angle = 120 + (index * 37) % 120;
-  return `linear-gradient(${angle}deg, ${pair[0]}, ${pair[1]})`;
 }
 
 const EXAMPLE_FILTERS = [
@@ -75,11 +71,15 @@ const TagTreeNode: FC<TagTreeNodeProps> = ({ node, onTagClick }) => {
 export const EmptyState: FC<EmptyStateProps> = observer(({ onCreateNote, onOpenSearch }) => {
   const { tagsStore } = useStore();
 
-  const gradientOffset = useMemo(() => Math.floor(Math.random() * PASTEL_GRADIENTS.length), []);
-
   const handleTagClick = (path: string) => {
     onOpenSearch(path);
   };
+
+  useEffect(() => {
+    EXAMPLE_FILTERS.forEach((filter, i) => {
+      gradient.initGradient("#" + filter.id, PASTEL_GRADIENTS);      
+    })
+  }, []);
 
   return (
     <div className="es-root">
@@ -88,14 +88,14 @@ export const EmptyState: FC<EmptyStateProps> = observer(({ onCreateNote, onOpenS
           <h2 className="es-section-title">Сохранённые фильтры</h2>
           <div className="es-filters-grid">
             {EXAMPLE_FILTERS.map((filter, i) => (
-              <button
+              <canvas
+                id={filter.id}
                 key={filter.id}
                 className="es-filter-card"
-                style={{ background: pickGradient(gradientOffset + i) } as React.CSSProperties}
                 onClick={() => onOpenSearch()}
               >
                 <span className="es-filter-label">{filter.label}</span>
-              </button>
+              </canvas>
             ))}
           </div>
         </section>
