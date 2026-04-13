@@ -1,4 +1,5 @@
 import { FileNode, FileMetadata, Note, Notebook } from '../types';
+import { getNativeAPI } from './nativeBridge';
 
 interface ParseResult {
   notebooks: Notebook[];
@@ -6,11 +7,12 @@ interface ParseResult {
 }
 
 export async function loadFromElectron(): Promise<ParseResult> {
-  if (!window.electronAPI) {
-    throw new Error('ElectronAPI not available');
+  const api = getNativeAPI();
+  if (!api) {
+    throw new Error('Native API not available');
   }
 
-  const result = await window.electronAPI.readStructure();
+  const result = await api.readStructure();
   if (!result.success || !result.structure) {
     throw new Error(result.error || 'Failed to read structure');
   }
@@ -75,11 +77,12 @@ export function parseFileStructure(structure: FileNode[]): ParseResult {
 }
 
 export async function loadNoteContent(filePath: string): Promise<string> {
-  if (!window.electronAPI) {
-    throw new Error('ElectronAPI not available');
+  const api = getNativeAPI();
+  if (!api) {
+    throw new Error('Native API not available');
   }
 
-  const result = await window.electronAPI.openFile(filePath);
+  const result = await api.openFile(filePath);
 
   if (!result.success || result.content === undefined) {
     throw new Error(result.error || 'Failed to load note content');
@@ -89,11 +92,12 @@ export async function loadNoteContent(filePath: string): Promise<string> {
 }
 
 export async function loadNoteCss(cssPath: string): Promise<string> {
-  if (!window.electronAPI) {
-    throw new Error('ElectronAPI not available');
+  const api = getNativeAPI();
+  if (!api) {
+    throw new Error('Native API not available');
   }
 
-  const result = await window.electronAPI.openFile(cssPath);
+  const result = await api.openFile(cssPath);
 
   if (!result.success || result.content === undefined) {
     throw new Error(result.error || 'Failed to load CSS content');
