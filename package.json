@@ -8,7 +8,9 @@
     "build:minified": "MINIFY=true vite build && npm run copy-assets",
     "lint": "eslint .",
     "preview": "vite preview",
-    "copy-assets": "cp -R assets dist/assets && (cp -R dist/* native-clients/electron/electron/dist 2>/dev/null || true)",
+    "copy-assets": "copy-assets:desktop && copy-assets:android",
+    "copy-assets:android": "bash native-clients/android/copy-web-assets.sh",
+    "copy-assets:desktop": "cp -R assets dist/assets && (cp -R dist/* native-clients/electron/electron/dist 2>/dev/null || true)",
     "test": "playwright test",
     "test:ui": "playwright test --ui",
     "test:headed": "playwright test --headed"
