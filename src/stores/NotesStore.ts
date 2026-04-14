@@ -1,6 +1,6 @@
 import { makeObservable, observable, runInAction } from 'mobx';
 import { Note, Notebook, FileMetadata } from '../types';
-import { loadFromElectron, loadNoteContent } from '../utils/electron';
+import { loadFromElectron, loadNoteContent, loadPdfContent } from '../utils/electron';
 import { getNativeAPI } from '../utils/nativeBridge';
 import { extractParagraphTags } from '../utils';
 
@@ -139,6 +139,7 @@ export class NotesStore {
         isLoaded: true,
         path: result.htmlPath,
         paragraphTags: [],
+        fileType: 'html',
       };
       this.notes.push(newNote);
       this.selectedNote = newNote;
@@ -175,13 +176,14 @@ export class NotesStore {
       }
 
       if (result.newPath) {
+        const isPdf = note.fileType === 'pdf';
         this.notes[noteIndex] = {
           ...note,
           ...updates,
           id: result.newPath,
           path: result.newPath,
           filePath: result.newPath,
-          cssPath: result.newPath.replace('.html', '.css'),
+          cssPath: isPdf ? undefined : result.newPath.replace('.html', '.css'),
         };
 
         if (this.selectedNote?.id === noteId) {
@@ -197,7 +199,7 @@ export class NotesStore {
 
     this.cacheNotes();
 
-    if (updates.content !== undefined) {
+    if (updates.content !== undefined && this.notes[noteIndex].fileType !== 'pdf') {
       this.debouncedSave(this.notes[noteIndex].id, updates.content);
     }
 
@@ -211,7 +213,7 @@ export class NotesStore {
     const api = getNativeAPI();
     if (!api?.updateMetadata || !note.path) return;
 
-    const paragraphTags = extractParagraphTags(note.content);
+    const paragraphTags = note.fileType === 'pdf' ? [] : extractParagraphTags(note.content);
 
     const metadata = {
       id: note.id,
@@ -508,7 +510,9 @@ export class NotesStore {
 
     this.isLoadingNoteContent = true;
     try {
-      const content = await loadNoteContent(note.filePath);
+      const content = note.fileType === 'pdf'
+        ? await loadPdfContent(note.filePath)
+        : await loadNoteContent(note.filePath);
       this.updateNote(note.id, { content });
       if (this.selectedNote) {
         this.selectedNote.isLoaded = true;
@@ -555,7 +559,7 @@ export class NotesStore {
         needsUpdate = true;
         metadata.tags = updateTag(note.tags);
       }
-      if (hasParagraphTag) {
+      if (hasParagraphTag && note.fileType !== 'pdf') {
         console.log(`${newPath === '' ? 'Deleting' : 'Renaming'}  paragraph tag ${oldPath} in note ${note.filePath}`);
         needsUpdate = true;
         metadata.paragraphTags = updateTag(note.paragraphTags);
@@ -593,7 +597,7 @@ export class NotesStore {
   getStatistics = () => {
     const emptyNotes = this.notes.filter(note => this.isNoteEmpty(note));
     const totalWords = this.notes.reduce((sum, note) => {
-      return sum + this.countWords(note.content);
+      return sum + this.countWords(note.content, note.fileType);
     }, 0);
 
     return {
@@ -605,6 +609,7 @@ export class NotesStore {
   };
 
   isNoteEmpty = (note: Note): boolean => {
+    if (note.fileType === 'pdf') return false;
     if (!note.content) return true;
     const parser = new DOMParser();
     const doc = parser.parseFromString(note.content, 'text/html');
@@ -612,7 +617,8 @@ export class NotesStore {
     return text.trim().length === 0;
   };
 
-  private countWords = (content: string): number => {
+  private countWords = (content: string, fileType?: string): number => {
+    if (fileType === 'pdf') return 0;
     if (!content) return 0;
     const parser = new DOMParser();
     const doc = parser.parseFromString(content, 'text/html');

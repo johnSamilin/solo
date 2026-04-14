@@ -2,6 +2,7 @@ import { FC, useState, useEffect, useRef } from "react";
 import { observer } from "mobx-react-lite";
 import { useStore } from "../../stores/StoreProvider";
 import { Editor } from "@tiptap/react";
+import { FileText } from "lucide-react";
 import { NotebookItem } from "./NotebookItem";
 import { SidebarMenu } from "./SidebarMenu";
 import { SidebarToggle } from "./SidebarToggle";
@@ -79,9 +80,10 @@ export const Sidebar: FC<SidebarProps> = observer(({ editor, onOpenSearch, onOpe
             <div
               key={note.id}
               onClick={() => handleNoteSelect(note.id)}
-              className={`note-item ${notesStore.selectedNote?.id === note.id ? 'selected' : ''}`}
+              className={`note-item ${notesStore.selectedNote?.id === note.id ? 'selected' : ''} ${note.fileType === 'pdf' ? 'note-item--pdf' : ''}`}
             >
               <div className="note-item-header">
+                {note.fileType === 'pdf' && <FileText size={14} className="note-item-pdf-icon" />}
                 <h3 className="note-item-title">{note.title}</h3>
               </div>
             </div>

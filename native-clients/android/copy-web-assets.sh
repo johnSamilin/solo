@@ -3,9 +3,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 ANDROID_ASSETS="$SCRIPT_DIR/app/src/main/assets/solo"
 
-echo "Building web application..."
-cd "$PROJECT_ROOT" && npm run build
-
 echo "Copying web assets to Android..."
 rm -rf "$ANDROID_ASSETS"
 mkdir -p "$ANDROID_ASSETS"

@@ -14,6 +14,7 @@ import { useImageHandling } from "./hooks/useImageHandling";
 import { useSpeechRecognition } from "./hooks/useSpeechRecognition";
 import { useZenMode } from "./hooks/useZenMode";
 import { themes } from "../../constants";
+import { PdfViewer } from "../PdfViewer/PdfViewer";
 
 import './Editor.css';
 
@@ -129,8 +130,45 @@ export const Editor: FC<EditorProps> = observer(({
 
   if (!notesStore.selectedNote) return null;
 
+  const isPdf = notesStore.selectedNote.fileType === 'pdf';
   const currentTheme = notesStore.selectedNote.theme;
   const isAnnotatedLayout = currentTheme === 'annotated';
+
+  if (isPdf) {
+    return (
+      <div className="editor" ref={editorContentRef}>
+        <PdfViewer base64Data={notesStore.selectedNote.content} />
+
+        {settingsStore.isNoteSettingsOpen && (
+          <NoteSettingsModal
+            onClose={() => settingsStore.setNoteSettingsOpen(false)}
+            notebooks={notesStore.notebooks}
+            currentNotebookId={notesStore.selectedNote.notebookId}
+            onMoveNote={handleMoveNote}
+            onDeleteNote={handleDeleteNote}
+            currentTheme={notesStore.selectedNote.theme || ''}
+            onThemeChange={handleThemeChange}
+          />
+        )}
+
+        {isDateDialogOpen && notesStore.selectedNote && (
+          <DateEditDialog
+            currentDate={notesStore.selectedNote.createdAt}
+            onDateChange={handleDateChange}
+            onClose={() => setIsDateDialogOpen(false)}
+          />
+        )}
+
+        <button
+          className="pdf-settings-button"
+          onClick={() => settingsStore.setNoteSettingsOpen(true)}
+          title="Note settings"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6m9-9h-6m-6 0H3m15.364-6.364l-4.243 4.243M8.879 15.121l-4.243 4.243m0-12.728l4.243 4.243m6.364 6.364l4.243 4.243"/></svg>
+        </button>
+      </div>
+    );
+  }
 
   return (
     <>

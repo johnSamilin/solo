@@ -51,3 +51,13 @@
     color: var(--color-text);
     font-family: 'Inter', system-ui, sans-serif;
 }
+
+.note-item-pdf-icon {
+    flex-shrink: 0;
+    color: var(--color-text-light);
+    opacity: 0.7;
+}
+
+.note-item--pdf .note-item-title {
+    opacity: 0.85;
+}
