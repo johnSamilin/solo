@@ -79,11 +79,14 @@ class MainActivity : AppCompatActivity() {
 
         bridge = WebViewBridge(this, fileSystemManager, audioPlayer, searchEngine)
 
+        @Suppress("DEPRECATION")
         webView.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
             allowFileAccess = true
             allowContentAccess = true
+            allowFileAccessFromFileURLs = true
+            allowUniversalAccessFromFileURLs = true
             mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
             useWideViewPort = true
             loadWithOverviewMode = true
