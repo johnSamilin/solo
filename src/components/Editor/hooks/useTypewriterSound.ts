@@ -3,6 +3,7 @@ import { Howl } from 'howler';
 import { Editor } from '@tiptap/react';
 import { themes } from '../../../constants';
 import { useStore } from '../../../stores/StoreProvider';
+import { isAndroid, isElectron } from '../../../utils/nativeBridge';
 
 const nonCharacterKeys = new Set([
   'Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'Tab',
@@ -25,7 +26,12 @@ export const useTypewriterSound = (editor: Editor | null) => {
       themes[notesStore.selectedNote.theme].settings :
       settingsStore.settings;
 
-    const audioSrc = window.electronAPI
+    if (isAndroid) {
+      soundRef.current = undefined;
+      return;
+    }
+
+    const audioSrc = isElectron
       ? `audio://${currentSettings.typewriterSound}.mp3`
       : `/${currentSettings.typewriterSound}.mp3`;
 
@@ -54,7 +60,11 @@ export const useTypewriterSound = (editor: Editor | null) => {
             !event.ctrlKey && 
             !event.altKey && 
             !event.metaKey) {
-          soundRef.current?.play();
+          if (isAndroid) {
+            window.SoloBridge?.playTypewriterSound();
+          } else {
+            soundRef.current?.play();
+          }
         }
         
         lastLength = currentLength;

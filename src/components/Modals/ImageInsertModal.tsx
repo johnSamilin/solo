@@ -3,6 +3,7 @@ import { FC, useState, useRef, useEffect } from 'react';
 import { observer } from 'mobx-react-lite';
 import { useStore } from '../../stores/StoreProvider';
 import { DigikamTag } from '../../types';
+import { getNativeAPI } from '../../utils/nativeBridge';
 
 interface ImageInsertModalProps {
   onClose: () => void;
@@ -36,11 +37,12 @@ export const ImageInsertModal: FC<ImageInsertModalProps> = observer(({
   }, [activeTab, hasDigikamDb]);
 
   const loadTags = async () => {
-    if (!settingsStore.digikamDbPath || !window.electronAPI) return;
+    const api = getNativeAPI();
+    if (!settingsStore.digikamDbPath || !api?.getDigikamTags) return;
 
     setLoading(true);
     try {
-      const result = await window.electronAPI.getDigikamTags(settingsStore.digikamDbPath);
+      const result = await api.getDigikamTags(settingsStore.digikamDbPath);
       if (result.success && result.tags) {
         const tagTree = buildTagTree(result.tags);
         setTags(tagTree);
@@ -90,13 +92,14 @@ export const ImageInsertModal: FC<ImageInsertModalProps> = observer(({
   };
 
   const handleTagSelect = async (tagId: number) => {
-    if (!settingsStore.digikamDbPath || !window.electronAPI) return;
+    const api = getNativeAPI();
+    if (!settingsStore.digikamDbPath || !api?.getDigikamImagesByTag) return;
 
     setSelectedTag(tagId);
     setLoading(true);
 
     try {
-      const result = await window.electronAPI.getDigikamImagesByTag(
+      const result = await api.getDigikamImagesByTag(
         settingsStore.digikamDbPath,
         tagId,
         10

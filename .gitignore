@@ -31,3 +31,7 @@ data
 certs
 dist
 out
+
+native-clients/android/app
+native-clients/android/.gradle
+native-clients/android/local.properties

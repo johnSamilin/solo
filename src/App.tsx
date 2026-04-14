@@ -24,6 +24,7 @@ import { themes } from './constants';
 import { TagModal } from './components/Modals/TagModal/TagModal';
 import { ImageInsertModal } from './components/Modals/ImageInsertModal';
 import { loadNoteCss } from './utils/electron';
+import { getNativeAPI, isNative } from './utils/nativeBridge';
 import { injectNoteStyles, removeNoteStyles } from './utils/cssUtils';
 import { EmptyState } from './components/EmptyState/EmptyState';
 
@@ -223,12 +224,13 @@ const App = observer(() => {
   }, [settingsStore.settings, notesStore.selectedNote?.theme]);
 
   const handleImageUpload = async (file: File) => {
-    if (window.electronAPI) {
+    const api = getNativeAPI();
+    if (api) {
       try {
         const reader = new FileReader();
         reader.onload = async () => {
           if (typeof reader.result === 'string') {
-            const result = await window.electronAPI.uploadImage(reader.result, file.name);
+            const result = await api.uploadImage(reader.result, file.name);
             if (result.success && result.url) {
               editor?.chain().focus().setImage({ src: result.url }).run();
             } else {
@@ -365,7 +367,7 @@ const App = observer(() => {
       />
 
       <div className="main-content">
-        {window.electronAPI && !settingsStore.dataFolder ? (
+        {isNative && !settingsStore.dataFolder ? (
           <div className="empty-state">
             <div className="empty-state-content">
               <p className="empty-state-text">No data folder selected</p>

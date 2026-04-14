@@ -117,9 +117,31 @@ export interface DigikamImage {
   specificPath: string;
 }
 
+interface AndroidBridgeRaw {
+  selectFolder(): void;
+  getDataFolder(): string;
+  openFile(relativePath: string): string;
+  updateFile(relativePath: string, content: string): string;
+  updateMetadata(relativePath: string, metadataJson: string): string;
+  readStructure(): string;
+  scanAllTags(): string;
+  search(query: string, tagsJson: string): string;
+  createNote(parentPath: string, name: string): string;
+  createNotebook(parentPath: string, name: string): string;
+  deleteNote(relativePath: string): string;
+  deleteNotebook(relativePath: string): string;
+  renameNote(relativePath: string, newName: string): string;
+  renameNotebook(relativePath: string, newName: string): string;
+  uploadImage(base64Data: string, fileName: string): string;
+  playTypewriterSound(): void;
+  toggleZenMode(enable: boolean): string;
+}
+
 declare global {
   interface Window {
     bridge?: Bridge;
     electronAPI: ElectronAPI;
+    SoloBridge?: AndroidBridgeRaw;
+    __soloSelectFolderCallback?: (resultJson: string) => void;
   }
 }

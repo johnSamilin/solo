@@ -36,13 +36,13 @@
   - Убрать Navigation Drawer, Search Bar, FAB, Bottom Navigation
   - Сохранить только минимальную навигацию для выбора папки и настроек
 
-### 5. Переименование electron.ts в nativeBridge.ts
-- **Изменение**: Файл `electron.ts` будет переименован в `nativeBridge.ts`
-- **Причина**: Унификация названия для поддержки разных платформ
+### 5. Создание нового nativeBridge.ts (electron.ts остается)
+- **Изменение**: Создается новый файл `nativeBridge.ts` с абстракцией `getPlatformAPI()`, electron.ts остается без изменений
+- **Причина**: Не ломаем Electron-клиент, добавляем общую абстракцию для обеих платформ
 - **Влияние на план**:
-  - Обновить импорты во всем проекте
-  - Изменить логику определения платформы
-  - Обновить документацию и комментарии
+  - Создать `src/utils/nativeBridge.ts` с `getPlatformAPI()` и `getNativeAPI()`
+  - Обновить stores для использования nativeBridge где нужна кросс-платформенность
+  - electron.ts продолжает работать как есть для Electron-специфичных вызовов
 
 ### 6. Публикация не только в Google Play, но и в RuStore
 - **Изменение**: Добавлена поддержка публикации в альтернативном магазине приложений
@@ -184,141 +184,125 @@
 
 ## Обновленная архитектура bridge
 
+### Ключевые архитектурные решения (согласовано)
+
+1. **Все @JavascriptInterface методы возвращают JSON-строки** -- Android bridge синхронный, JS-сторона парсит JSON
+2. **Асинхронные операции (selectFolder) используют callback-паттерн** -- Bridge вызывает `evaluateJavascript()` с результатом после завершения Activity
+3. **SAF (DocumentFile) -- основной подход к файловой системе** для Google Play совместимости. MANAGE_EXTERNAL_STORAGE -- только для RuStore через product flavors
+4. **nativeBridge.ts -- новый файл**, electron.ts остается без изменений, не ломая Electron-клиент
+5. **SearchEngine на Kotlin реализует тот же API-контракт** `search(query, tags)`, что и Electron
+6. **Typewriter звук воспроизводится нативно** через AudioPlayer (не через WebView URL)
+
 ### WebViewBridge.kt (обновленная структура)
 ```kotlin
 class WebViewBridge(
-    private val context: Context,
+    private val activity: MainActivity,
     private val fileSystemManager: FileSystemManager,
     private val audioPlayer: AudioPlayer,
     private val searchEngine: SearchEngine
 ) {
+    // Async: launches SAF picker, calls JS callback via evaluateJavascript()
     @JavascriptInterface
-    fun selectFolder(): String {
-        // Реализация выбора папки через Storage Access Framework
-        // с поддержкой MANAGE_EXTERNAL_STORAGE для произвольных путей
+    fun selectFolder() {
+        activity.runOnUiThread { activity.launchFolderPicker() }
     }
-    
+
     @JavascriptInterface
     fun getDataFolder(): String {
-        return fileSystemManager.getCurrentFolder()?.absolutePath ?: ""
+        // Returns JSON: {"success":true,"path":"/storage/..."}
+        return fileSystemManager.getDataFolderJson()
     }
-    
+
     @JavascriptInterface
     fun openFile(relativePath: String): String {
-        return fileSystemManager.openFile(relativePath)
+        // Returns JSON: {"success":true,"content":"..."}
+        return fileSystemManager.openFileJson(relativePath)
     }
-    
+
     @JavascriptInterface
-    fun updateFile(relativePath: String, content: String): Boolean {
-        return fileSystemManager.updateFile(relativePath, content)
+    fun updateFile(relativePath: String, content: String): String {
+        // Returns JSON: {"success":true}
+        return fileSystemManager.updateFileJson(relativePath, content)
     }
-    
+
     @JavascriptInterface
     fun readStructure(): String {
-        return fileSystemManager.readStructure()
+        // Returns JSON: {"success":true,"structure":[...]}
+        return fileSystemManager.readStructureJson()
     }
-    
+
+    @JavascriptInterface
+    fun updateMetadata(relativePath: String, metadataJson: String): String {
+        return fileSystemManager.updateMetadataJson(relativePath, metadataJson)
+    }
+
+    @JavascriptInterface
+    fun scanAllTags(): String {
+        return fileSystemManager.scanAllTagsJson()
+    }
+
+    @JavascriptInterface
+    fun createNote(parentPath: String, name: String): String {
+        return fileSystemManager.createNoteJson(parentPath, name)
+    }
+
+    @JavascriptInterface
+    fun createNotebook(parentPath: String, name: String): String {
+        return fileSystemManager.createNotebookJson(parentPath, name)
+    }
+
+    @JavascriptInterface
+    fun deleteNote(relativePath: String): String {
+        return fileSystemManager.deleteNoteJson(relativePath)
+    }
+
+    @JavascriptInterface
+    fun deleteNotebook(relativePath: String): String {
+        return fileSystemManager.deleteNotebookJson(relativePath)
+    }
+
+    @JavascriptInterface
+    fun renameNote(relativePath: String, newName: String): String {
+        return fileSystemManager.renameNoteJson(relativePath, newName)
+    }
+
+    @JavascriptInterface
+    fun renameNotebook(relativePath: String, newName: String): String {
+        return fileSystemManager.renameNotebookJson(relativePath, newName)
+    }
+
     @JavascriptInterface
     fun playTypewriterSound() {
         audioPlayer.play()
     }
-    
+
     @JavascriptInterface
     fun uploadImage(base64Data: String, fileName: String): String {
-        // Сохранение изображения в оригинальном качестве
-        return fileSystemManager.saveImage(base64Data, fileName)
+        // Returns JSON: {"success":true,"url":"assets/..."}
+        return fileSystemManager.saveImageJson(base64Data, fileName)
     }
-    
+
     @JavascriptInterface
-    fun search(query: String, tags: String): String {
-        return searchEngine.search(query, tags.split(","))
+    fun search(query: String, tagsJson: String): String {
+        // Returns JSON: {"success":true,"results":[...]}
+        return searchEngine.searchJson(query, tagsJson)
+    }
+
+    @JavascriptInterface
+    fun toggleZenMode(enable: Boolean): String {
+        return """{"success":true,"isZenMode":$enable}"""
     }
 }
 ```
 
-### FileSystemManager.kt (обновленные методы для произвольных папок)
-```kotlin
-class FileSystemManager(private val context: Context) {
-    private var rootFolder: File? = null
-    
-    fun setRootFolder(folder: File) {
-        this.rootFolder = folder
-    }
-    
-    fun getCurrentFolder(): File? = rootFolder
-    
-    fun openFile(relativePath: String): String {
-        val file = File(rootFolder, relativePath)
-        require(isPathSafe(file)) { "Path traversal attempt" }
-        return file.readText()
-    }
-    
-    fun updateFile(relativePath: String, content: String): Boolean {
-        val file = File(rootFolder, relativePath)
-        require(isPathSafe(file)) { "Path traversal attempt" }
-        file.parentFile?.mkdirs()
-        return file.writeText(content).let { true }
-    }
-    
-    private fun isPathSafe(file: File): Boolean {
-        val rootPath = rootFolder?.canonicalPath ?: return false
-        val filePath = file.canonicalPath
-        return filePath.startsWith(rootPath)
-    }
-    
-    fun saveImage(base64Data: String, fileName: String): String {
-        // Декодирование base64 и сохранение без сжатия
-        val bytes = Base64.decode(base64Data, Base64.DEFAULT)
-        val imageFile = File(rootFolder, "assets/$fileName")
-        imageFile.parentFile?.mkdirs()
-        imageFile.writeBytes(bytes)
-        return "assets/$fileName"
-    }
-    
-    fun readStructure(): List<FileNode> {
-        // Рекурсивное чтение структуры папок
-    }
-}
-```
+### Интеграция с веб-приложением
 
-### Интеграция с обновленным nativeBridge.ts
-1. Переименование `electron.ts` в `nativeBridge.ts`:
-```typescript
-// Файл: src/utils/nativeBridge.ts
-export async function loadFromNative(): Promise<ParseResult> {
-    const api = getPlatformAPI();
-    if (!api) {
-        throw new Error('Native API not available');
-    }
+1. **Новый файл `src/utils/nativeBridge.ts`** (electron.ts остается как есть):
+   - `getNativeAPI()` -- возвращает `window.electronAPI` или Android-обертку
+   - Android-обертка парсит JSON-строки из `window.SoloBridge` в Promise-объекты, совместимые с `ElectronAPI`
+   - `selectFolder()` на Android использует callback через `evaluateJavascript()`
 
-    const result = await api.readStructure();
-    if (!result.success || !result.structure) {
-        throw new Error(result.error || 'Failed to read structure');
-    }
-
-    return parseFileStructure(result.structure);
-}
-
-export function getPlatformAPI() {
-    if (window.electronAPI) {
-        return window.electronAPI;
-    } else if (window.androidBridge) {
-        return window.androidBridge;
-    } else {
-        // Веб-версия или fallback
-        return null;
-    }
-}
-```
-
-2. Обновление `useTypewriterSound.ts`:
-```typescript
-const audioSrc = window.androidBridge
-    ? `android_asset://typewriter.mp3`
-    : window.electronAPI
-    ? `audio://${currentSettings.typewriterSound}.mp3`
-    : `/${currentSettings.typewriterSound}.mp3`;
-```
+2. **Typewriter звук** -- на Android воспроизводится нативно через `window.SoloBridge.playTypewriterSound()`, Howler.js не используется
 
 ## Оценка сложности и приоритеты
 
