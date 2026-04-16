@@ -36,7 +36,7 @@ export const PdfViewer: FC<PdfViewerProps> = ({ base64Data }) => {
 
     const loadingTask = pdfjsLib.getDocument({
       data: bytes,
-      cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.6.205/cmaps/',
+      cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/cmaps/',
       cMapPacked: true,
     });
 
