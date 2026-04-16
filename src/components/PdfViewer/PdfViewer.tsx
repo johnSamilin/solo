@@ -1,4 +1,4 @@
-import { FC, useEffect, useRef, useState, useCallback } from 'react';
+import { FC, useEffect, useRef, useState } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 
 import './PdfViewer.css';
@@ -14,72 +14,19 @@ type PdfViewerProps = {
 
 export const PdfViewer: FC<PdfViewerProps> = ({ base64Data }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [pageCount, setPageCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const pdfDocRef = useRef<pdfjsLib.PDFDocumentProxy | null>(null);
   const renderingRef = useRef(false);
 
-  const renderPages = useCallback(async (pdfDoc: pdfjsLib.PDFDocumentProxy) => {
-    const container = containerRef.current;
-    if (!container || renderingRef.current) return;
-
-    renderingRef.current = true;
-
-    container.querySelectorAll('.pdf-page-container, .pdf-page-number').forEach(el => el.remove());
-
-    const containerWidth = container.clientWidth - 48;
-
-    for (let i = 1; i <= pdfDoc.numPages; i++) {
-      const page = await pdfDoc.getPage(i);
-      const unscaledViewport = page.getViewport({ scale: 1 });
-      const scale = Math.min(containerWidth / unscaledViewport.width, 2);
-      const viewport = page.getViewport({ scale });
-
-      const pageContainer = document.createElement('div');
-      pageContainer.className = 'pdf-page-container';
-      pageContainer.style.width = `${viewport.width}px`;
-      pageContainer.style.height = `${viewport.height}px`;
-
-      const canvas = document.createElement('canvas');
-      canvas.width = viewport.width * window.devicePixelRatio;
-      canvas.height = viewport.height * window.devicePixelRatio;
-      canvas.style.width = `${viewport.width}px`;
-      canvas.style.height = `${viewport.height}px`;
-
-      const context = canvas.getContext('2d');
-      if (context) {
-        context.scale(window.devicePixelRatio, window.devicePixelRatio);
-        await page.render({
-          canvasContext: context,
-          viewport,
-          annotationMode: pdfjsLib.AnnotationMode.ENABLE_STORAGE,
-        }).promise;
-      }
-
-      pageContainer.appendChild(canvas);
-
-      const annotationDiv = document.createElement('div');
-      annotationDiv.className = 'annotation-layer';
-      await renderAnnotationOverlay(page, viewport, annotationDiv);
-      pageContainer.appendChild(annotationDiv);
-
-      container.appendChild(pageContainer);
-
-      const pageNum = document.createElement('div');
-      pageNum.className = 'pdf-page-number';
-      pageNum.textContent = `${i} / ${pdfDoc.numPages}`;
-      container.appendChild(pageNum);
-    }
-
-    renderingRef.current = false;
-  }, []);
-
   useEffect(() => {
-    if (!base64Data) return;
+    const container = containerRef.current;
+    if (!base64Data || !container) return;
 
     setIsLoading(true);
     setError(null);
+
+    let cancelled = false;
 
     const binaryString = atob(base64Data);
     const bytes = new Uint8Array(binaryString.length);
@@ -94,37 +41,84 @@ export const PdfViewer: FC<PdfViewerProps> = ({ base64Data }) => {
     });
 
     loadingTask.promise
-      .then((pdfDoc) => {
+      .then(async (pdfDoc) => {
+        if (cancelled) return;
         pdfDocRef.current = pdfDoc;
-        setPageCount(pdfDoc.numPages);
-        setIsLoading(false);
-        return renderPages(pdfDoc);
+
+        if (renderingRef.current) return;
+        renderingRef.current = true;
+
+        container.querySelectorAll('.pdf-page-container, .pdf-page-number').forEach(el => el.remove());
+        const containerWidth = container.clientWidth - 48;
+
+        for (let i = 1; i <= pdfDoc.numPages; i++) {
+          if (cancelled) break;
+          const page = await pdfDoc.getPage(i);
+          const unscaledViewport = page.getViewport({ scale: 1 });
+          const scale = Math.min(containerWidth / unscaledViewport.width, 2);
+          const viewport = page.getViewport({ scale });
+
+          const pageContainer = document.createElement('div');
+          pageContainer.className = 'pdf-page-container';
+          pageContainer.style.width = `${viewport.width}px`;
+          pageContainer.style.height = `${viewport.height}px`;
+
+          const canvas = document.createElement('canvas');
+          canvas.width = viewport.width * window.devicePixelRatio;
+          canvas.height = viewport.height * window.devicePixelRatio;
+          canvas.style.width = `${viewport.width}px`;
+          canvas.style.height = `${viewport.height}px`;
+
+          const context = canvas.getContext('2d');
+          if (context) {
+            context.scale(window.devicePixelRatio, window.devicePixelRatio);
+            await page.render({
+              canvasContext: context,
+              viewport,
+              annotationMode: pdfjsLib.AnnotationMode.ENABLE_STORAGE,
+            }).promise;
+          }
+
+          pageContainer.appendChild(canvas);
+
+          const annotationDiv = document.createElement('div');
+          annotationDiv.className = 'annotation-layer';
+          await renderAnnotationOverlay(page, viewport, annotationDiv);
+          pageContainer.appendChild(annotationDiv);
+
+          container.appendChild(pageContainer);
+
+          const pageNum = document.createElement('div');
+          pageNum.className = 'pdf-page-number';
+          pageNum.textContent = `${i} / ${pdfDoc.numPages}`;
+          container.appendChild(pageNum);
+        }
+
+        renderingRef.current = false;
+        if (!cancelled) setIsLoading(false);
       })
       .catch((err) => {
+        if (cancelled) return;
         console.error('Failed to load PDF:', err);
         setError('Failed to load PDF document');
         setIsLoading(false);
       });
 
     return () => {
+      cancelled = true;
       loadingTask.destroy();
       if (pdfDocRef.current) {
         pdfDocRef.current.destroy();
         pdfDocRef.current = null;
       }
     };
-  }, [base64Data, renderPages]);
-
-  if (error) {
-    return <div className="pdf-viewer-error">{error}</div>;
-  }
-
-  if (isLoading) {
-    return <div className="pdf-viewer-loading">Loading PDF...</div>;
-  }
+  }, [base64Data]);
 
   return (
-    <div ref={containerRef} className="pdf-viewer" />
+    <div ref={containerRef} className="pdf-viewer">
+      {isLoading && <div className="pdf-viewer-loading">Loading PDF...</div>}
+      {error && <div className="pdf-viewer-error">{error}</div>}
+    </div>
   );
 };
 
