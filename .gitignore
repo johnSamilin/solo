@@ -32,6 +32,6 @@ certs
 dist
 out
 
-native-clients/android/app
+native-clients/android/app/build
 native-clients/android/.gradle
 native-clients/android/local.properties

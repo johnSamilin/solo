@@ -58,8 +58,6 @@ function wrapAndroidBridge(): ElectronAPI | null {
       Promise.resolve(parseJson(bridge.uploadImage(imageData, fileName))),
     openPdfFile: (relativePath: string) =>
       Promise.resolve(parseJson(bridge.openPdfFile(relativePath))),
-    openPdfFile: (relativePath: string) =>
-      Promise.resolve(parseJson(bridge.openPdfFile(relativePath))),
   } as ElectronAPI;
 }
 

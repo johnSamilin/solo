@@ -11,8 +11,6 @@ export interface TagNode {
 
 export type NoteFileType = 'html' | 'pdf';
 
-export type NoteFileType = 'html' | 'pdf';
-
 export interface Note {
   id: string;
   title: string;
@@ -27,7 +25,6 @@ export interface Note {
   fileType: NoteFileType;
   isLoaded: boolean;
   paragraphTags: string[];
-  fileType: NoteFileType;
 }
 
 export interface Notebook {
@@ -109,7 +106,6 @@ export interface ElectronAPI {
   selectFile: (filters?: { name: string; extensions: string[] }[]) => Promise<{ success: boolean; path?: string; error?: string }>;
   getDigikamTags: (dbPath: string) => Promise<{ success: boolean; tags?: DigikamTag[]; error?: string }>;
   getDigikamImagesByTag: (dbPath: string, tagId: number, limit?: number) => Promise<{ success: boolean; images?: DigikamImage[]; digikamTag: string; error?: string }>;
-  openPdfFile: (relativePath: string) => Promise<{ success: boolean; data?: string; error?: string }>;
 }
 
 export interface DigikamTag {
@@ -142,7 +138,6 @@ interface AndroidBridgeRaw {
   renameNote(relativePath: string, newName: string): string;
   renameNotebook(relativePath: string, newName: string): string;
   uploadImage(base64Data: string, fileName: string): string;
-  openPdfFile(relativePath: string): string;
   playTypewriterSound(): void;
   toggleZenMode(enable: boolean): string;
 }

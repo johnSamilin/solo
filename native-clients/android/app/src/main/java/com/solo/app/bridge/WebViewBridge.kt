@@ -169,4 +169,14 @@ class WebViewBridge(
         activity.toggleZenMode(enable)
         return """{"success":true,"isZenMode":$enable}"""
     }
+    
+    @JavascriptInterface
+    fun openPdfFile(relativePath: String): String {
+        return try {
+            val content = fileSystemManager.openFile(relativePath)
+            """{"success":true,"data":"${SecurityUtils.escapeJson(content)}"}"""
+        } catch (e: Exception) {
+            """{"success":false,"error":"${SecurityUtils.escapeJson(e.message ?: "Unknown error")}"}"""
+        }
+    }
 }

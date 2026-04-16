@@ -31,18 +31,42 @@ class FileSystemManager(
     fun openFile(relativePath: String): String {
         val file = resolveAndValidate(relativePath)
         if (!file.exists()) throw IllegalArgumentException("File not found: $relativePath")
-        return file.readText(Charsets.UTF_8)
+        
+        // Check if it's a PDF file
+        if (file.name.endsWith(".pdf")) {
+            // Read PDF as binary data and convert to Base64
+            val fileBytes = file.readBytes()
+            val base64Content = Base64.encodeToString(fileBytes, Base64.NO_WRAP)
+            return base64Content
+        } else {
+            // Handle as text file (HTML, JSON, etc.)
+            return file.readText(Charsets.UTF_8)
+        }
     }
 
     fun updateFile(relativePath: String, content: String) {
         val file = resolveAndValidate(relativePath)
         file.parentFile?.mkdirs()
-        file.writeText(content, Charsets.UTF_8)
+        
+        // Check if it's a PDF file
+        if (file.name.endsWith(".pdf")) {
+            // Decode base64 content and write as binary data
+            val fileBytes = Base64.decode(content, Base64.NO_WRAP)
+            file.writeBytes(fileBytes)
+        } else {
+            // Handle as text file (HTML, JSON, etc.)
+            file.writeText(content, Charsets.UTF_8)
+        }
     }
 
     fun updateMetadata(relativePath: String, metadataJson: String) {
-        val htmlFile = resolveAndValidate(relativePath)
-        val metadataFile = File(htmlFile.absolutePath.replace(".html", ".json"))
+        val noteFile = resolveAndValidate(relativePath)
+        val jsonFileExtension = if (noteFile.name.endsWith(".pdf")) ".json" else ".html.json"
+        val metadataFile = if (noteFile.name.endsWith(".pdf")) {
+            File(noteFile.absolutePath.replace(".pdf", ".json"))
+        } else {
+            File(noteFile.absolutePath.replace(".html", ".json"))
+        }
         metadataFile.parentFile?.mkdirs()
         metadataFile.writeText(metadataJson, Charsets.UTF_8)
     }
@@ -86,26 +110,42 @@ class FileSystemManager(
             return node
         }
 
-        if (file.isFile && file.name.endsWith(".html")) {
+        if (file.isFile && (file.name.endsWith(".html") || file.name.endsWith(".pdf"))) {
             val node = JSONObject().apply {
                 put("name", file.name)
                 put("type", "file")
                 put("path", relativePath)
             }
-
-            val cssFile = File(file.absolutePath.replace(".html", ".css"))
-            if (cssFile.exists()) {
-                node.put("cssPath", relativePath.replace(".html", ".css"))
+            
+            // Handle CSS path only for HTML files
+            if (file.name.endsWith(".html")) {
+                val cssFile = File(file.absolutePath.replace(".html", ".css"))
+                if (cssFile.exists()) {
+                    node.put("cssPath", relativePath.replace(".html", ".css"))
+                }
             }
 
-            val metadataFile = File(file.absolutePath.replace(".html", ".json"))
+            val metadataFile = if (file.name.endsWith(".html")) {
+                File(file.absolutePath.replace(".html", ".json"))
+            } else {
+                File(file.absolutePath.replace(".pdf", ".json"))
+            }
+            
             if (metadataFile.exists()) {
                 try {
                     val metadataContent = metadataFile.readText(Charsets.UTF_8)
                     val metadata = JSONObject(metadataContent)
                     node.put("metadata", metadata)
+                    
+                    // Add file type for both HTML and PDF files
+                    val fileType = if (file.name.endsWith(".pdf")) "pdf" else "html"
+                    node.put("fileType", fileType)
                 } catch (_: Exception) {
                 }
+            } else {
+                // Add file type for files without metadata
+                val fileType = if (file.name.endsWith(".pdf")) "pdf" else "html"
+                node.put("fileType", fileType)
             }
 
             return node
@@ -154,20 +194,34 @@ class FileSystemManager(
         if (!parentDir.exists()) parentDir.mkdirs()
 
         val sanitizedName = SecurityUtils.sanitizeFileName(name)
-        val htmlFile = File(parentDir, "$sanitizedName.html")
-        val jsonFile = File(parentDir, "$sanitizedName.json")
+        
+        // Determine if this is a PDF file based on the name
+        val isPdfFile = sanitizedName.lowercase().endsWith(".pdf")
+        val fileName = if (isPdfFile) sanitizedName else "$sanitizedName.html"
+        
+        val noteFile = File(parentDir, fileName)
+        val jsonFile = File(parentDir, if (isPdfFile) sanitizedName.replace(".pdf", ".json") else "$sanitizedName.json")
 
-        htmlFile.writeText("", Charsets.UTF_8)
+        // Initialize the file with appropriate content
+        if (isPdfFile) {
+            // For PDF files, we don't initialize with content since it will be loaded externally
+            noteFile.writeBytes(ByteArray(0)) // Empty file
+        } else {
+            noteFile.writeText("", Charsets.UTF_8)
+        }
 
         val metadata = JSONObject().apply {
-            put("id", htmlFile.relativeTo(root).path)
+            put("id", noteFile.relativeTo(root).path)
             put("tags", JSONArray())
             put("createdAt", java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date()))
             put("paragraphTags", JSONArray())
+            if (isPdfFile) {
+                put("fileType", "pdf")
+            }
         }
         jsonFile.writeText(metadata.toString(2), Charsets.UTF_8)
 
-        val relativePath = htmlFile.relativeTo(root).path
+        val relativePath = noteFile.relativeTo(root).path
         return CreateNoteResult(id = relativePath, htmlPath = relativePath)
     }
 
@@ -183,15 +237,19 @@ class FileSystemManager(
     }
 
     fun deleteNote(relativePath: String) {
-        val htmlFile = resolveAndValidate(relativePath)
-        val jsonFile = File(htmlFile.absolutePath.replace(".html", ".json"))
-        val cssFile = File(htmlFile.absolutePath.replace(".html", ".css"))
+        val noteFile = resolveAndValidate(relativePath)
+        val jsonFile = if (noteFile.name.endsWith(".pdf")) {
+            File(noteFile.absolutePath.replace(".pdf", ".json"))
+        } else {
+            File(noteFile.absolutePath.replace(".html", ".json"))
+        }
+        val cssFile = File(noteFile.absolutePath.replace(".html", ".css"))
 
-        htmlFile.delete()
+        noteFile.delete()
+
         if (jsonFile.exists()) jsonFile.delete()
-        if (cssFile.exists()) cssFile.delete()
+        if (cssFile.exists() && cssFile.name != noteFile.name.replace(".pdf", ".css")) cssFile.delete()
     }
-
     fun deleteNotebook(relativePath: String) {
         val dir = resolveAndValidate(relativePath)
         if (dir.isDirectory) {
@@ -201,24 +259,32 @@ class FileSystemManager(
 
     fun renameNote(relativePath: String, newName: String): String {
         val root = rootFolder ?: throw IllegalStateException("Root folder not set")
-        val htmlFile = resolveAndValidate(relativePath)
-        val parentDir = htmlFile.parentFile ?: throw IllegalStateException("Cannot determine parent directory")
+        val noteFile = resolveAndValidate(relativePath)
+        val parentDir = noteFile.parentFile ?: throw IllegalStateException("Cannot determine parent directory")
 
         val sanitizedName = SecurityUtils.sanitizeFileName(newName)
-
-        val newHtmlFile = File(parentDir, "$sanitizedName.html")
-        val newJsonFile = File(parentDir, "$sanitizedName.json")
+        
+        // Determine if this is a PDF file
+        val isPdfFile = noteFile.name.endsWith(".pdf")
+        val newFileName = if (isPdfFile) sanitizedName else "$sanitizedName.html"
+        
+        val newNoteFile = File(parentDir, newFileName)
+        val newJsonFile = File(parentDir, if (isPdfFile) sanitizedName.replace(".pdf", ".json") else "$sanitizedName.json")
         val newCssFile = File(parentDir, "$sanitizedName.css")
 
-        htmlFile.renameTo(newHtmlFile)
+        noteFile.renameTo(newNoteFile)
 
-        val oldJsonFile = File(htmlFile.absolutePath.replace(".html", ".json"))
+        val oldJsonFile = if (isPdfFile) {
+            File(noteFile.absolutePath.replace(".pdf", ".json"))
+        } else {
+            File(noteFile.absolutePath.replace(".html", ".json"))
+        }
         if (oldJsonFile.exists()) oldJsonFile.renameTo(newJsonFile)
 
-        val oldCssFile = File(htmlFile.absolutePath.replace(".html", ".css"))
+        val oldCssFile = File(noteFile.absolutePath.replace(".html", ".css"))
         if (oldCssFile.exists()) oldCssFile.renameTo(newCssFile)
 
-        return newHtmlFile.relativeTo(root).path
+        return newNoteFile.relativeTo(root).path
     }
 
     fun renameNotebook(relativePath: String, newName: String): String {
