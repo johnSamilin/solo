@@ -8,7 +8,7 @@ import './Modals.css';
 type NoteSettingsModalProps = {
   onClose: () => void;
   notebooks: Notebook[];
-  currentNotebookId: string;
+  currentNotebookId: string | null;
   onMoveNote: (notebookId: string) => void;
   onDeleteNote: () => void;
   currentTheme: string;
@@ -37,7 +37,7 @@ export const NoteSettingsModal: FC<NoteSettingsModalProps> = ({
           <div className="setting-item">
             <label>Move to Notebook</label>
             <select
-              value={currentNotebookId}
+              value={currentNotebookId || ''}
               onChange={(e) => onMoveNote(e.target.value)}
               className="notebook-select"
             >

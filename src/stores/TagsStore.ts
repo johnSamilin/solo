@@ -2,6 +2,7 @@ import { makeAutoObservable } from 'mobx';
 import { TagNode } from '../types';
 import { generateUniqueId } from '../utils';
 import { isPlugin } from '../config';
+import { getNativeAPI, isNative } from '../utils/nativeBridge';
 
 const STORAGE_KEY = 'solo-tags';
 
@@ -10,7 +11,7 @@ export class TagsStore {
 
   constructor() {
     makeAutoObservable(this);
-    if (!window.electronAPI) {
+    if (!isNative) {
       this.loadFromStorage();
     } else {
       this.loadTagsFromElectron();
@@ -18,10 +19,11 @@ export class TagsStore {
   }
 
   loadTagsFromElectron = async () => {
-    if (!window.electronAPI) return;
+    const api = getNativeAPI();
+    if (!api) return;
 
     try {
-      const result = await window.electronAPI.scanAllTags();
+      const result = await api.scanAllTags();
       if (result.success && result.tags) {
         this.tagTree = this.buildTagTree(result.tags);
       }
@@ -57,7 +59,7 @@ export class TagsStore {
   };
 
   private saveToStorage = async () => {
-    if (window.electronAPI) return;
+    if (isNative) return;
 
     try {
       const data = {

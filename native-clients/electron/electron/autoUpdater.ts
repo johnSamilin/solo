@@ -1,5 +1,7 @@
 import { autoUpdater } from 'electron-updater';
-import { BrowserWindow, dialog } from 'electron';
+import { BrowserWindow, dialog, app } from 'electron';
+import * as path from 'path';
+import { existsSync } from 'fs';
 import { logger } from './logger';
 
 const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -97,7 +99,17 @@ export class AutoUpdateManager {
     });
   }
 
+  private isUpdateConfigAvailable(): boolean {
+    const updateConfigPath = path.join(process.resourcesPath, 'app-update.yml');
+    return existsSync(updateConfigPath);
+  }
+
   async checkForUpdates(force = false) {
+    if (!this.isUpdateConfigAvailable()) {
+      logger.info('Skipping update check - app-update.yml not found (unpublished build)');
+      return;
+    }
+
     const now = Date.now();
 
     if (!force && (now - this.lastCheckTime) < ONE_WEEK_MS) {

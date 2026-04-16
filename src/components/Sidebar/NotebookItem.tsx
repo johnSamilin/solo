@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, FileText } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { Notebook } from "../../types";
 import { useStore } from "../../stores/StoreProvider";
@@ -121,9 +121,10 @@ export const NotebookItem = observer(({ notebook, level = 0, editor }: NotebookI
             <div
               key={note.id}
               onClick={() => handleNoteSelect(note.id)}
-              className={`note-item ${notesStore.selectedNote?.id === note.id ? 'selected' : ''}`}
+              className={`note-item ${notesStore.selectedNote?.id === note.id ? 'selected' : ''} ${note.fileType === 'pdf' ? 'note-item--pdf' : ''}`}
             >
               <div className="note-item-header">
+                {note.fileType === 'pdf' && <FileText size={14} className="note-item-pdf-icon" />}
                 <h3 className="note-item-title">{note.title}</h3>
               </div>
             </div>

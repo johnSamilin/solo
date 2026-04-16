@@ -21,17 +21,19 @@ import { SearchPage } from './components/Search/SearchPage';
 import { Timeline } from './components/Timeline/Timeline';
 import { Toast } from './components/Toast/Toast';
 import { themes } from './constants';
-import { Plus } from 'lucide-react';
 import { TagModal } from './components/Modals/TagModal/TagModal';
 import { ImageInsertModal } from './components/Modals/ImageInsertModal';
 import { loadNoteCss } from './utils/electron';
+import { getNativeAPI, isNative } from './utils/nativeBridge';
 import { injectNoteStyles, removeNoteStyles } from './utils/cssUtils';
+import { EmptyState } from './components/EmptyState/EmptyState';
 
 const App = observer(() => {
   const { notesStore, settingsStore, tagsStore } = useStore();
   const [initialContent, setInitialContent] = useState('');
   const [autoZenDisabled, setAutoZenDisabled] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchInitialTag, setSearchInitialTag] = useState<string | undefined>(undefined);
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
   const [isParagraphTagModalOpen, setIsParagraphTagModalOpen] = useState(false);
   const [currentParagraphTags, setCurrentParagraphTags] = useState<string[]>([]);
@@ -91,7 +93,7 @@ const App = observer(() => {
       },
     },
     onUpdate: ({ editor }) => {
-      if (notesStore.selectedNote) {
+      if (notesStore.selectedNote && notesStore.selectedNote.fileType !== 'pdf') {
         const content = editor.getHTML();
         if (content !== notesStore.selectedNote.content) {
           notesStore.updateNote(notesStore.selectedNote.id, {
@@ -117,35 +119,40 @@ const App = observer(() => {
 
 
   useEffect(() => {
-    if (editor && notesStore.selectedNote && !notesStore.isLoadingNoteContent) {
-      // Load note content if not already loaded
+    if (notesStore.selectedNote && !notesStore.isLoadingNoteContent) {
       if (!notesStore.selectedNote.isLoaded) {
         notesStore.loadNoteContent(notesStore.selectedNote);
         return;
       }
 
-      const content = notesStore.selectedNote.content;
-      if (content !== editor.getHTML()) {
-        editor.commands.setContent(content);
-        setInitialContent(editor.state.doc.textContent);
-      }
-      setAutoZenDisabled(false);
-
-      // Load and inject custom CSS if available
-      const loadCustomCss = async () => {
+      if (notesStore.selectedNote.fileType === 'pdf') {
         removeNoteStyles();
+        return;
+      }
 
-        if (notesStore.selectedNote?.cssPath) {
-          try {
-            const cssContent = await loadNoteCss(notesStore.selectedNote.cssPath);
-            injectNoteStyles(cssContent, '#note-editor-content');
-          } catch (error) {
-            console.error('Failed to load custom CSS:', error);
-          }
+      if (editor) {
+        const content = notesStore.selectedNote.content;
+        if (content !== editor.getHTML()) {
+          editor.commands.setContent(content);
+          setInitialContent(editor.state.doc.textContent);
         }
-      };
+        setAutoZenDisabled(false);
 
-      loadCustomCss();
+        const loadCustomCss = async () => {
+          removeNoteStyles();
+
+          if (notesStore.selectedNote?.cssPath) {
+            try {
+              const cssContent = await loadNoteCss(notesStore.selectedNote.cssPath);
+              injectNoteStyles(cssContent, '#note-editor-content');
+            } catch (error) {
+              console.error('Failed to load custom CSS:', error);
+            }
+          }
+        };
+
+        loadCustomCss();
+      }
     }
 
     return () => {
@@ -158,6 +165,36 @@ const App = observer(() => {
       setAutoZenDisabled(true);
     }
   }, [settingsStore.isZenMode]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      const anyModalOpen =
+        settingsStore.isSettingsOpen ||
+        settingsStore.isNewNotebookModalOpen ||
+        settingsStore.isNoteSettingsOpen ||
+        isSearchOpen ||
+        isTimelineOpen ||
+        isParagraphTagModalOpen ||
+        isImageInsertModalOpen;
+      if (!anyModalOpen && notesStore.selectedNote) {
+        notesStore.setSelectedNote(null);
+        editor?.commands.setContent('');
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [
+    settingsStore.isSettingsOpen,
+    settingsStore.isNewNotebookModalOpen,
+    settingsStore.isNoteSettingsOpen,
+    isSearchOpen,
+    isTimelineOpen,
+    isParagraphTagModalOpen,
+    isImageInsertModalOpen,
+    notesStore.selectedNote,
+    editor,
+  ]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -192,12 +229,13 @@ const App = observer(() => {
   }, [settingsStore.settings, notesStore.selectedNote?.theme]);
 
   const handleImageUpload = async (file: File) => {
-    if (window.electronAPI) {
+    const api = getNativeAPI();
+    if (api) {
       try {
         const reader = new FileReader();
         reader.onload = async () => {
           if (typeof reader.result === 'string') {
-            const result = await window.electronAPI.uploadImage(reader.result, file.name);
+            const result = await api.uploadImage(reader.result, file.name);
             if (result.success && result.url) {
               editor?.chain().focus().setImage({ src: result.url }).run();
             } else {
@@ -307,11 +345,13 @@ const App = observer(() => {
 
       {isSearchOpen && (
         <SearchPage
-          onClose={() => setIsSearchOpen(false)}
+          onClose={() => { setIsSearchOpen(false); setSearchInitialTag(undefined); }}
           onNoteSelect={(note) => {
             notesStore.setSelectedNote(note);
             setIsSearchOpen(false);
+            setSearchInitialTag(undefined);
           }}
+          initialTagPath={searchInitialTag}
         />
       )}
 
@@ -332,7 +372,7 @@ const App = observer(() => {
       />
 
       <div className="main-content">
-        {window.electronAPI && !settingsStore.dataFolder ? (
+        {isNative && !settingsStore.dataFolder ? (
           <div className="empty-state">
             <div className="empty-state-content">
               <p className="empty-state-text">No data folder selected</p>
@@ -364,20 +404,13 @@ const App = observer(() => {
             handleCutIn={handleCutIn}
           />
         ) : (
-          <div className="empty-state">
-            <div className="empty-state-content">
-              <p className="empty-state-text">Select a note or create a new one</p>
-              <div className="empty-state-buttons">
-                <button onClick={handleCreateNote} className="button-primary">
-                  <Plus className="h-4 w-4" />
-                  Create Note
-                </button>
-                <a href="/about" target="_blank" className="button-primary">
-                  Learn More
-                </a>
-              </div>
-            </div>
-          </div>
+          <EmptyState
+            onCreateNote={handleCreateNote}
+            onOpenSearch={(tagPath) => {
+              setSearchInitialTag(tagPath);
+              setIsSearchOpen(true);
+            }}
+          />
         )}
       </div>
       {notesStore.isLoading && (

@@ -3,6 +3,7 @@ import { TypographySettings, Toast } from '../types';
 import { NotesStore } from './NotesStore';
 import { defaultSettings } from '../constants';
 import { isPlugin } from '../config';
+import { getNativeAPI } from '../utils/nativeBridge';
 
 const STORAGE_KEY = 'solo-settings';
 const SECURE_STORAGE_KEY = 'solo-secure-settings';
@@ -29,8 +30,9 @@ export class SettingsStore {
   }
 
   checkDataFolder = async () => {
-    if (window.electronAPI) {
-      const result = await window.electronAPI.getDataFolder();
+    const api = getNativeAPI();
+    if (api) {
+      const result = await api.getDataFolder();
       if (result.success && result.path) {
         this.dataFolder = result.path;
       }
@@ -115,13 +117,13 @@ export class SettingsStore {
 
   toggleZenMode = () => {
     this.isZenMode = !this.isZenMode;
-    window.electronAPI.toggleZenMode(this.isZenMode);
+    getNativeAPI()?.toggleZenMode(this.isZenMode);
     this.saveToStorage();
   };
 
   turnZenModeOff = () => {
     this.isZenMode = false;
-    window.electronAPI.toggleZenMode(false);
+    getNativeAPI()?.toggleZenMode(false);
     this.saveToStorage();
   };
 

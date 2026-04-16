@@ -7,6 +7,7 @@ import { Statistics } from "./Statistics";
 import { observer } from "mobx-react-lite";
 import { useStore } from "../../../stores/StoreProvider";
 import { useI18n } from "../../../i18n/I18nContext";
+import { getNativeAPI } from "../../../utils/nativeBridge";
 import "./SettingsModal.css";
 
 type SettingsModalProps = {
@@ -20,9 +21,10 @@ export const SettingsModal: FC<SettingsModalProps> = observer(({ onClose}) => {
   const { t } = useI18n();
 
   const handleSelectFolder = async () => {
-    if (!window.electronAPI) return;
+    const api = getNativeAPI();
+    if (!api) return;
 
-    const result = await window.electronAPI.selectFolder();
+    const result = await api.selectFolder();
     if (result.success && result.path) {
       settingsStore.setDataFolder(result.path);
       settingsStore.setToast('Data folder updated. Reloading...', 'success');
@@ -33,9 +35,10 @@ export const SettingsModal: FC<SettingsModalProps> = observer(({ onClose}) => {
   };
 
   const handleSelectDigikamDb = async () => {
-    if (!window.electronAPI) return;
+    const api = getNativeAPI();
+    if (!api?.selectFile) return;
 
-    const result = await window.electronAPI.selectFile([
+    const result = await api.selectFile([
       { name: 'SQLite Database', extensions: ['db', 'sqlite', 'sqlite3'] }
     ]);
     if (result.success && result.path) {

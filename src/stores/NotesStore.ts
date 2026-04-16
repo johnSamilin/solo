@@ -1,6 +1,7 @@
 import { makeObservable, observable, runInAction } from 'mobx';
 import { Note, Notebook, FileMetadata } from '../types';
-import { loadFromElectron, loadNoteContent } from '../utils/electron';
+import { loadFromElectron, loadNoteContent, loadPdfContent } from '../utils/electron';
+import { getNativeAPI } from '../utils/nativeBridge';
 import { extractParagraphTags } from '../utils';
 
 
@@ -70,7 +71,7 @@ export class NotesStore {
       this.cacheNotebooks();
       this.cacheNotes();
     } catch (error) {
-      console.error('Error loading data from Electron:', error);
+      console.error('Error loading data:', error);
       this.notebooks = [];
       this.notes = [];
       this.cacheNotebooks();
@@ -111,8 +112,11 @@ export class NotesStore {
 
 
   createNote = async (notebookId?: string) => {
+    const api = getNativeAPI();
+    if (!api) return;
+
     const targetNotebookId = notebookId !== undefined ? notebookId : this.focusedNotebookId;
-    
+
     const now = new Date();
     const title = now.toLocaleDateString(undefined, {
       day: 'numeric',
@@ -123,7 +127,7 @@ export class NotesStore {
       ? this.notebooks.find((notebook) => notebook.id === targetNotebookId)?.path
       : '';
 
-    const result = await window.electronAPI.createNote(path || '', title);
+    const result = await api.createNote(path || '', title);
     if (result.success && result.htmlPath) {
       const newNote: Note = {
         id: result.id,
@@ -135,6 +139,7 @@ export class NotesStore {
         isLoaded: true,
         path: result.htmlPath,
         paragraphTags: [],
+        fileType: 'html',
       };
       this.notes.push(newNote);
       this.selectedNote = newNote;
@@ -157,26 +162,28 @@ export class NotesStore {
   };
 
   updateNote = async (noteId: string, updates: Partial<Note>) => {
+    const api = getNativeAPI();
     const noteIndex = this.notes.findIndex(note => note.id === noteId);
     if (noteIndex === -1) return;
 
     const note = this.notes[noteIndex];
 
-    if (window.electronAPI?.renameNote && note?.path && updates.title && updates.title !== note.title) {
-      const result = await window.electronAPI.renameNote(note.path, updates.title);
+    if (api?.renameNote && note?.path && updates.title && updates.title !== note.title) {
+      const result = await api.renameNote(note.path, updates.title);
       if (!result.success) {
         console.error('Failed to rename note file:', result.error);
         return;
       }
 
       if (result.newPath) {
+        const isPdf = note.fileType === 'pdf';
         this.notes[noteIndex] = {
           ...note,
           ...updates,
           id: result.newPath,
           path: result.newPath,
           filePath: result.newPath,
-          cssPath: result.newPath.replace('.html', '.css'),
+          cssPath: isPdf ? undefined : result.newPath.replace('.html', '.css'),
         };
 
         if (this.selectedNote?.id === noteId) {
@@ -192,7 +199,7 @@ export class NotesStore {
 
     this.cacheNotes();
 
-    if (updates.content !== undefined) {
+    if (updates.content !== undefined && this.notes[noteIndex].fileType !== 'pdf') {
       this.debouncedSave(this.notes[noteIndex].id, updates.content);
     }
 
@@ -203,9 +210,10 @@ export class NotesStore {
   };
 
   private updateNoteMetadata = async (note: Note) => {
-    if (!window.electronAPI?.updateMetadata || !note.path) return;
+    const api = getNativeAPI();
+    if (!api?.updateMetadata || !note.path) return;
 
-    const paragraphTags = extractParagraphTags(note.content);
+    const paragraphTags = note.fileType === 'pdf' ? [] : extractParagraphTags(note.content);
 
     const metadata = {
       id: note.id,
@@ -216,7 +224,7 @@ export class NotesStore {
     };
 
     try {
-      const result = await window.electronAPI.updateMetadata(note.path, JSON.parse(JSON.stringify(metadata)));
+      const result = await api.updateMetadata(note.path, JSON.parse(JSON.stringify(metadata)));
       if (!result.success) {
         console.error('Failed to update note metadata:', result.error);
       }
@@ -226,7 +234,8 @@ export class NotesStore {
   };
 
   private debouncedSave = (noteId: string, content: string) => {
-    if (!window.electronAPI) return;
+    const api = getNativeAPI();
+    if (!api) return;
 
     this.pendingSave = { noteId, content };
 
@@ -243,6 +252,9 @@ export class NotesStore {
   };
 
   private saveNoteContent = async (noteId: string, content: string) => {
+    const api = getNativeAPI();
+    if (!api) return;
+
     try {
       const path = this.notes.find(note => note.id === noteId)?.path;
       if (!path) {
@@ -251,12 +263,11 @@ export class NotesStore {
       }
       const parser = new DOMParser();
       const doc = parser.parseFromString(content, 'text/html');
-      // strip the slides so that they won't be duped
       doc.querySelectorAll('.carousel').forEach(entry => {
         entry.outerHTML = '';
       })
       const updatedContent = doc.body.innerHTML;
-      const result = await window.electronAPI.updateFile(path, updatedContent);
+      const result = await api.updateFile(path, updatedContent);
       if (!result.success) {
         console.error('Failed to save note:', result.error);
       }
@@ -278,13 +289,14 @@ export class NotesStore {
   };
 
   updateNotebook = async (notebookId: string, updates: Partial<Notebook>) => {
+    const api = getNativeAPI();
     const notebookIndex = this.notebooks.findIndex(notebook => notebook.id === notebookId);
     if (notebookIndex === -1) return;
 
     const notebook = this.notebooks[notebookIndex];
 
-    if (window.electronAPI?.renameNotebook && notebook?.path && updates.name && updates.name !== notebook.name) {
-      const result = await window.electronAPI.renameNotebook(notebook.path, updates.name);
+    if (api?.renameNotebook && notebook?.path && updates.name && updates.name !== notebook.name) {
+      const result = await api.renameNotebook(notebook.path, updates.name);
       if (!result.success) {
         console.error('Failed to rename notebook folder:', result.error);
         return;
@@ -332,10 +344,11 @@ export class NotesStore {
   };
 
   deleteNotebook = async (notebookId: string) => {
+    const api = getNativeAPI();
     const notebook = this.notebooks.find(n => n.id === notebookId);
 
-    if (window.electronAPI && notebook?.path) {
-      const result = await window.electronAPI.deleteNotebook(notebook.path);
+    if (api && notebook?.path) {
+      const result = await api.deleteNotebook(notebook.path);
       if (!result.success) {
         console.error('Failed to delete notebook folder:', result.error);
         return;
@@ -359,14 +372,15 @@ export class NotesStore {
 
 
   deleteNote = async (noteId: string) => {
+    const api = getNativeAPI();
     if (this.selectedNote?.id === noteId) {
       await this.saveCurrentNote();
     }
 
     const note = this.notes.find(n => n.id === noteId);
 
-    if (window.electronAPI && note?.path) {
-      const result = await window.electronAPI.deleteNote(note.path);
+    if (api && note?.path) {
+      const result = await api.deleteNote(note.path);
       if (!result.success) {
         console.error('Failed to delete note file:', result.error);
       }
@@ -415,7 +429,10 @@ export class NotesStore {
   };
 
   createNotebook = async (name: string, parentId: string | null = null) => {
-      const result = await window.electronAPI.createNotebook(parentId || '', name);
+      const api = getNativeAPI();
+      if (!api) throw new Error('Native API not available');
+
+      const result = await api.createNotebook(parentId || '', name);
       if (result.success && result.path) {
         const newNotebook: Notebook = {
           id: result.path,
@@ -461,7 +478,7 @@ export class NotesStore {
 
   private getNotebookParentChain = (notebookId: string | null): string[] => {
     if (!notebookId) return [];
-    
+
     const notebook = this.notebooks.find(n => n.id === notebookId);
     if (!notebook) return [];
 
@@ -493,7 +510,9 @@ export class NotesStore {
 
     this.isLoadingNoteContent = true;
     try {
-      const content = await loadNoteContent(note.filePath);
+      const content = note.fileType === 'pdf'
+        ? await loadPdfContent(note.filePath)
+        : await loadNoteContent(note.filePath);
       this.updateNote(note.id, { content });
       if (this.selectedNote) {
         this.selectedNote.isLoaded = true;
@@ -506,8 +525,9 @@ export class NotesStore {
   }
 
   renameTag = async (oldPath: string, newPath: string) => {
-    if (!window.electronAPI?.updateFile || !window.electronAPI?.updateMetadata) {
-      throw new Error('Electron API not available');
+    const api = getNativeAPI();
+    if (!api?.updateFile || !api?.updateMetadata) {
+      throw new Error('Native API not available');
     }
 
     const updateTag = (tagsList: string[]): string[] => {
@@ -539,7 +559,7 @@ export class NotesStore {
         needsUpdate = true;
         metadata.tags = updateTag(note.tags);
       }
-      if (hasParagraphTag) {
+      if (hasParagraphTag && note.fileType !== 'pdf') {
         console.log(`${newPath === '' ? 'Deleting' : 'Renaming'}  paragraph tag ${oldPath} in note ${note.filePath}`);
         needsUpdate = true;
         metadata.paragraphTags = updateTag(note.paragraphTags);
@@ -547,7 +567,7 @@ export class NotesStore {
         const content = await loadNoteContent(note.filePath);
         const doc = parser.parseFromString(content, 'text/html');
         const paragraphs = doc.querySelectorAll<HTMLParagraphElement>('p[data-tags]');
-  
+
         paragraphs.forEach(paragraph => {
           const tagsAttr = paragraph.dataset.tags;
           if (tagsAttr) {
@@ -556,12 +576,12 @@ export class NotesStore {
             paragraph.dataset.tags = updatedParagraphTags.join(',');
           }
         });
-  
+
         const updatedContent = doc.body.innerHTML;
-        await window.electronAPI.updateFile(note.path, updatedContent);
+        await api.updateFile(note.path, updatedContent);
       }
       if (needsUpdate) {
-          await window.electronAPI.updateMetadata(
+          await api.updateMetadata(
             note.path, JSON.parse(JSON.stringify(metadata))
           )
       }
@@ -577,7 +597,7 @@ export class NotesStore {
   getStatistics = () => {
     const emptyNotes = this.notes.filter(note => this.isNoteEmpty(note));
     const totalWords = this.notes.reduce((sum, note) => {
-      return sum + this.countWords(note.content);
+      return sum + this.countWords(note.content, note.fileType);
     }, 0);
 
     return {
@@ -589,6 +609,7 @@ export class NotesStore {
   };
 
   isNoteEmpty = (note: Note): boolean => {
+    if (note.fileType === 'pdf') return false;
     if (!note.content) return true;
     const parser = new DOMParser();
     const doc = parser.parseFromString(note.content, 'text/html');
@@ -596,7 +617,8 @@ export class NotesStore {
     return text.trim().length === 0;
   };
 
-  private countWords = (content: string): number => {
+  private countWords = (content: string, fileType?: string): number => {
+    if (fileType === 'pdf') return 0;
     if (!content) return 0;
     const parser = new DOMParser();
     const doc = parser.parseFromString(content, 'text/html');

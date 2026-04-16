@@ -11,6 +11,7 @@ import './SearchPage.css';
 interface SearchPageProps {
   onClose: () => void;
   onNoteSelect: (note: Note) => void;
+  initialTagPath?: string;
 }
 
 interface TagFilter {
@@ -18,10 +19,12 @@ interface TagFilter {
   operator: 'AND' | 'OR' | 'NOT';
 }
 
-export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect }) => {
+export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect, initialTagPath }) => {
   const { notesStore, settingsStore, tagsStore } = useStore();
   const [searchQuery, setSearchQuery] = useState('');
-  const [tagFilters, setTagFilters] = useState<TagFilter[]>([]);
+  const [tagFilters, setTagFilters] = useState<TagFilter[]>(
+    initialTagPath ? [{ path: initialTagPath, operator: 'AND' }] : []
+  );
   const [selectedTagOperator, setSelectedTagOperator] = useState<'AND' | 'OR' | 'NOT'>('AND');
   const [showOnlyEmptyNotes, setShowOnlyEmptyNotes] = useState(false);
 
