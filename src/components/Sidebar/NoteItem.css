@@ -61,3 +61,13 @@
 .note-item--pdf .note-item-title {
     opacity: 0.85;
 }
+
+.note-item-pdf-icon {
+    flex-shrink: 0;
+    color: var(--color-text-light);
+    opacity: 0.7;
+}
+
+.note-item--pdf .note-item-title {
+    opacity: 0.85;
+}
