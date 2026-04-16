@@ -393,6 +393,29 @@ ipcMain.handle('open-file', async (_, relativePath: string) => {
   }
 });
 
+ipcMain.handle('open-pdf-file', async (_, relativePath: string) => {
+  try {
+    if (!dataFolder) {
+      return { success: false, error: 'No data folder selected' };
+    }
+
+    const fullPath = path.join(dataFolder, relativePath);
+
+    if (!(await isPathSafe(fullPath, dataFolder))) {
+      return { success: false, error: 'Invalid path: path traversal detected' };
+    }
+
+    if (!existsSync(fullPath)) {
+      return { success: false, error: 'File does not exist' };
+    }
+
+    const buffer = await fs.readFile(fullPath);
+    return { success: true, data: buffer.toString('base64') };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
+});
+
 ipcMain.handle('update-file', async (_, relativePath: string, content: string) => {
   try {
     if (!dataFolder) {
@@ -476,9 +499,10 @@ ipcMain.handle('read-structure', async () => {
             type: 'folder',
             children,
           });
-        } else if (isFile && entry.name.endsWith('.html')) {
-          const metadataPath = fullPath.replace(/\.html$/, '.json');
-          const cssPath = fullPath.replace(/\.html$/, '.css');
+        } else if (isFile && (entry.name.endsWith('.html') || entry.name.endsWith('.pdf'))) {
+          const ext = path.extname(entry.name);
+          const metadataPath = fullPath.replace(new RegExp(`\\${ext}$`), '.json');
+          const cssPath = fullPath.replace(new RegExp(`\\${ext}$`), '.css');
           let metadata: FileMetadata | undefined;
           let cssRelativePath: string | undefined;
 
@@ -501,7 +525,7 @@ ipcMain.handle('read-structure', async () => {
             }
           }
 
-          if (existsSync(cssPath)) {
+          if (ext === '.html' && existsSync(cssPath)) {
             cssRelativePath = path.relative(basePath, cssPath);
           }
 
@@ -720,32 +744,35 @@ ipcMain.handle('search', async (_, searchString?: string, tags?: string[]) => {
             } catch (error) {
               continue;
             }
-          } else if (entry.name.endsWith('.html')) {
+          } else if (entry.name.endsWith('.html') || entry.name.endsWith('.pdf')) {
             if (hasSearchString) {
               if (entry.name.toLowerCase().includes(searchLower)) {
                 matches.push('filename');
               }
 
-              try {
-                const content = await fs.readFile(fullPath, 'utf-8');
-                if (content.toLowerCase().includes(searchLower)) {
-                  matches.push('content');
+              if (entry.name.endsWith('.html')) {
+                try {
+                  const content = await fs.readFile(fullPath, 'utf-8');
+                  if (content.toLowerCase().includes(searchLower)) {
+                    matches.push('content');
+                  }
+                } catch (error) {
+                  // skip content search on read error
                 }
-              } catch (error) {
-                continue;
               }
             }
 
-            const metadataPath = fullPath.replace(/\.html$/, '.json');
+            const ext = path.extname(fullPath);
+            const metadataPath = fullPath.replace(new RegExp(`\\${ext}$`), '.json');
             if (existsSync(metadataPath)) {
               try {
                 const metadataContent = await fs.readFile(metadataPath, 'utf-8');
-                const parsedHtmlMetadata: FileMetadata = JSON.parse(metadataContent);
-                metadata = parsedHtmlMetadata;
+                const parsedFileMetadata: FileMetadata = JSON.parse(metadataContent);
+                metadata = parsedFileMetadata;
 
-                if (hasTags && parsedHtmlMetadata.tags) {
+                if (hasTags && parsedFileMetadata.tags) {
                   const hasMatchingTag = tags.some(tag =>
-                    parsedHtmlMetadata.tags.some(metaTag =>
+                    parsedFileMetadata.tags.some(metaTag =>
                       metaTag.toLowerCase().includes(tag.toLowerCase())
                     )
                   );
@@ -755,7 +782,7 @@ ipcMain.handle('search', async (_, searchString?: string, tags?: string[]) => {
                   }
                 }
               } catch (error) {
-                continue;
+                // skip metadata on parse error
               }
             }
 
@@ -896,14 +923,15 @@ ipcMain.handle('delete-note', async (_, relativePath: string) => {
       return { success: false, error: 'Note file does not exist' };
     }
 
-    const jsonPath = fullPath.replace(/\.html$/, '.json');
-    const cssPath = fullPath.replace(/\.html$/, '.css');
+    const ext = path.extname(fullPath);
+    const jsonPath = fullPath.replace(new RegExp(`\\${ext}$`), '.json');
+    const cssPath = fullPath.replace(new RegExp(`\\${ext}$`), '.css');
 
     await fs.unlink(fullPath);
     if (existsSync(jsonPath)) {
       await fs.unlink(jsonPath);
     }
-    if (existsSync(cssPath)) {
+    if (ext === '.html' && existsSync(cssPath)) {
       await fs.unlink(cssPath);
     }
 
@@ -954,26 +982,30 @@ ipcMain.handle('rename-note', async (_, relativePath: string, newName: string) =
       return { success: false, error: 'Note file does not exist' };
     }
 
+    const ext = path.extname(fullPath);
     const dirPath = path.dirname(fullPath);
-    const newHtmlPath = path.join(dirPath, `${sanitizedNewName}.html`);
+    const newFilePath = path.join(dirPath, `${sanitizedNewName}${ext}`);
     const newJsonPath = path.join(dirPath, `${sanitizedNewName}.json`);
-    const newCssPath = path.join(dirPath, `${sanitizedNewName}.css`);
-    const oldJsonPath = fullPath.replace(/\.html$/, '.json');
-    const oldCssPath = fullPath.replace(/\.html$/, '.css');
+    const oldJsonPath = fullPath.replace(new RegExp(`\\${ext}$`), '.json');
 
-    if (existsSync(newHtmlPath)) {
+    if (existsSync(newFilePath)) {
       return { success: false, error: 'A note with this name already exists' };
     }
 
-    await fs.rename(fullPath, newHtmlPath);
+    await fs.rename(fullPath, newFilePath);
     if (existsSync(oldJsonPath)) {
       await fs.rename(oldJsonPath, newJsonPath);
     }
-    if (existsSync(oldCssPath)) {
-      await fs.rename(oldCssPath, newCssPath);
+
+    if (ext === '.html') {
+      const newCssPath = path.join(dirPath, `${sanitizedNewName}.css`);
+      const oldCssPath = fullPath.replace(/\.html$/, '.css');
+      if (existsSync(oldCssPath)) {
+        await fs.rename(oldCssPath, newCssPath);
+      }
     }
 
-    const relativeNewPath = path.relative(dataFolder, newHtmlPath);
+    const relativeNewPath = path.relative(dataFolder, newFilePath);
     return { success: true, newPath: relativeNewPath };
   } catch (error) {
     return { success: false, error: (error as Error).message };

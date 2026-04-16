@@ -1,0 +1,62 @@
+.pdf-viewer {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.5rem 0;
+  background-color: var(--color-bg-secondary, #e8e8e8);
+}
+
+.pdf-viewer-loading,
+.pdf-viewer-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: var(--color-text-light);
+  font-family: var(--editor-font-family), Georgia, serif;
+  font-size: 0.95rem;
+  padding: 2rem;
+  text-align: center;
+}
+
+.pdf-viewer-error {
+  color: var(--color-error, #b91c1c);
+}
+
+.pdf-page-container {
+  position: relative;
+  margin-bottom: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  background: white;
+}
+
+.pdf-page-container canvas {
+  display: block;
+}
+
+.pdf-page-container .annotation-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.pdf-page-container .annotation-layer section {
+  pointer-events: auto;
+}
+
+.pdf-page-number {
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--color-text-light);
+  margin-top: 0.25rem;
+  margin-bottom: 0.5rem;
+  font-family: var(--editor-font-family), Georgia, serif;
+}

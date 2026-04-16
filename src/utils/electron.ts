@@ -42,8 +42,9 @@ export function parseFileStructure(structure: FileNode[]): ParseResult {
           processNode(child, node.path);
         }
       }
-    } else if (node.type === 'file' && node.name.endsWith('.html')) {
-      const noteTitle = node.name.replace(/\.html$/, '');
+    } else if (node.type === 'file' && (node.name.endsWith('.html') || node.name.endsWith('.pdf'))) {
+      const isPdf = node.name.endsWith('.pdf');
+      const noteTitle = node.name.replace(/\.(html|pdf)$/, '');
       const metadata = node.metadata;
 
       const tags: string[] = metadata?.tags || [];
@@ -62,9 +63,10 @@ export function parseFileStructure(structure: FileNode[]): ParseResult {
         notebookId: parentPath || null,
         filePath: node.path,
         path: node.path,
-        cssPath: node.cssPath,
+        cssPath: isPdf ? undefined : node.cssPath,
         isLoaded: false,
         paragraphTags: metadata?.paragraphTags || [],
+        fileType: isPdf ? 'pdf' : 'html',
       });
     }
   }
@@ -89,6 +91,21 @@ export async function loadNoteContent(filePath: string): Promise<string> {
   }
 
   return result.content;
+}
+
+export async function loadPdfContent(filePath: string): Promise<string> {
+  const api = getNativeAPI();
+  if (!api) {
+    throw new Error('Native API not available');
+  }
+
+  const result = await api.openPdfFile(filePath);
+
+  if (!result.success || result.data === undefined) {
+    throw new Error(result.error || 'Failed to load PDF content');
+  }
+
+  return result.data;
 }
 
 export async function loadNoteCss(cssPath: string): Promise<string> {

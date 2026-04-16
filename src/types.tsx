@@ -9,6 +9,8 @@ export interface TagNode {
   isExpanded: boolean;
 }
 
+export type NoteFileType = 'html' | 'pdf';
+
 export interface Note {
   id: string;
   title: string;
@@ -20,6 +22,7 @@ export interface Note {
   filePath?: string;
   path?: string;
   cssPath?: string;
+  fileType: NoteFileType;
   isLoaded: boolean;
   paragraphTags: string[];
 }
@@ -99,6 +102,7 @@ export interface ElectronAPI {
   deleteNotebook: (relativePath: string) => Promise<{ success: boolean; error?: string }>;
   renameNote: (relativePath: string, newName: string) => Promise<{ success: boolean; newPath?: string; error?: string }>;
   renameNotebook: (relativePath: string, newName: string) => Promise<{ success: boolean; newPath?: string; error?: string }>;
+  openPdfFile: (relativePath: string) => Promise<{ success: boolean; data?: string; error?: string }>;
   selectFile: (filters?: { name: string; extensions: string[] }[]) => Promise<{ success: boolean; path?: string; error?: string }>;
   getDigikamTags: (dbPath: string) => Promise<{ success: boolean; tags?: DigikamTag[]; error?: string }>;
   getDigikamImagesByTag: (dbPath: string, tagId: number, limit?: number) => Promise<{ success: boolean; images?: DigikamImage[]; digikamTag: string; error?: string }>;
@@ -129,6 +133,7 @@ interface AndroidBridgeRaw {
   createNote(parentPath: string, name: string): string;
   createNotebook(parentPath: string, name: string): string;
   deleteNote(relativePath: string): string;
+  openPdfFile(relativePath: string): string;
   deleteNotebook(relativePath: string): string;
   renameNote(relativePath: string, newName: string): string;
   renameNotebook(relativePath: string, newName: string): string;

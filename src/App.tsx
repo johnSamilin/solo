@@ -93,7 +93,7 @@ const App = observer(() => {
       },
     },
     onUpdate: ({ editor }) => {
-      if (notesStore.selectedNote) {
+      if (notesStore.selectedNote && notesStore.selectedNote.fileType !== 'pdf') {
         const content = editor.getHTML();
         if (content !== notesStore.selectedNote.content) {
           notesStore.updateNote(notesStore.selectedNote.id, {
@@ -119,35 +119,40 @@ const App = observer(() => {
 
 
   useEffect(() => {
-    if (editor && notesStore.selectedNote && !notesStore.isLoadingNoteContent) {
-      // Load note content if not already loaded
+    if (notesStore.selectedNote && !notesStore.isLoadingNoteContent) {
       if (!notesStore.selectedNote.isLoaded) {
         notesStore.loadNoteContent(notesStore.selectedNote);
         return;
       }
 
-      const content = notesStore.selectedNote.content;
-      if (content !== editor.getHTML()) {
-        editor.commands.setContent(content);
-        setInitialContent(editor.state.doc.textContent);
-      }
-      setAutoZenDisabled(false);
-
-      // Load and inject custom CSS if available
-      const loadCustomCss = async () => {
+      if (notesStore.selectedNote.fileType === 'pdf') {
         removeNoteStyles();
+        return;
+      }
 
-        if (notesStore.selectedNote?.cssPath) {
-          try {
-            const cssContent = await loadNoteCss(notesStore.selectedNote.cssPath);
-            injectNoteStyles(cssContent, '#note-editor-content');
-          } catch (error) {
-            console.error('Failed to load custom CSS:', error);
-          }
+      if (editor) {
+        const content = notesStore.selectedNote.content;
+        if (content !== editor.getHTML()) {
+          editor.commands.setContent(content);
+          setInitialContent(editor.state.doc.textContent);
         }
-      };
+        setAutoZenDisabled(false);
 
-      loadCustomCss();
+        const loadCustomCss = async () => {
+          removeNoteStyles();
+
+          if (notesStore.selectedNote?.cssPath) {
+            try {
+              const cssContent = await loadNoteCss(notesStore.selectedNote.cssPath);
+              injectNoteStyles(cssContent, '#note-editor-content');
+            } catch (error) {
+              console.error('Failed to load custom CSS:', error);
+            }
+          }
+        };
+
+        loadCustomCss();
+      }
     }
 
     return () => {
