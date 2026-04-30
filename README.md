@@ -9,6 +9,10 @@ I believe that your data is only yours and should not belong to any corporation 
 
 ## Key Features
 
+### Integrations
+- Supports Onyx Boox PDF annotations
+- Supports Digikam so that you could insert image carousels based on tags
+
 ### 📝 Rich Text Editing
 - Full-featured Markdown-style editor
 - Support for headings, lists, and task lists
