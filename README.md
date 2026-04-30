@@ -1,9 +1,8 @@
 # Solo - Minimalistic Private Note-Taking App
 
-Solo is a modern, privacy-focused note-taking application with an emphasis on typography and user experience. It's designed for users who value both aesthetics and security in their writing environment.
+Solo is a modern, privacy-focused note-taking application with an emphasis on typography and user experience. There's no AI, cloud storage and stuff. Just your thoughts.
 
-# Try it
-[deploy](https://ros-plata.ru) - sorry for confusing domain. I use my old one for now, just too lazy to register new one.
+I believe that your data is only yours and should not belong to any corporation or even single app. That's why it stays in your file system in plain HTML so that you could have access to it any time without additional instruments.
 
 # Contact
 [Contact me](https://t.me/WatasheeBaka) if you have any questions.
@@ -29,6 +28,8 @@ Solo is a modern, privacy-focused note-taking application with an emphasis on ty
   - Air: Spacious layout with drop caps
   - Typewriter: Monospace font with classic spacing
   - Narrow: Compact layout with minimal margins
+  - FBI: typewriter-inspired
+  - Alighieri
 - Customizable typography settings:
   - Font family selection
   - Font size options
@@ -49,23 +50,10 @@ Solo is a modern, privacy-focused note-taking application with an emphasis on ty
 - Date picker for quick timeline navigation
 
 ### 📱 Cross-Platform Support
-- Desktop application (Windows, macOS, Linux)
-- Web version
-- Consistent experience across all platforms
-
-### 💾 Data Management
-- Local storage for privacy
-- Data export functionality
-- No cloud dependency
-- Complete data ownership
-- Intelligent sync status monitoring
-- Automatic notifications for pending changes
+- Desktop application (Linux)
+- Mobile application (Android) - DIY
 
 ## Technical Details
-
-### Platforms
-- **Desktop**: Electron-based application
-- **Web**: Standalone web application
 
 ### Development Stack
 - React + TypeScript
@@ -73,10 +61,7 @@ Solo is a modern, privacy-focused note-taking application with an emphasis on ty
 - Vite for development and building
 - TipTap for rich text editing
 - Electron for desktop builds
-
-### Build Modes
-- Standalone (Web)
-- Plugin (Electron)
+- Kotlin for mobile
 
 ## Getting Started
 
@@ -85,14 +70,12 @@ Solo is a modern, privacy-focused note-taking application with an emphasis on ty
 npm install
 
 # Development
-npm run dev              # Web version
 npm run electron:dev     # Desktop version
 
 # Production builds
-npm run build           # Web version
 npm run electron:build  # Desktop version
 ```
 
 ## License
 
-MIT License - See LICENSE file for details
+NO LICENSE
