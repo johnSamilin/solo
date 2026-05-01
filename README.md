@@ -8,7 +8,7 @@ I believe that your data is only yours and should not belong to any corporation 
 
 <img width="1150" height="912" alt="Screenshot2" src="https://github.com/user-attachments/assets/74fe3592-23f3-4c2e-a3c6-3eb50cbb1fdb" />
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/-xA6Gce_e0M?si=Cs8aUZuvS0Q-Xk83" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+[![Demo](docs/demo.png)](https://youtu.be/-xA6Gce_e0M)
 
 # Contact
 [Contact me](https://t.me/WatasheeBaka) if you have any questions.
