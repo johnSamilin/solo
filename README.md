@@ -4,6 +4,10 @@ Solo is a modern, privacy-focused note-taking application with an emphasis on ty
 
 I believe that your data is only yours and should not belong to any corporation or even single app. That's why it stays in your file system in plain HTML so that you could have access to it any time without additional instruments.
 
+<img width="1150" height="912" alt="Screenshot1" src="https://github.com/user-attachments/assets/dc6634b1-26bc-4cd1-ac51-24bc72882ad7" />
+
+<img width="1150" height="912" alt="Screenshot2" src="https://github.com/user-attachments/assets/74fe3592-23f3-4c2e-a3c6-3eb50cbb1fdb" />
+
 # Contact
 [Contact me](https://t.me/WatasheeBaka) if you have any questions.
 
