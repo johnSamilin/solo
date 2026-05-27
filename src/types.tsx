@@ -106,6 +106,8 @@ export interface ElectronAPI {
   selectFile: (filters?: { name: string; extensions: string[] }[]) => Promise<{ success: boolean; path?: string; error?: string }>;
   getDigikamTags: (dbPath: string) => Promise<{ success: boolean; tags?: DigikamTag[]; error?: string }>;
   getDigikamImagesByTag: (dbPath: string, tagId: number, limit?: number) => Promise<{ success: boolean; images?: DigikamImage[]; digikamTag: string; error?: string }>;
+  /** Выполняет операцию с Sync State SQLite DB через нативный мост */
+  syncDBInvoke: (operation: string, ...params: any[]) => Promise<{ success: boolean; data?: any; error?: string }>;
 }
 
 export interface DigikamTag {
@@ -140,6 +142,8 @@ interface AndroidBridgeRaw {
   uploadImage(base64Data: string, fileName: string): string;
   playTypewriterSound(): void;
   toggleZenMode(enable: boolean): string;
+  /** Выполняет операцию с Sync State SQLite DB. operation — имя операции, paramsJson — JSON-массив аргументов */
+  syncDBInvoke(operation: string, paramsJson: string): string;
 }
 
 declare global {

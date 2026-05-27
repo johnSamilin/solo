@@ -1,61 +1,25 @@
-import { app, BrowserWindow, ipcMain, dialog, protocol, net, shell, Menu, ipcRenderer, MenuItem } from 'electron';
+import { app, BrowserWindow, protocol, net, shell, Menu, MenuItem } from 'electron';
 import * as path from 'path';
-import * as fs from 'fs/promises';
 import { existsSync } from 'fs';
-import Database from 'better-sqlite3';
 import { logger } from './logger';
 import { updateManager } from './autoUpdater';
-
-let mainWindow: BrowserWindow | null = null;
-let dataFolder: string | null = null;
-
-const SETTINGS_FILE = path.join(app.getPath('userData'), 'settings.json');
-
-/**
- * Validates that a path is safe to access, accounting for symlinks.
- * Returns true if the path is within dataFolder or is a symlink target that originates from within dataFolder.
- */
-const isPathSafe = async (fullPath: string, basePath: string): Promise<boolean> => {
-  try {
-    // Check direct path first
-    if (fullPath.startsWith(basePath)) {
-      return true;
-    }
-
-    // Resolve the real path (follows symlinks)
-    const realPath = await fs.realpath(fullPath);
-
-    // Check if the resolved path is within the base path
-    if (realPath.startsWith(basePath)) {
-      return true;
-    }
-
-    // Check if any parent directory is a symlink that originates from within dataFolder
-    let currentPath = fullPath;
-    while (currentPath !== basePath && currentPath !== path.dirname(currentPath)) {
-      try {
-        const stats = await fs.lstat(currentPath);
-        if (stats.isSymbolicLink()) {
-          const linkTarget = await fs.readlink(currentPath);
-          const resolvedLink = path.resolve(path.dirname(currentPath), linkTarget);
-
-          // Check if this symlink is within the base path
-          if (currentPath.startsWith(basePath)) {
-            return true;
-          }
-        }
-      } catch {
-        // Continue checking parent directories
-      }
-      currentPath = path.dirname(currentPath);
-    }
-
-    return false;
-  } catch {
-    // If we can't resolve the path, fall back to basic check
-    return fullPath.startsWith(basePath);
-  }
-};
+import {
+  mainWindow,
+  dataFolder,
+  setMainWindow,
+  loadSettings,
+} from './utils';
+import { registerDialogHandlers } from './handlers/dialog';
+import { registerFileHandlers } from './handlers/file';
+import { registerStructureHandlers } from './handlers/structure';
+import { registerSearchHandlers } from './handlers/search';
+import { registerNotebookHandlers } from './handlers/notebook';
+import { registerImageHandlers } from './handlers/image';
+import { registerDigikamHandlers } from './handlers/digikam';
+import { registerSyncDbHandlers } from './handlers/sync-db';
+import { registerZenModeHandlers } from './handlers/zen-mode';
+import { registerUpdateHandlers } from './handlers/updates';
+import { registerLogHandlers } from './handlers/logs';
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -80,29 +44,8 @@ protocol.registerSchemesAsPrivileged([
   }
 ]);
 
-const loadSettings = async () => {
-  try {
-    if (existsSync(SETTINGS_FILE)) {
-      const data = await fs.readFile(SETTINGS_FILE, 'utf-8');
-      const settings = JSON.parse(data);
-      dataFolder = settings.dataFolder || null;
-    }
-  } catch (error) {
-    console.error('Failed to load settings:', error);
-  }
-};
-
-const saveSettings = async () => {
-  try {
-    const settings = { dataFolder };
-    await fs.writeFile(SETTINGS_FILE, JSON.stringify(settings, null, 2), 'utf-8');
-  } catch (error) {
-    console.error('Failed to save settings:', error);
-  }
-};
-
 const createWindow = () => {
-  mainWindow = new BrowserWindow({
+  const win = new BrowserWindow({
     width: 1200,
     height: 800,
     icon: path.join(process.resourcesPath, 'dist/assets/assets/icons/png', '64x64.png'),
@@ -114,22 +57,24 @@ const createWindow = () => {
     },
   });
 
+  setMainWindow(win);
+
   if (process.env.NODE_ENV === 'development') {
-    mainWindow.loadURL('http://localhost:5173');
-    mainWindow.webContents.openDevTools();
+    win.loadURL('http://localhost:5173');
+    win.webContents.openDevTools();
   } else {
     const indexPath = path.join(process.resourcesPath, 'dist', 'index.html');
     console.log('Loading index.html from:', indexPath);
     console.log('Resources path:', process.resourcesPath);
-    mainWindow.loadFile(indexPath);
+    win.loadFile(indexPath);
   }
 
-  mainWindow.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url); // Open URL in user's browser.
-    return { action: "deny" }; // Prevent the app from opening the URL.
+  win.webContents.setWindowOpenHandler((details) => {
+    shell.openExternal(details.url);
+    return { action: "deny" };
   });
 
-  updateManager.setMainWindow(mainWindow);
+  updateManager.setMainWindow(win);
 
   createMenu();
 };
@@ -156,7 +101,8 @@ const createMenu = () => {
     label: 'Open Logs',
     click: async () => {
       try {
-        await openLogFile();
+        const logFile = logger.getLogFile();
+        await shell.openPath(logFile);
       } catch (error) {
         console.error('Failed to open logs:', error);
       }
@@ -168,7 +114,6 @@ const createMenu = () => {
       mainWindow?.webContents.openDevTools();
     },
   }));
-
 
   const menu = Menu.buildFromTemplate(menuTemplate);
   Menu.setApplicationMenu(menu);
@@ -203,6 +148,25 @@ async function getFile(filePath: string) {
   return result;
 }
 
+// ============================================================
+// Register all IPC handlers
+// ============================================================
+registerDialogHandlers();
+registerFileHandlers();
+registerStructureHandlers();
+registerSearchHandlers();
+registerNotebookHandlers();
+registerImageHandlers();
+registerDigikamHandlers();
+registerSyncDbHandlers();
+registerZenModeHandlers();
+registerUpdateHandlers();
+registerLogHandlers();
+
+// ============================================================
+// App lifecycle
+// ============================================================
+
 app.whenReady().then(async () => {
   await logger.init();
 
@@ -235,7 +199,6 @@ app.whenReady().then(async () => {
 
   protocol.handle('image', async (request) => {
     const url = new URL(request.url);
-    const filePath = process.platform === 'darwin' ? url.hostname : url.pathname;
     const hostnameFile = await getFile(url.hostname);
     if (hostnameFile.success) {
       return hostnameFile.response;
@@ -291,906 +254,5 @@ app.whenReady().then(async () => {
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
-  }
-});
-
-interface FileMetadata {
-  id: string;
-  tags: string[];
-  createdAt: string;
-  paragraphTags?: string[];
-}
-
-interface FileNode {
-  name: string;
-  path: string;
-  type: 'file' | 'folder';
-  children?: FileNode[];
-  metadata?: FileMetadata;
-  cssPath?: string;
-}
-
-ipcMain.handle('select-folder', async () => {
-  if (!mainWindow) return { success: false, error: 'No window available' };
-
-  const result = await dialog.showOpenDialog(mainWindow, {
-    properties: ['openDirectory', 'createDirectory'],
-    title: 'Select Data Folder',
-  });
-
-  if (result.canceled || result.filePaths.length === 0) {
-    return { success: false, error: 'Folder selection cancelled' };
-  }
-
-  dataFolder = result.filePaths[0];
-  await saveSettings();
-  return { success: true, path: dataFolder };
-});
-
-ipcMain.handle('get-data-folder', async () => {
-  return { success: true, path: dataFolder };
-});
-
-ipcMain.handle('select-file', async (_, filters?: { name: string; extensions: string[] }[]) => {
-  if (!mainWindow) return { success: false, error: 'No window available' };
-
-  const result = await dialog.showOpenDialog(mainWindow, {
-    properties: ['openFile'],
-    filters: filters || [],
-  });
-
-  if (result.canceled || result.filePaths.length === 0) {
-    return { success: false, error: 'File selection cancelled' };
-  }
-
-  return { success: true, path: result.filePaths[0] };
-});
-
-ipcMain.handle('select-parent-folder', async () => {
-  if (!mainWindow) return { success: false, error: 'No window available' };
-  if (!dataFolder) return { success: false, error: 'No data folder selected' };
-
-  const result = await dialog.showOpenDialog(mainWindow, {
-    properties: ['openDirectory'],
-    title: 'Select Parent Folder',
-    defaultPath: dataFolder,
-  });
-
-  if (result.canceled || result.filePaths.length === 0) {
-    return { success: false, error: 'Folder selection cancelled' };
-  }
-
-  const selectedPath = result.filePaths[0];
-
-  if (!selectedPath.startsWith(dataFolder)) {
-    return { success: false, error: 'Selected folder must be within data folder' };
-  }
-
-  const relativePath = path.relative(dataFolder, selectedPath);
-  return { success: true, path: relativePath || '.' };
-});
-
-ipcMain.handle('open-file', async (_, relativePath: string) => {
-  try {
-    if (!dataFolder) {
-      return { success: false, error: 'No data folder selected' };
-    }
-
-    const fullPath = path.join(dataFolder, relativePath);
-
-    if (!(await isPathSafe(fullPath, dataFolder))) {
-      return { success: false, error: 'Invalid path: path traversal detected' };
-    }
-
-    if (!existsSync(fullPath)) {
-      return { success: false, error: 'File does not exist' };
-    }
-
-    const content = await fs.readFile(fullPath, 'utf-8');
-    return { success: true, content };
-  } catch (error) {
-    return { success: false, error: (error as Error).message };
-  }
-});
-
-ipcMain.handle('open-pdf-file', async (_, relativePath: string) => {
-  try {
-    if (!dataFolder) {
-      return { success: false, error: 'No data folder selected' };
-    }
-
-    const fullPath = path.join(dataFolder, relativePath);
-
-    if (!(await isPathSafe(fullPath, dataFolder))) {
-      return { success: false, error: 'Invalid path: path traversal detected' };
-    }
-
-    if (!existsSync(fullPath)) {
-      return { success: false, error: 'File does not exist' };
-    }
-
-    const buffer = await fs.readFile(fullPath);
-    return { success: true, data: buffer.toString('base64') };
-  } catch (error) {
-    return { success: false, error: (error as Error).message };
-  }
-});
-
-ipcMain.handle('update-file', async (_, relativePath: string, content: string) => {
-  try {
-    if (!dataFolder) {
-      return { success: false, error: 'No data folder selected' };
-    }
-
-    const fullPath = path.join(dataFolder, relativePath);
-
-    if (!(await isPathSafe(fullPath, dataFolder))) {
-      return { success: false, error: 'Invalid path: path traversal detected' };
-    }
-
-    const dir = path.dirname(fullPath);
-    await fs.mkdir(dir, { recursive: true });
-
-    await fs.writeFile(fullPath, content, 'utf-8');
-    return { success: true };
-  } catch (error) {
-    return { success: false, error: (error as Error).message };
-  }
-});
-
-ipcMain.handle('update-metadata', async (_, relativePath: string, metadata: FileMetadata) => {
-  try {
-    if (!dataFolder) {
-      return { success: false, error: 'No data folder selected' };
-    }
-
-    const parsedPath = path.parse(relativePath);
-    const metadataPath = path.join(parsedPath.dir, `${parsedPath.name}.json`);
-    const fullPath = path.join(dataFolder, metadataPath);
-
-    if (!(await isPathSafe(fullPath, dataFolder))) {
-      return { success: false, error: 'Invalid path: path traversal detected' };
-    }
-
-    const dir = path.dirname(fullPath);
-    await fs.mkdir(dir, { recursive: true });
-
-    await fs.writeFile(fullPath, JSON.stringify(metadata, null, 2), 'utf-8');
-    return { success: true, path: metadataPath };
-  } catch (error) {
-    return { success: false, error: (error as Error).message };
-  }
-});
-
-ipcMain.handle('read-structure', async () => {
-  try {
-    if (!dataFolder) {
-      return { success: false, error: 'No data folder selected' };
-    }
-
-    const readDirectory = async (dirPath: string, basePath: string): Promise<FileNode[]> => {
-      const entries = await fs.readdir(dirPath, { withFileTypes: true });
-      const nodes: FileNode[] = [];
-      const processedMetadata = new Set<string>();
-
-      for (const entry of entries) {
-        const fullPath = path.join(dirPath, entry.name);
-        const relativePath = path.relative(basePath, fullPath);
-
-        let isDirectory = entry.isDirectory();
-        let isFile = entry.isFile();
-
-        if (entry.isSymbolicLink()) {
-          try {
-            const stats = await fs.stat(fullPath);
-            isDirectory = stats.isDirectory();
-            isFile = stats.isFile();
-          } catch (error) {
-            console.error(`Failed to resolve symlink ${entry.name}:`, error);
-            continue;
-          }
-        }
-
-        if (isDirectory) {
-          const children = await readDirectory(fullPath, basePath);
-          nodes.push({
-            name: entry.name,
-            path: relativePath,
-            type: 'folder',
-            children,
-          });
-        } else if (isFile && (entry.name.endsWith('.html') || entry.name.endsWith('.pdf'))) {
-          const ext = path.extname(entry.name);
-          const metadataPath = fullPath.replace(new RegExp(`\\${ext}$`), '.json');
-          const cssPath = fullPath.replace(new RegExp(`\\${ext}$`), '.css');
-          let metadata: FileMetadata | undefined;
-          let cssRelativePath: string | undefined;
-
-          if (existsSync(metadataPath)) {
-            try {
-              const metadataContent = await fs.readFile(metadataPath, 'utf-8');
-              metadata = JSON.parse(metadataContent);
-              // migration
-              metadata.tags = metadata?.tags.map((tag) => {
-                if (typeof tag === 'object') {
-                  // @ts-ignore
-                  return tag.path;
-                } else {
-                  return tag;
-                }
-              }) ?? [];
-              processedMetadata.add(path.basename(metadataPath));
-            } catch (error) {
-              console.error(`Failed to read metadata for ${entry.name}:`, error);
-            }
-          }
-
-          if (ext === '.html' && existsSync(cssPath)) {
-            cssRelativePath = path.relative(basePath, cssPath);
-          }
-
-          nodes.push({
-            name: entry.name,
-            path: relativePath,
-            type: 'file',
-            metadata,
-            cssPath: cssRelativePath,
-          });
-        } else if (!entry.name.endsWith('.json') && !entry.name.endsWith('.css')) {
-          nodes.push({
-            name: entry.name,
-            path: relativePath,
-            type: 'file',
-          });
-        }
-      }
-
-      return nodes.sort((a, b) => {
-        if (a.type === b.type && a.type === 'file') {
-          return (a.metadata?.createdAt ?? 0) > (b.metadata?.createdAt ?? 0) ? 1 : -1;
-        }
-        if (a.type === 'folder') {
-          return -1;
-        }
-
-        return 0;
-      });
-    };
-
-    const structure = await readDirectory(dataFolder, dataFolder);
-    return { success: true, structure };
-  } catch (error) {
-    return { success: false, error: (error as Error).message };
-  }
-});
-
-ipcMain.handle('scan-all-tags', async () => {
-  try {
-    if (!dataFolder) {
-      return { success: false, error: 'No data folder selected' };
-    }
-
-    const tags = new Set<string>();
-
-    const scanDirectory = async (dirPath: string): Promise<void> => {
-      const entries = await fs.readdir(dirPath, { withFileTypes: true });
-
-      for (const entry of entries) {
-        const fullPath = path.join(dirPath, entry.name);
-
-        let isDirectory = entry.isDirectory();
-        let isFile = entry.isFile();
-
-        // Handle symlinks by resolving their actual type
-        if (entry.isSymbolicLink()) {
-          try {
-            const stats = await fs.stat(fullPath);
-            isDirectory = stats.isDirectory();
-            isFile = stats.isFile();
-          } catch (error) {
-            console.error(`Failed to resolve symlink ${entry.name}:`, error);
-            continue;
-          }
-        }
-
-        if (isDirectory) {
-          await scanDirectory(fullPath);
-        } else if (isFile && entry.name.endsWith('.json')) {
-          try {
-            const content = await fs.readFile(fullPath, 'utf-8');
-            const metadata: FileMetadata = JSON.parse(content);
-
-            if (metadata.tags && Array.isArray(metadata.tags)) {
-              metadata.tags.forEach(tag => {
-                // migration
-                if (typeof tag === 'object') {
-                  // @ts-ignore
-                  tags.add(tag.path);
-                } else {
-                  tags.add(tag);
-                }
-              });
-            }
-            if (metadata.paragraphTags && Array.isArray(metadata.paragraphTags)) {
-              metadata.paragraphTags.forEach(tag => tags.add(tag));
-            }
-          } catch (error) {
-            continue;
-          }
-        }
-      }
-    };
-
-    await scanDirectory(dataFolder);
-    return { success: true, tags: Array.from(tags).sort() };
-  } catch (error) {
-    return { success: false, error: (error as Error).message };
-  }
-});
-
-ipcMain.handle('toggle-zen-mode', async (_, enable: boolean) => {
-  try {
-    if (!mainWindow) {
-      return { success: false, error: 'No window available' };
-    }
-
-    mainWindow.setFullScreen(enable);
-    return { success: true, isZenMode: enable };
-  } catch (error) {
-    return { success: false, error: (error as Error).message };
-  }
-});
-
-ipcMain.handle('get-zen-mode', async () => {
-  try {
-    if (!mainWindow) {
-      return { success: false, error: 'No window available' };
-    }
-
-    const isZenMode = mainWindow.isFullScreen();
-    return { success: true, isZenMode };
-  } catch (error) {
-
-    return { success: false, error: (error as Error).message };
-  }
-});
-
-interface SearchResult {
-  path: string;
-  type: 'filename' | 'content' | 'metadata';
-  matches: string[];
-  metadata?: FileMetadata;
-}
-
-ipcMain.handle('search', async (_, searchString?: string, tags?: string[]) => {
-  try {
-    if (!dataFolder) {
-      return { success: false, error: 'No data folder selected' };
-    }
-
-    const results: SearchResult[] = [];
-    const hasSearchString = searchString && searchString.trim().length > 0;
-    const hasTags = tags && tags.length > 0;
-
-    if (!hasSearchString && !hasTags) {
-      return { success: true, results: [] };
-    }
-
-    const searchLower = searchString?.toLowerCase() || '';
-
-    const searchDirectory = async (dirPath: string, basePath: string): Promise<void> => {
-      const entries = await fs.readdir(dirPath, { withFileTypes: true });
-
-      for (const entry of entries) {
-        const fullPath = path.join(dirPath, entry.name);
-        const relativePath = path.relative(basePath, fullPath);
-
-        let isDirectory = entry.isDirectory();
-        let isFile = entry.isFile();
-
-        // Handle symlinks by resolving their actual type
-        if (entry.isSymbolicLink()) {
-          try {
-            const stats = await fs.stat(fullPath);
-            isDirectory = stats.isDirectory();
-            isFile = stats.isFile();
-          } catch (error) {
-            console.error(`Failed to resolve symlink ${entry.name}:`, error);
-            continue;
-          }
-        }
-
-        if (isDirectory) {
-          await searchDirectory(fullPath, basePath);
-        } else if (isFile) {
-          const matches: string[] = [];
-          let metadata: FileMetadata | undefined;
-
-          if (entry.name.endsWith('.json')) {
-            try {
-              const content = await fs.readFile(fullPath, 'utf-8');
-              const parsedMetadata: FileMetadata = JSON.parse(content);
-              metadata = parsedMetadata;
-
-              if (hasTags && parsedMetadata.tags) {
-                const hasMatchingTag = tags.some(tag =>
-                  parsedMetadata.tags.some(metaTag =>
-                    metaTag.toLowerCase().includes(tag.toLowerCase())
-                  )
-                );
-
-                if (hasMatchingTag) {
-                  matches.push('metadata:tags');
-                }
-              }
-
-              if (hasSearchString) {
-                if (parsedMetadata.id?.toLowerCase().includes(searchLower)) {
-                  matches.push('metadata:id');
-                }
-                if (parsedMetadata.tags?.some(tag => tag.toLowerCase().includes(searchLower))) {
-                  matches.push('metadata:tags');
-                }
-              }
-
-              if (matches.length > 0) {
-                results.push({
-                  path: relativePath,
-                  type: 'metadata',
-                  matches: [...new Set(matches)],
-                  metadata: parsedMetadata,
-                });
-              }
-            } catch (error) {
-              continue;
-            }
-          } else if (entry.name.endsWith('.html') || entry.name.endsWith('.pdf')) {
-            if (hasSearchString) {
-              if (entry.name.toLowerCase().includes(searchLower)) {
-                matches.push('filename');
-              }
-
-              if (entry.name.endsWith('.html')) {
-                try {
-                  const content = await fs.readFile(fullPath, 'utf-8');
-                  if (content.toLowerCase().includes(searchLower)) {
-                    matches.push('content');
-                  }
-                } catch (error) {
-                  // skip content search on read error
-                }
-              }
-            }
-
-            const ext = path.extname(fullPath);
-            const metadataPath = fullPath.replace(new RegExp(`\\${ext}$`), '.json');
-            if (existsSync(metadataPath)) {
-              try {
-                const metadataContent = await fs.readFile(metadataPath, 'utf-8');
-                const parsedFileMetadata: FileMetadata = JSON.parse(metadataContent);
-                metadata = parsedFileMetadata;
-
-                if (hasTags && parsedFileMetadata.tags) {
-                  const hasMatchingTag = tags.some(tag =>
-                    parsedFileMetadata.tags.some(metaTag =>
-                      metaTag.toLowerCase().includes(tag.toLowerCase())
-                    )
-                  );
-
-                  if (hasMatchingTag) {
-                    matches.push('metadata:tags');
-                  }
-                }
-              } catch (error) {
-                // skip metadata on parse error
-              }
-            }
-
-            if (matches.length > 0) {
-              results.push({
-                path: relativePath,
-                type: matches.includes('content') ? 'content' : 'filename',
-                matches: [...new Set(matches)],
-                metadata,
-              });
-            }
-          } else if (hasSearchString) {
-            if (entry.name.toLowerCase().includes(searchLower)) {
-              results.push({
-                path: relativePath,
-                type: 'filename',
-                matches: ['filename'],
-              });
-            }
-          }
-        }
-      }
-    };
-
-    await searchDirectory(dataFolder, dataFolder);
-    return { success: true, results };
-  } catch (error) {
-    return { success: false, error: (error as Error).message };
-  }
-});
-
-ipcMain.handle('create-notebook', async (_, parentPath: string, name: string) => {
-  try {
-    if (!dataFolder) {
-      return { success: false, error: 'No data folder selected' };
-    }
-
-    if (!name || name.trim().length === 0) {
-      return { success: false, error: 'Notebook name is required' };
-    }
-
-    const sanitizedName = name.replace(/[/\\?%*:|"<>]/g, '-');
-    const fullParentPath = path.join(dataFolder, parentPath);
-
-    if (!(await isPathSafe(fullParentPath, dataFolder))) {
-      return { success: false, error: 'Invalid path: path traversal detected' };
-    }
-
-    const notebookPath = path.join(fullParentPath, sanitizedName);
-
-    if (existsSync(notebookPath)) {
-      return { success: false, error: 'Notebook folder already exists' };
-    }
-
-    await fs.mkdir(notebookPath, { recursive: true });
-
-    const relativePath = path.relative(dataFolder, notebookPath);
-    return { success: true, path: relativePath };
-  } catch (error) {
-    return { success: false, error: (error as Error).message };
-  }
-});
-
-ipcMain.handle('create-note', async (_, parentPath: string, name: string) => {
-  try {
-    if (!dataFolder) {
-      return { success: false, error: 'No data folder selected' };
-    }
-
-    if (!name || name.trim().length === 0) {
-      return { success: false, error: 'Note name is required' };
-    }
-
-    const sanitizedName = name.replace(/[/\\?%*:|"<>]/g, '-');
-    const fullParentPath = path.join(dataFolder, parentPath);
-
-    if (!(await isPathSafe(fullParentPath, dataFolder))) {
-      return { success: false, error: 'Invalid path: path traversal detected' };
-    }
-
-    await fs.mkdir(fullParentPath, { recursive: true });
-
-    const htmlPath = path.join(fullParentPath, `${sanitizedName}.html`);
-    const jsonPath = path.join(fullParentPath, `${sanitizedName}.json`);
-
-    if (existsSync(htmlPath)) {
-      return { success: false, error: 'Note already exists' };
-    }
-
-    const htmlContent = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${sanitizedName}</title>
-</head>
-<body>
-  <h1>${sanitizedName}</h1>
-  <p>Start writing your note here...</p>
-</body>
-</html>`;
-
-    const metadata: FileMetadata = {
-      id: Date.now().toString(),
-      tags: [],
-      createdAt: new Date().toISOString().split('T')[0],
-    };
-
-    await fs.writeFile(htmlPath, htmlContent, 'utf-8');
-    await fs.writeFile(jsonPath, JSON.stringify(metadata, null, 2), 'utf-8');
-
-    const relativeHtmlPath = path.relative(dataFolder, htmlPath);
-    const relativeJsonPath = path.relative(dataFolder, jsonPath);
-
-    return {
-      success: true,
-      htmlPath: relativeHtmlPath,
-      id: metadata.id,
-      jsonPath: relativeJsonPath,
-    };
-  } catch (error) {
-    return { success: false, error: (error as Error).message };
-  }
-});
-
-ipcMain.handle('delete-note', async (_, relativePath: string) => {
-  try {
-    if (!dataFolder) {
-      return { success: false, error: 'No data folder selected' };
-    }
-
-    const fullPath = path.join(dataFolder, relativePath);
-    if (!(await isPathSafe(fullPath, dataFolder))) {
-      return { success: false, error: 'Invalid path: path traversal detected' };
-    }
-
-    if (!existsSync(fullPath)) {
-      return { success: false, error: 'Note file does not exist' };
-    }
-
-    const ext = path.extname(fullPath);
-    const jsonPath = fullPath.replace(new RegExp(`\\${ext}$`), '.json');
-    const cssPath = fullPath.replace(new RegExp(`\\${ext}$`), '.css');
-
-    await fs.unlink(fullPath);
-    if (existsSync(jsonPath)) {
-      await fs.unlink(jsonPath);
-    }
-    if (ext === '.html' && existsSync(cssPath)) {
-      await fs.unlink(cssPath);
-    }
-
-    return { success: true };
-  } catch (error) {
-    return { success: false, error: (error as Error).message };
-  }
-});
-
-ipcMain.handle('delete-notebook', async (_, relativePath: string) => {
-  try {
-    if (!dataFolder) {
-      return { success: false, error: 'No data folder selected' };
-    }
-
-    const fullPath = path.join(dataFolder, relativePath);
-
-    if (!(await isPathSafe(fullPath, dataFolder))) {
-      return { success: false, error: 'Invalid path: path traversal detected' };
-    }
-
-    if (!existsSync(fullPath)) {
-      return { success: false, error: 'Notebook folder does not exist' };
-    }
-
-    await fs.rm(fullPath, { recursive: true, force: true });
-
-    return { success: true };
-  } catch (error) {
-    return { success: false, error: (error as Error).message };
-  }
-});
-
-ipcMain.handle('rename-note', async (_, relativePath: string, newName: string) => {
-  try {
-    if (!dataFolder) {
-      return { success: false, error: 'No data folder selected' };
-    }
-
-    const sanitizedNewName = newName.replace(/[/\\?%*:|"<>]/g, '-');
-    const fullPath = path.join(dataFolder, relativePath);
-
-    if (!(await isPathSafe(fullPath, dataFolder))) {
-      return { success: false, error: 'Invalid path: path traversal detected' };
-    }
-
-    if (!existsSync(fullPath)) {
-      return { success: false, error: 'Note file does not exist' };
-    }
-
-    const ext = path.extname(fullPath);
-    const dirPath = path.dirname(fullPath);
-    const newFilePath = path.join(dirPath, `${sanitizedNewName}${ext}`);
-    const newJsonPath = path.join(dirPath, `${sanitizedNewName}.json`);
-    const oldJsonPath = fullPath.replace(new RegExp(`\\${ext}$`), '.json');
-
-    if (existsSync(newFilePath)) {
-      return { success: false, error: 'A note with this name already exists' };
-    }
-
-    await fs.rename(fullPath, newFilePath);
-    if (existsSync(oldJsonPath)) {
-      await fs.rename(oldJsonPath, newJsonPath);
-    }
-
-    if (ext === '.html') {
-      const newCssPath = path.join(dirPath, `${sanitizedNewName}.css`);
-      const oldCssPath = fullPath.replace(/\.html$/, '.css');
-      if (existsSync(oldCssPath)) {
-        await fs.rename(oldCssPath, newCssPath);
-      }
-    }
-
-    const relativeNewPath = path.relative(dataFolder, newFilePath);
-    return { success: true, newPath: relativeNewPath };
-  } catch (error) {
-    return { success: false, error: (error as Error).message };
-  }
-});
-
-ipcMain.handle('rename-notebook', async (_, relativePath: string, newName: string) => {
-  try {
-    if (!dataFolder) {
-      return { success: false, error: 'No data folder selected' };
-    }
-
-    const sanitizedNewName = newName.replace(/[/\\?%*:|"<>]/g, '-');
-    const fullPath = path.join(dataFolder, relativePath);
-
-    if (!(await isPathSafe(fullPath, dataFolder))) {
-      return { success: false, error: 'Invalid path: path traversal detected' };
-    }
-
-    if (!existsSync(fullPath)) {
-      return { success: false, error: 'Notebook folder does not exist' };
-    }
-
-    const parentPath = path.dirname(fullPath);
-    const newPath = path.join(parentPath, sanitizedNewName);
-
-    if (existsSync(newPath)) {
-      return { success: false, error: 'A notebook with this name already exists' };
-    }
-
-    await fs.rename(fullPath, newPath);
-
-    const relativeNewPath = path.relative(dataFolder, newPath);
-    return { success: true, newPath: relativeNewPath };
-  } catch (error) {
-    return { success: false, error: (error as Error).message };
-  }
-});
-
-ipcMain.handle('upload-image', async (_event, imageData: string, fileName: string) => {
-  try {
-    if (!dataFolder) {
-      return { success: false, error: 'No data folder selected' };
-    }
-
-    const assetsDir = path.join(dataFolder, 'assets');
-
-    if (!existsSync(assetsDir)) {
-      await fs.mkdir(assetsDir, { recursive: true });
-    }
-
-    const timestamp = Date.now();
-    const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const uniqueFileName = `${timestamp}-${sanitizedFileName}`.toLowerCase();
-    const filePath = path.join(assetsDir, uniqueFileName);
-
-    const base64Data = imageData.replace(/^data:image\/\w+;base64,/, '');
-    const buffer = Buffer.from(base64Data, 'base64');
-
-    await fs.writeFile(filePath, buffer);
-
-    return {
-      success: true,
-      fileName: uniqueFileName,
-      url: `image://${uniqueFileName}`,
-    };
-  } catch (error) {
-    return { success: false, error: (error as Error).message };
-  }
-});
-
-ipcMain.handle('get-digikam-tags', async (_event, dbPath: string) => {
-  let db: Database.Database | null = null;
-
-  try {
-    if (!existsSync(dbPath)) {
-      return { success: false, error: 'Database file not found' };
-    }
-
-    db = new Database(dbPath, { readonly: true, fileMustExist: true });
-
-    const query = `
-      SELECT id, pid as parentId, name
-      FROM Tags
-      ORDER BY pid, name
-    `;
-    const stmt = db.prepare(query);
-    const tags = stmt.all();
-
-    return { success: true, tags };
-  } catch (error) {
-    return { success: false, error: (error as Error).message };
-  } finally {
-    if (db) {
-      try {
-        db.close();
-      } catch (closeError) {
-        console.error('Error closing database:', closeError);
-      }
-    }
-  }
-});
-
-ipcMain.handle('get-digikam-images-by-tag', async (_event, dbPath: string, tagId: number, limit: number = 10) => {
-  let db: Database.Database | null = null;
-
-  try {
-    if (!existsSync(dbPath)) {
-      return { success: false, error: 'Database file not found' };
-    }
-
-    db = new Database(dbPath, { readonly: true, fileMustExist: true });
-
-    const query = `
-      SELECT DISTINCT
-        i.id,
-        i.name,
-        al.relativePath,
-        ar.specificPath,
-        it.tagid
-      FROM Images i
-      INNER JOIN ImageTags it ON i.id = it.imageid
-      INNER JOIN Albums al ON i.album = al.id
-      INNER JOIN AlbumRoots ar ON ar.id = 1
-      WHERE it.tagid=?
-      ORDER BY i.modificationDate ASC
-      LIMIT ?
-    `;
-
-    const stmt = db.prepare(query);
-    const images = stmt.all(tagId, limit);
-    console.log('Digikam query: ' + query + ` (results: ${images.length}). params: ${JSON.stringify({tagId})}`);
-
-    return { success: true, images };
-  } catch (error) {
-    return { success: false, error: (error as Error).message };
-  } finally {
-    if (db) {
-      try {
-        db.close();
-      } catch (closeError) {
-        console.error('Error closing database:', closeError);
-      }
-    }
-  }
-});
-
-const openLogFile = async () => {
-  try {
-    const logFile = logger.getLogFile();
-    await shell.openPath(logFile);
-    return { success: true };
-  } catch (error) {
-    console.error('Failed to open log file:', error);
-    return { success: false, error: (error as Error).message };
-  }
-};
-ipcMain.handle('open-log-file', openLogFile);
-
-ipcMain.handle('check-for-updates', async () => {
-  try {
-    await updateManager.manualCheckForUpdates();
-    return { success: true };
-  } catch (error) {
-    console.error('Failed to check for updates:', error);
-    return { success: false, error: (error as Error).message };
-  }
-});
-
-ipcMain.handle('download-update', async () => {
-  try {
-    updateManager.downloadUpdate();
-    return { success: true };
-  } catch (error) {
-    console.error('Failed to download update:', error);
-    return { success: false, error: (error as Error).message };
-  }
-});
-
-ipcMain.handle('install-update', async () => {
-  try {
-    updateManager.quitAndInstall();
-    return { success: true };
-  } catch (error) {
-    console.error('Failed to install update:', error);
-    return { success: false, error: (error as Error).message };
   }
 });

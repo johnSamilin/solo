@@ -38,6 +38,7 @@ const api = {
   getDigikamTags: (dbPath: string) => ipcRenderer.invoke('get-digikam-tags', dbPath),
   getDigikamImagesByTag: (dbPath: string, tagId: number, limit?: number) => ipcRenderer.invoke('get-digikam-images-by-tag', dbPath, tagId, limit),
   openPdfFile: (relativePath: string) => ipcRenderer.invoke('open-pdf-file', relativePath),
+  syncDBInvoke: (operation: string, ...params: any[]) => ipcRenderer.invoke('sync-db-invoke', operation, ...params),
   openLogFile: () => ipcRenderer.invoke('open-log-file'),
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
   downloadUpdate: () => ipcRenderer.invoke('download-update'),
