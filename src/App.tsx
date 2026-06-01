@@ -105,9 +105,13 @@ const App = observer(() => {
           const currentWords = currentContent.split(/\s+/).filter(word => word.length > 0).length;
           const newWords = currentWords - initialWords;
 
-          const currentSettings = notesStore.selectedNote?.theme ?
-            themes[notesStore.selectedNote.theme].settings :
-            settingsStore.settings;
+          // Учитываем тему заметки при проверке autoZenMode
+          const noteTheme = notesStore.selectedNote?.theme;
+          const currentSettings = noteTheme
+            ? themes[noteTheme].settings
+            : settingsStore.selectedTheme
+              ? themes[settingsStore.selectedTheme].settings
+              : settingsStore.settings;
 
           if (newWords > 5 && !settingsStore.isZenMode && !autoZenDisabled && currentSettings.autoZenMode) {
             settingsStore.toggleZenMode();
@@ -196,6 +200,7 @@ const App = observer(() => {
     editor,
   ]);
 
+  // Отдельный effect для применения темы (глобальной или на уровне заметки)
   useEffect(() => {
     const root = document.documentElement;
     const globalSettings = settingsStore.settings;
@@ -203,9 +208,11 @@ const App = observer(() => {
     root.style.setProperty('--sidebar-font-family', globalSettings.sidebarFontFamily);
     root.style.setProperty('--sidebar-font-size', globalSettings.sidebarFontSize);
 
-    const currentSettings = notesStore.selectedNote?.theme ? 
-      themes[notesStore.selectedNote.theme].settings : 
-      globalSettings;
+    // Тема заметки имеет приоритет над глобальной
+    const noteTheme = notesStore.selectedNote?.theme;
+    const currentSettings = noteTheme
+      ? themes[noteTheme].settings
+      : globalSettings;
 
     root.style.setProperty('--editor-font-family', currentSettings.editorFontFamily);
     root.style.setProperty('--editor-font-size', currentSettings.editorFontSize);
@@ -226,7 +233,23 @@ const App = observer(() => {
         editorContent.classList.remove('drop-caps');
       }
     }
-  }, [settingsStore.settings, notesStore.selectedNote?.theme]);
+
+    // Apply terminal theme class
+    const appElement = document.querySelector('.app');
+    if (appElement) {
+      const isTerminal = settingsStore.selectedTheme === 'terminal';
+      if (isTerminal) {
+        appElement.classList.add('terminal-theme');
+      } else {
+        appElement.classList.remove('terminal-theme');
+      }
+    }
+  }, [
+    settingsStore.settings,
+    settingsStore.selectedTheme,
+    notesStore.selectedNote?.id,
+    notesStore.selectedNote?.theme,
+  ]);
 
   const handleImageUpload = async (file: File) => {
     const api = getNativeAPI();

@@ -52,7 +52,14 @@ export const SettingsModal: FC<SettingsModalProps> = observer(({ onClose}) => {
   const renderActiveTab = useCallback(() => {
     switch (settingsStore.activeSettingsTab) {
       case 'typography':
-        return <Typography settings={settingsStore.settings} setSettings={settingsStore.updateSettings} />;
+        return (
+          <Typography
+            settings={settingsStore.settings}
+            setSettings={settingsStore.updateSettings}
+            selectedTheme={settingsStore.selectedTheme}
+            onThemeChange={settingsStore.setSelectedTheme}
+          />
+        );
       case 'layout':
         return <Layout settings={settingsStore.settings} setSettings={settingsStore.updateSettings} />;
       case 'tags':

@@ -1,7 +1,8 @@
 import { makeAutoObservable } from 'mobx';
 import { TypographySettings, Toast } from '../types';
 import { NotesStore } from './NotesStore';
-import { defaultSettings } from '../constants';
+import { defaultSettings, themes } from '../constants';
+
 import { isPlugin } from '../config';
 import { getNativeAPI } from '../utils/nativeBridge';
 
@@ -11,6 +12,7 @@ const SECURE_STORAGE_KEY = 'solo-secure-settings';
 export class SettingsStore {
   private notesStore: NotesStore;
   settings: TypographySettings = defaultSettings;
+  selectedTheme: string | null = null;
   isZenMode = false;
   isToolbarExpanded = false;
   isSettingsOpen = false;
@@ -20,6 +22,7 @@ export class SettingsStore {
   activeSettingsTab: 'typography' | 'layout' | 'data' | 'tags' | 'statistics' = 'typography';
   dataFolder: string | null = null;
   digikamDbPath: string | null = null;
+
 
   constructor(notesStore: NotesStore) {
     this.notesStore = notesStore;
@@ -77,6 +80,7 @@ export class SettingsStore {
           this.isZenMode = data.isZenMode;
           this.isToolbarExpanded = data.isToolbarExpanded;
           this.digikamDbPath = data.digikamDbPath || null;
+          this.selectedTheme = data.selectedTheme;
         }
       }
 
@@ -91,7 +95,8 @@ export class SettingsStore {
         settings: this.settings,
         isZenMode: this.isZenMode,
         isToolbarExpanded: this.isToolbarExpanded,
-        digikamDbPath: this.digikamDbPath
+        digikamDbPath: this.digikamDbPath,
+        selectedTheme: this.selectedTheme,
       };
 
       if (isPlugin) {
@@ -106,6 +111,14 @@ export class SettingsStore {
     } catch (error) {
       console.error('Error saving settings:', error);
     }
+  };
+
+  setSelectedTheme = (theme: string | null) => {
+    this.selectedTheme = theme;
+    if (theme && themes[theme]) {
+      this.updateSettings(themes[theme].settings);
+    }
+    this.saveToStorage();
   };
 
   updateSettings = (newSettings: Partial<TypographySettings>) => {

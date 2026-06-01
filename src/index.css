@@ -353,6 +353,220 @@ body {
   background-color: var(--color-bg);
 }
 
+/* ===== Terminal Theme ===== */
+.terminal-theme {
+  --color-bg: #f5f0e6;
+  --color-white: #faf6ef;
+  --color-border: #d4c9b4;
+  --color-text: #622c09;
+  --color-text-light: #c9560f;
+  --color-button: #b84700;
+  --color-button-hover: #a63e00;
+  --color-danger: #cc3333;
+  --color-danger-hover: #ffebeb;
+  --color-disabled: #d6ccc0;
+  --color-checkbox: #b84700;
+  --color-checkbox-bg: #f0e6d6;
+}
+
+.terminal-theme,
+.terminal-theme .app {
+  background-color: #f5f0e6;
+}
+
+.terminal-theme .main-content {
+  background-color: #faf6ef !important;
+}
+
+/* CRT scanline overlay */
+.terminal-theme .editor-content::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.03) 2px,
+    rgba(0, 0, 0, 0.03) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
+  animation: crtScanline 8s linear infinite;
+}
+
+@keyframes crtScanline {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(4px); }
+}
+
+/* CRT screen flicker */
+.terminal-theme .editor-content::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.01);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 9998;
+  animation: crtFlicker 0.15s infinite;
+}
+
+@keyframes crtFlicker {
+  0% { opacity: 0.02; }
+  50% { opacity: 0.01; }
+  100% { opacity: 0.02; }
+}
+
+/* Text glow effect */
+.terminal-theme .editor-body .ProseMirror {
+  text-shadow: 0 0 2px rgba(184, 71, 0, 0.15);
+}
+
+.terminal-theme .editor-title {
+  text-shadow: 0 0 4px rgba(184, 71, 0, 0.2);
+}
+
+/* Terminal cursor blink */
+.terminal-theme .editor-body .ProseMirror .ProseMirror-cursor {
+  border-left: 0.5em solid #b84700;
+  box-shadow: 0 0 4px rgba(184, 71, 0, 0.4);
+}
+
+.terminal-theme .editor-body .ProseMirror p.is-editor-empty:first-child::before {
+  color: #b84700;
+  opacity: 0.4;
+}
+
+/* Terminal-style scrollbar */
+.terminal-theme ::-webkit-scrollbar {
+  width: 8px;
+}
+
+.terminal-theme ::-webkit-scrollbar-track {
+  background: #f5f0e6;
+}
+
+.terminal-theme ::-webkit-scrollbar-thumb {
+  background: #b84700;
+  border: 1px solid #f5f0e6;
+}
+
+.terminal-theme ::-webkit-scrollbar-thumb:hover {
+  background: #a63e00;
+}
+
+/* Terminal sidebar adaptation */
+.terminal-theme .sidebar {
+  background-color: #faf6ef !important;
+  border-right: 1px solid #d4c9b4;
+}
+
+.terminal-theme .sidebar .note-item:hover,
+.terminal-theme .sidebar .notebook-item:hover {
+  background-color: rgba(184, 71, 0, 0.06);
+}
+
+.terminal-theme .sidebar .note-item.active,
+.terminal-theme .sidebar .notebook-item.active {
+  background-color: rgba(184, 71, 0, 0.12);
+  border-left: 2px solid #b84700;
+}
+
+/* Terminal settings modal adaptation */
+.terminal-theme .modal {
+  background-color: #faf6ef;
+  border: 1px solid #d4c9b4;
+  box-shadow: 0 0 20px rgba(184, 71, 0, 0.08);
+}
+
+.terminal-theme .modal-tab.active {
+  background-color: rgba(184, 71, 0, 0.1);
+  color: #b84700;
+  border-bottom: 2px solid #b84700;
+}
+
+.terminal-theme .modal-tab:hover {
+  background-color: rgba(184, 71, 0, 0.05);
+  color: #a63e00;
+}
+
+.terminal-theme select,
+.terminal-theme input,
+.terminal-theme .setting-item select,
+.terminal-theme .setting-item input {
+  background-color: #f5f0e6;
+  border-color: #d4c9b4;
+  color: #b84700;
+}
+
+.terminal-theme select:focus,
+.terminal-theme input:focus {
+  border-color: #b84700;
+  outline: none;
+  box-shadow: 0 0 4px rgba(184, 71, 0, 0.3);
+}
+
+.terminal-theme .button-icon {
+  color: #b84700;
+}
+
+.terminal-theme .button-icon:hover {
+  background-color: rgba(184, 71, 0, 0.08);
+  color: #a63e00;
+}
+
+.terminal-theme .word-count,
+.terminal-theme .language-selector {
+  background-color: #faf6ef;
+  border: 1px solid #d4c9b4;
+  color: #b84700;
+}
+
+/* Terminal toast adaptation */
+.terminal-theme .toast {
+  background-color: #faf6ef;
+  border: 1px solid #b84700;
+  color: #b84700;
+}
+
+/* Terminal links */
+.terminal-theme a {
+  color: #b84700;
+  text-decoration: underline;
+}
+
+.terminal-theme a:hover {
+  color: #a63e00;
+}
+
+/* Terminal task list */
+.terminal-theme .editor-body ul[data-type="taskList"] li input[type="checkbox"] {
+  border-color: #b84700;
+}
+
+.terminal-theme .editor-body ul[data-type="taskList"] li input[type="checkbox"]:checked {
+  background-color: #b84700;
+  border-color: #b84700;
+}
+
+.terminal-theme .editor-body ul[data-type="taskList"] li input[type="checkbox"]:checked + div {
+  color: #c9a87c;
+  text-decoration: line-through;
+}
+
+/* Terminal cut-in */
+.terminal-theme .cut-in {
+  background: #faf6ef;
+  border: 1px solid #d4c9b4;
+}
+
 /* Cut-in styles */
 .cut-in {
   max-width: 300px;

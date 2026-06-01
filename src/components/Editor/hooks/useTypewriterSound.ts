@@ -14,7 +14,7 @@ const nonCharacterKeys = new Set([
 ]);
 
 const isTypewriterFont = (font: string) => {
-  return ['GNU Typewriter', 'CMTypewriter', 'UMTypewriter'].includes(font);
+  return ['GNU Typewriter', 'CMTypewriter', 'UMTypewriter', 'PT Mono', 'Pixelify Sans'].includes(font);
 };
 
 export const useTypewriterSound = (editor: Editor | null) => {

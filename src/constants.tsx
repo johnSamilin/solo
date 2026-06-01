@@ -146,4 +146,25 @@ export const themes: Record<string, { name: string; settings: TypographySettings
       autoZenMode: true
     },
   },
+  terminal: {
+    name: 'Terminal',
+    settings: {
+      editorFontFamily: 'Pixelify Sans',
+      editorFontSize: '1.25rem',
+      editorLineHeight: '1.4',
+      titleFontFamily: 'PT Mono',
+      titleFontSize: '1.5rem',
+      sidebarFontFamily: 'Pixelify Sans',
+      sidebarFontSize: '1rem',
+      pageMargins: '2rem',
+      paragraphSpacing: '0.75em',
+      enableDropCaps: false,
+      dropCapSize: '3.5em',
+      dropCapLineHeight: '3.5',
+      maxEditorWidth: '85%',
+      sidebarPinned: true,
+      typewriterSound: 'terminal',
+      autoZenMode: false
+    },
+  },
 };
