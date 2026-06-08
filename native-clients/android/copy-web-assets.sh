@@ -22,4 +22,11 @@ if [ -f "$TYPEWRITER1_SRC" ]; then
     echo "Copied typewriter-1.mp3"
 fi
 
+TERMINAL_SRC="$PROJECT_ROOT/public/terminal.mp3"
+TERMINAL_DST="$SCRIPT_DIR/app/src/main/assets/terminal.mp3"
+if [ -f "$TERMINAL_SRC" ]; then
+    cp "$TERMINAL_SRC" "$TERMINAL_DST"
+    echo "Copied termial.mp3"
+fi
+
 echo "Done! Web assets copied to $ANDROID_ASSETS"

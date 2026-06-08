@@ -5,6 +5,7 @@ import { existsSync } from 'fs';
 import Database from 'better-sqlite3';
 import { logger } from './logger';
 import { updateManager } from './autoUpdater';
+import { initSyncHandlers, destroySyncHandlers } from './handlers/sync-transport';
 
 let mainWindow: BrowserWindow | null = null;
 let dataFolder: string | null = null;
@@ -289,6 +290,7 @@ app.whenReady().then(async () => {
 });
 
 app.on('window-all-closed', () => {
+  destroySyncHandlers();
   if (process.platform !== 'darwin') {
     app.quit();
   }
@@ -324,10 +326,22 @@ ipcMain.handle('select-folder', async () => {
 
   dataFolder = result.filePaths[0];
   await saveSettings();
+
+  // Инициализируем SyncEngine после выбора dataFolder
+  const dbDir = path.join(app.getPath('userData'), 'sync');
+  initSyncHandlers(dataFolder, dbDir);
+
   return { success: true, path: dataFolder };
 });
 
 ipcMain.handle('get-data-folder', async () => {
+  // Если dataFolder уже установлен и SyncEngine ещё не инициализирован,
+  // инициализируем его сейчас (восстановление из settings при старте)
+  if (dataFolder) {
+    const dbDir = path.join(app.getPath('userData'), 'sync');
+    // initSyncHandlers сам проверит, инициализирован ли уже SyncEngine
+    initSyncHandlers(dataFolder, dbDir);
+  }
   return { success: true, path: dataFolder };
 });
 

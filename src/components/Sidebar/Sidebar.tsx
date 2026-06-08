@@ -6,6 +6,7 @@ import { FileText } from "lucide-react";
 import { NotebookItem } from "./NotebookItem";
 import { SidebarMenu } from "./SidebarMenu";
 import { SidebarToggle } from "./SidebarToggle";
+import { SyncStatusBar } from "../Sync/SyncStatusBar";
 
 import './Sidebar.css';
 
@@ -98,6 +99,7 @@ export const Sidebar: FC<SidebarProps> = observer(({ editor, onOpenSearch, onOpe
               />
             ))}
         </div>
+        <SyncStatusBar />
       </div>
     </>
   );

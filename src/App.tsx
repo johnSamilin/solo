@@ -14,6 +14,7 @@ import { CutIn } from './extensions/CutIn';
 import { Carousel } from './extensions/Carousel';
 import { useStore } from './stores/StoreProvider';
 import { SettingsModal } from './components/Modals/SettingsModal/SettingsModal';
+import { SyncConflictPanel } from './components/Sync/SyncConflictPanel';
 import { NewNotebookModal } from './components/Modals/NewNoteBookModal';
 import { Sidebar } from './components/Sidebar/Sidebar';
 import { Editor } from './components/Editor/Editor';
@@ -461,6 +462,8 @@ const App = observer(() => {
           onInsertCarousel={handleInsertCarousel}
         />
       )}
+
+      <SyncConflictPanel />
     </div>
   );
 });

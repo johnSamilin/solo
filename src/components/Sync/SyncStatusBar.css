@@ -1,0 +1,105 @@
+.sync-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--sidebar-bg, #1e1e2e);
+  border-top: 1px solid var(--border-color, #2d2d3f);
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s;
+  font-size: 12px;
+  color: var(--sidebar-text, #a0a0c0);
+  flex-shrink: 0;
+}
+
+.sync-status-bar:hover {
+  background: var(--sidebar-hover-bg, #2a2a3e);
+}
+
+.sync-status-bar__indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+}
+
+.sync-status-bar__icon {
+  transition: transform 0.2s, color 0.2s;
+}
+
+.sync-status-bar__icon--connected {
+  color: #4ade80;
+}
+
+.sync-status-bar__icon--syncing {
+  color: #60a5fa;
+  animation: sync-spin 1.5s linear infinite;
+}
+
+.sync-status-bar__icon--error {
+  color: #f87171;
+}
+
+.sync-status-bar__icon--idle {
+  color: #6b7280;
+}
+
+@keyframes sync-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.sync-status-bar__label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sync-status-bar__peers {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: rgba(96, 165, 250, 0.2);
+  color: #60a5fa;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.sync-status-bar__conflicts {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: rgba(248, 113, 113, 0.2);
+  color: #f87171;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.sync-status-bar__settings-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 0;
+}
+
+.sync-status-bar__settings-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #a0a0c0;
+}

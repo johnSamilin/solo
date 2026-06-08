@@ -1,6 +1,7 @@
 package com.solo.app
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.net.Uri
@@ -17,10 +18,14 @@ import android.webkit.WebViewClient
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import com.solo.app.BuildConfig
+import kotlinx.coroutines.launch
 import com.solo.app.bridge.AudioPlayer
 import com.solo.app.bridge.FileSystemManager
 import com.solo.app.bridge.SearchEngine
 import com.solo.app.bridge.WebViewBridge
+import com.solo.app.sync.SyncEngine
 import com.solo.app.utils.SecurityUtils
 
 class MainActivity : AppCompatActivity() {
@@ -31,6 +36,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var audioPlayer: AudioPlayer
     private lateinit var searchEngine: SearchEngine
     private lateinit var bridge: WebViewBridge
+    private var syncEngine: SyncEngine? = null
 
     private val folderPickerLauncher = registerForActivityResult(
         ActivityResultContracts.OpenDocumentTree()
@@ -69,15 +75,63 @@ class MainActivity : AppCompatActivity() {
             fileSystemManager.setRootFolder(savedFolder)
         }
 
+        // Инициализируем SyncEngine
+        initSyncEngine()
+
         setupWebView()
         setupBackNavigation()
     }
+
+     private fun initSyncEngine() {
+         try {
+             // Проверяем, доступен ли Bluetooth адаптер
+             val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as? android.bluetooth.BluetoothManager
+             val bluetoothAdapter = bluetoothManager?.adapter ?: android.bluetooth.BluetoothAdapter.getDefaultAdapter()
+             
+             if (bluetoothAdapter == null) {
+                 android.util.Log.e("MainActivity", "Bluetooth is not supported on this device")
+                 // Создаем SyncEngine без Bluetooth функциональности
+                 val dataDir = filesDir.absolutePath
+                 syncEngine = SyncEngine(
+                     context = this,
+                     dataDir = dataDir,
+                     deviceId = android.provider.Settings.Secure.getString(
+                         contentResolver, android.provider.Settings.Secure.ANDROID_ID
+                     ) ?: "android-unknown",
+                     deviceName = android.os.Build.MODEL,
+                     platform = "android",
+                     appVersion = BuildConfig.VERSION_NAME ?: "1.0.0"
+                 )
+                 return
+             }
+             
+             // Проверяем, включен ли Bluetooth
+             if (!bluetoothAdapter.isEnabled) {
+                 android.util.Log.w("MainActivity", "Bluetooth is not enabled, initializing SyncEngine without Bluetooth")
+             }
+             
+             val dataDir = filesDir.absolutePath
+             syncEngine = SyncEngine(
+                 context = this,
+                 dataDir = dataDir,
+                 deviceId = android.provider.Settings.Secure.getString(
+                     contentResolver, android.provider.Settings.Secure.ANDROID_ID
+                 ) ?: "android-unknown",
+                 deviceName = android.os.Build.MODEL,
+                 platform = "android",
+                 appVersion = BuildConfig.VERSION_NAME ?: "1.0.0"
+             )
+         } catch (e: Exception) {
+             android.util.Log.e("MainActivity", "Failed to initialize SyncEngine: ${e.message}", e)
+             // Не критично - синхронизация просто не будет работать
+         }
+     }
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun setupWebView() {
         webView = findViewById(R.id.webView)
 
-        bridge = WebViewBridge(this, fileSystemManager, audioPlayer, searchEngine)
+        bridge = WebViewBridge(this, fileSystemManager, audioPlayer, searchEngine, syncEngine)
 
         @Suppress("DEPRECATION")
         webView.settings.apply {
@@ -178,6 +232,14 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Публичный метод для выполнения JavaScript в WebView.
+     * Используется WebViewBridge для push-событий синхронизации.
+     */
+    fun evaluateJavascript(script: String) {
+        webView.evaluateJavascript(script, null)
+    }
+
     fun toggleZenMode(enable: Boolean) {
         runOnUiThread {
             if (enable) {
@@ -194,6 +256,11 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         audioPlayer.release()
+        syncEngine?.let {
+            lifecycleScope.launch {
+                it.stopSync()
+            }
+        }
         webView.destroy()
         super.onDestroy()
     }
