@@ -1,4 +1,11 @@
-/** Типы для системы P2P Bluetooth-синхронизации Solo */
+/**
+ * Типы для системы синхронизации Solo.
+ * Содержит как Bluetooth P2P, так и WebDAV.
+ */
+
+// ========== Режим синхронизации ==========
+
+export type SyncMode = 'bluetooth' | 'webdav';
 
 // ========== Транспорт ==========
 
@@ -190,6 +197,53 @@ export interface SyncStatus {
   connectedPeers: PeerDevice[];
   progress: SyncProgress | null;
   error: string | null;
+}
+
+// ========== WebDAV конфигурация ==========
+
+export interface WebDAVConfig {
+  url: string;
+  username: string;
+  password: string;
+  pollIntervalMs?: number;  // по умолчанию 10000
+}
+
+export interface RemoteDeviceSnapshot {
+  deviceId: string;
+  deviceName: string;
+  platform: PlatformType;
+  manifestVersion: number;
+  manifestTimestamp: number;
+  manifestPath: string;    // путь к manifest.json на WebDAV
+  snapshotPath: string;    // путь к snapshot.tar.gz на WebDAV
+  checksumPath: string;    // путь к snapshot.sha256 на WebDAV
+}
+
+// ========== Абстрактный транспорт ==========
+
+export interface ISyncTransport {
+  readonly mode: SyncMode;
+
+  /** Запуск синхронизации */
+  start(): Promise<boolean>;
+  /** Остановка синхронизации */
+  stop(): Promise<boolean>;
+  /** Получить статус */
+  getStatus(): SyncStatus;
+  /** Подписка на события */
+  onEvent(callback: (event: SyncEvent) => void): () => void;
+  /** Очистка */
+  destroy(): void;
+
+  // Пиры/устройства
+  discoverPeers?: () => Promise<PeerDevice[]>;
+  getPeers?: () => Promise<PeerDevice[]>;
+  pairDevice?: (deviceId: string) => Promise<boolean>;
+  unpairDevice?: (deviceId: string) => Promise<boolean>;
+
+  // Конфликты
+  getConflicts?: () => Promise<SyncConflict[]>;
+  resolveConflict?: (conflictId: number, strategy: 'local_wins' | 'remote_wins') => Promise<boolean>;
 }
 
 // ========== Bridge API (для preload / JSInterface) ==========

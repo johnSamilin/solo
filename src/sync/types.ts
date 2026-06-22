@@ -1,7 +1,9 @@
-/** Типы для системы P2P Bluetooth-синхронизации Solo */
+/**
+ * Типы для системы синхронизации Solo.
+ * Реэкспорт из shared/types.ts
+ */
 
-// Импортируем общие типы из shared
-import {
+import type {
   PlatformType,
   PeerDevice,
   SyncConnectionState,
@@ -26,11 +28,16 @@ import {
   SyncProgress,
   SyncStatus,
   SyncBridgeAPI,
+  SyncMode,
+  WebDAVConfig,
+  RemoteDeviceSnapshot,
+  ISyncTransport,
 } from '../shared/types';
 
-// Экспортируем все типы и значения
-export {
+// Экспортируем типы (с isolatedModules требуется export type)
+export type {
   PlatformType,
+  SyncMode,
   PeerDevice,
   SyncConnectionState,
   MessageType,
@@ -54,4 +61,7 @@ export {
   SyncProgress,
   SyncStatus,
   SyncBridgeAPI,
+  WebDAVConfig,
+  RemoteDeviceSnapshot,
+  ISyncTransport,
 };

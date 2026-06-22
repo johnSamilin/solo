@@ -1,189 +1,235 @@
 /**
- * TransportManager — управляет транспортным уровнем синхронизации.
+ * TransportManager — диспетчер транспортного уровня.
  *
- * Абстрагирует детали Bluetooth-соединения от веб-слоя.
- * Вся работа с RFCOMM происходит в native-клиенте (Electron main / Android).
- * Web-слой общается через Bridge (IPC / JSInterface).
+ * Управляет активным транспортом (Bluetooth или WebDAV).
+ * Позволяет переключаться между режимами синхронизации.
+ *
+ * Bluetooth: общается через Bridge API (IPC/JSInterface) с native-слоем.
+ * WebDAV: работает напрямую через HTTP (fetch) на WebDAV сервер.
  */
 
-import { SyncBridgeAPI, SyncEvent, SyncEventType, SyncStatus, SyncConnectionState } from './types';
+import { SyncMode, SyncStatus, SyncEvent, SyncEventType, SyncConnectionState, SyncConflict, PeerDevice, SyncBridgeAPI, WebDAVConfig } from './types';
+import { BluetoothTransport, SyncStateListener } from './bluetooth/BluetoothTransport';
 
-type SyncEventCallback = (event: SyncEvent) => void;
+// Импорт WebDAVTransport (динамический, чтобы избежать циклических зависимостей)
+import { WebDAVTransport, WebDAVTransportConfig } from './webdav/WebDAVTransport';
+
+export type { SyncStateListener };
 
 /**
- * Событие для подписки UI на изменения состояния синхронизации.
+ * Конфигурация для WebDAV, которая передаётся в SyncStore.
  */
-export interface SyncStateListener {
-  onStateChange(state: SyncConnectionState): void;
-  onEvent(event: SyncEvent): void;
+export interface WebDAVTransportSetup {
+  config: WebDAVConfig;
+  deviceId: string;
+  deviceName: string;
+  platform: string;
+  getLocalManifest: WebDAVTransportConfig['getLocalManifest'];
+  readFileForSync: WebDAVTransportConfig['readFileForSync'];
+  saveReceivedFile: WebDAVTransportConfig['saveReceivedFile'];
+  applyRemoteTombstone: WebDAVTransportConfig['applyRemoteTombstone'];
 }
 
 export class TransportManager {
-  private bridge: SyncBridgeAPI | null = null;
+  private bluetoothTransport: BluetoothTransport;
+  private webdavTransport: WebDAVTransport | null = null;
+  private activeTransport: BluetoothTransport | WebDAVTransport | null = null;
+
+  private webdavSetup: WebDAVTransportSetup | null = null;
   private listeners: Map<string, SyncStateListener> = new Map();
-  private unsubscribeEvent: (() => void) | null = null;
-  private _status: SyncStatus = {
-    state: 'idle',
-    lastSyncAt: null,
-    connectedPeers: [],
-    progress: null,
-    error: null,
-  };
+  private eventUnsubscribers: (() => void)[] = [];
+
+  constructor() {
+    this.bluetoothTransport = new BluetoothTransport();
+    this.activeTransport = this.bluetoothTransport;
+
+    // Подписываемся на события bluetooth по умолчанию
+    this.subscribeToTransport(this.bluetoothTransport);
+  }
+
+  // ==================== Активный режим ====================
+
+  get mode(): SyncMode {
+    return this.activeTransport?.mode || 'bluetooth';
+  }
 
   get status(): SyncStatus {
-    return this._status;
+    return this.activeTransport?.getStatus() || {
+      state: 'idle',
+      lastSyncAt: null,
+      connectedPeers: [],
+      progress: null,
+      error: null,
+    };
   }
 
   /**
-   * Устанавливает bridge API для связи с native-слоем.
+   * Переключает режим синхронизации.
    */
+  async setMode(mode: SyncMode): Promise<boolean> {
+    if (mode === this.mode) return true;
+
+    // Останавливаем текущий транспорт
+    if (this.activeTransport) {
+      await this.activeTransport.stop();
+    }
+
+    // Отписываемся от старого транспорта
+    this.unsubscribeAll();
+
+    if (mode === 'bluetooth') {
+      this.activeTransport = this.bluetoothTransport;
+      this.subscribeToTransport(this.bluetoothTransport);
+      return true;
+    } else if (mode === 'webdav') {
+      if (!this.webdavSetup) {
+        console.error('[TransportManager] WebDAV not configured');
+        return false;
+      }
+
+      // Создаём или пересоздаём WebDAV транспорт
+      if (this.webdavTransport) {
+        this.webdavTransport.destroy();
+      }
+
+      const { config, deviceId, deviceName, platform, getLocalManifest, readFileForSync, saveReceivedFile, applyRemoteTombstone } = this.webdavSetup;
+
+      this.webdavTransport = new WebDAVTransport({
+        webdavConfig: config,
+        deviceId,
+        deviceName,
+        platform,
+        getLocalManifest,
+        readFileForSync,
+        saveReceivedFile,
+        applyRemoteTombstone,
+      });
+
+      this.activeTransport = this.webdavTransport;
+      this.subscribeToTransport(this.webdavTransport);
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Конфигурирует WebDAV транспорт.
+   */
+  configureWebDAV(setup: WebDAVTransportSetup): void {
+    this.webdavSetup = setup;
+  }
+
+  // ==================== Bridge API (для Bluetooth) ====================
+
   setBridge(api: SyncBridgeAPI): void {
-    this.bridge = api;
-    this.setupEventSubscription();
+    this.bluetoothTransport.setBridge(api);
   }
 
-  /**
-   * Подписывается на события от native-слоя.
-   */
-  private setupEventSubscription(): void {
-    if (!this.bridge) return;
+  // ==================== ISyncTransport методы ====================
 
-    this.unsubscribeEvent = this.bridge.onSyncEvent((event: SyncEvent) => {
-      this.handleEvent(event);
-    });
-  }
-
-  /**
-   * Обрабатывает входящее событие и оповещает подписчиков.
-   */
-  private handleEvent(event: SyncEvent): void {
-    // Обновляем внутренний статус
-    switch (event.type) {
-      case 'state_changed':
-        this._status.state = event.data?.state || this._status.state;
-        this._status.error = event.data?.error || null;
-        break;
-      case 'sync_progress':
-        this._status.progress = event.data || this._status.progress;
-        break;
-      case 'sync_complete':
-        this._status.lastSyncAt = event.timestamp;
-        this._status.state = 'complete';
-        this._status.progress = null;
-        break;
-      case 'error':
-        this._status.error = event.data?.message || 'Unknown error';
-        this._status.state = 'error';
-        break;
-    }
-
-    // Оповещаем всех подписчиков
-    for (const listener of this.listeners.values()) {
-      listener.onStateChange(this._status.state);
-      listener.onEvent(event);
-    }
-  }
-
-  /**
-   * Запускает синхронизацию (обнаружение пиров и синхронизацию).
-   */
   async startSync(): Promise<boolean> {
-    if (!this.bridge) return false;
-
-    try {
-      const result = await this.bridge.syncStart();
-      return result.success;
-    } catch (error) {
-      console.error('Failed to start sync:', error);
-      return false;
-    }
+    if (!this.activeTransport) return false;
+    return this.activeTransport.start();
   }
 
-  /**
-   * Останавливает синхронизацию.
-   */
   async stopSync(): Promise<boolean> {
-    if (!this.bridge) return false;
-
-    try {
-      const result = await this.bridge.syncStop();
-      return result.success;
-    } catch (error) {
-      console.error('Failed to stop sync:', error);
-      return false;
-    }
+    if (!this.activeTransport) return false;
+    return this.activeTransport.stop();
   }
 
-  /**
-   * Запрашивает список доступных пиров.
-   */
-  async discoverPeers() {
-    if (!this.bridge) return [];
-    return this.bridge.syncDiscoverPeers();
-  }
-
-  /**
-   * Подключается к выбранному пиру.
-   */
-  async pairDevice(deviceId: string): Promise<boolean> {
-    if (!this.bridge) return false;
-    const result = await this.bridge.syncPairDevice(deviceId);
-    return result.success;
-  }
-
-  /**
-   * Отключает устройство.
-   */
-  async unpairDevice(deviceId: string): Promise<boolean> {
-    if (!this.bridge) return false;
-    const result = await this.bridge.syncUnpairDevice(deviceId);
-    return result.success;
-  }
-
-  /**
-   * Возвращает список доверенных пиров.
-   */
-  async getPeers() {
-    if (!this.bridge) return [];
-    return this.bridge.syncGetPeers();
-  }
-
-  /**
-   * Получает актуальный статус.
-   */
   async refreshStatus(): Promise<SyncStatus | null> {
-    if (!this.bridge) return null;
-    try {
-      this._status = await this.bridge.syncGetStatus();
-      return this._status;
-    } catch {
-      return null;
+    if (this.activeTransport instanceof BluetoothTransport) {
+      return this.bluetoothTransport.refreshStatus();
     }
+    return this.activeTransport?.getStatus() || null;
   }
 
-  /**
-   * Подписка на события.
-   */
+  async discoverPeers(): Promise<PeerDevice[]> {
+    const transport = this.activeTransport;
+    if (transport instanceof BluetoothTransport) {
+      return transport.discoverPeers();
+    }
+    // WebDAV not supported
+    return [];
+  }
+
+  async getPeers(): Promise<PeerDevice[]> {
+    const transport = this.activeTransport;
+    if (transport instanceof BluetoothTransport) {
+      return transport.getPeers();
+    }
+    return [];
+  }
+
+  async pairDevice(deviceId: string): Promise<boolean> {
+    const transport = this.activeTransport;
+    if (transport instanceof BluetoothTransport) {
+      return transport.pairDevice(deviceId);
+    }
+    return false;
+  }
+
+  async unpairDevice(deviceId: string): Promise<boolean> {
+    const transport = this.activeTransport;
+    if (transport instanceof BluetoothTransport) {
+      return transport.unpairDevice(deviceId);
+    }
+    return false;
+  }
+
+  async getConflicts(): Promise<SyncConflict[]> {
+    const transport = this.activeTransport;
+    if (transport instanceof BluetoothTransport) {
+      return transport.getConflicts();
+    }
+    return [];
+  }
+
+  async resolveConflict(conflictId: number, strategy: 'local_wins' | 'remote_wins'): Promise<boolean> {
+    const transport = this.activeTransport;
+    if (transport instanceof BluetoothTransport) {
+      return transport.resolveConflict(conflictId, strategy);
+    }
+    return false;
+  }
+
+  // ==================== Подписки ====================
+
   subscribe(id: string, listener: SyncStateListener): void {
     this.listeners.set(id, listener);
   }
 
-  /**
-   * Отписка от событий.
-   */
   unsubscribe(id: string): void {
     this.listeners.delete(id);
   }
 
-  /**
-   * Очистка ресурсов.
-   */
+  private subscribeToTransport(transport: BluetoothTransport | WebDAVTransport): void {
+    const unsub = transport.onEvent((event: SyncEvent) => {
+      // Прокидываем события всем подписчикам TransportManager
+      for (const listener of this.listeners.values()) {
+        listener.onStateChange(this.activeTransport?.getStatus().state || 'idle');
+        listener.onEvent(event);
+      }
+    });
+    this.eventUnsubscribers.push(unsub);
+  }
+
+  private unsubscribeAll(): void {
+    for (const unsub of this.eventUnsubscribers) {
+      try { unsub(); } catch {}
+    }
+    this.eventUnsubscribers = [];
+  }
+
+  // ==================== Очистка ====================
+
   destroy(): void {
-    if (this.unsubscribeEvent) {
-      this.unsubscribeEvent();
-      this.unsubscribeEvent = null;
+    this.unsubscribeAll();
+    this.bluetoothTransport.destroy();
+    if (this.webdavTransport) {
+      this.webdavTransport.destroy();
     }
     this.listeners.clear();
-    this.bridge = null;
   }
 }

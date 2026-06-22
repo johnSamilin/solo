@@ -15,7 +15,8 @@ export class RootStore {
     this.tagsStore = new TagsStore();
     this.syncStore = new SyncStore();
 
-    // Provide NotesStore with reference to RootStore for accessing other stores
+    // Provide stores with reference to RootStore for cross-store access
     this.notesStore.setRootStore(this);
+    this.syncStore.setRootStore(this);
   }
 }

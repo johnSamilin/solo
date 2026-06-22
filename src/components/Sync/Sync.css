@@ -185,6 +185,7 @@
   background: #3b82f6;
   border-radius: 3px;
   transition: width 0.3s ease;
+  width: var(--progress-width, 0%);
 }
 
 .sync-progress__text {
@@ -301,6 +302,76 @@
 }
 
 /* ---- Spinner animation ---- */
+
+/* ---- Mode switcher ---- */
+
+.sync-mode-switcher {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.sync-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: 4px;
+  background: var(--input-bg, #f5f5f5);
+  color: var(--text-color, #666);
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.15s;
+  flex: 1;
+  justify-content: center;
+}
+
+.sync-mode-btn:hover {
+  background: var(--hover-bg, #f0f0f0);
+}
+
+.sync-mode-btn--active {
+  background: rgba(96, 165, 250, 0.15);
+  border-color: #3b82f6;
+  color: #3b82f6;
+  font-weight: 500;
+}
+
+.sync-mode-btn--active:hover {
+  background: rgba(96, 165, 250, 0.2);
+}
+
+/* ---- WebDAV settings ---- */
+
+.webdav-settings .webdav-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.webdav-test-result {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.webdav-test-result--success {
+  background: rgba(74, 222, 128, 0.15);
+  color: #16a34a;
+}
+
+.webdav-test-result--fail {
+  background: rgba(248, 113, 113, 0.15);
+  color: #dc2626;
+}
+
+.webdav-test-error {
+  font-weight: 400;
+  opacity: 0.8;
+}
 
 @keyframes sync-spin {
   from { transform: rotate(0deg); }

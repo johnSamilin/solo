@@ -1,5 +1,9 @@
 /** Типы для системы P2P Bluetooth-синхронизации Solo (Electron native) */
 
+// ========== Режим синхронизации ==========
+
+export type SyncMode = 'bluetooth' | 'webdav';
+
 // ========== Транспорт ==========
 
 export type PlatformType = 'android' | 'linux' | 'mac' | 'electron';
