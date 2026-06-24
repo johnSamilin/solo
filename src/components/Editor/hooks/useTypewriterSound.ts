@@ -22,9 +22,9 @@ export const useTypewriterSound = (editor: Editor | null) => {
   const soundRef = useRef<Howl>();
 
   useEffect(() => {
-    const currentSettings = notesStore.selectedNote?.theme ?
-      themes[notesStore.selectedNote.theme].settings :
-      settingsStore.settings;
+    const currentSettings = notesStore.selectedNote?.theme && themes[notesStore.selectedNote.theme]
+      ? themes[notesStore.selectedNote.theme].settings
+      : settingsStore.settings;
 
     if (isAndroid) {
       soundRef.current = undefined;
@@ -48,9 +48,9 @@ export const useTypewriterSound = (editor: Editor | null) => {
     let lastLength = editor.state.doc.textContent.length;
 
     const handleKeyUp = (event: KeyboardEvent) => {
-      const currentSettings = notesStore.selectedNote?.theme ? 
-        themes[notesStore.selectedNote.theme].settings : 
-        settingsStore.settings;
+      const currentSettings = notesStore.selectedNote?.theme && themes[notesStore.selectedNote.theme]
+        ? themes[notesStore.selectedNote.theme].settings
+        : settingsStore.settings;
 
       if (isTypewriterFont(currentSettings.editorFontFamily)) {
         const currentLength = editor.state.doc.textContent.length;

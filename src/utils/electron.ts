@@ -1,4 +1,4 @@
-import { FileNode, FileMetadata, Note, Notebook } from '../types';
+import { FileNode, Note, Notebook } from '../types';
 import { getNativeAPI } from './nativeBridge';
 
 interface ParseResult {
@@ -6,7 +6,7 @@ interface ParseResult {
   notes: Note[];
 }
 
-export async function loadFromElectron(): Promise<ParseResult> {
+export async function loadFromStorage(): Promise<ParseResult> {
   const api = getNativeAPI();
   if (!api) {
     throw new Error('Native API not available');

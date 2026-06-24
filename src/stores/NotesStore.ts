@@ -1,6 +1,6 @@
 import { makeObservable, observable, runInAction } from 'mobx';
 import { Note, Notebook, FileMetadata } from '../types';
-import { loadFromElectron, loadNoteContent, loadPdfContent } from '../utils/electron';
+import { loadFromStorage, loadNoteContent, loadPdfContent } from '../utils/electron';
 import { getNativeAPI } from '../utils/nativeBridge';
 import { extractParagraphTags } from '../utils';
 
@@ -62,7 +62,7 @@ export class NotesStore {
   loadFromStorage = async () => {
     this.isLoading = true;
     try {
-      const result = await loadFromElectron();
+      const result = await loadFromStorage();
       this.notebooks = result.notebooks;
       this.notes = result.notes;
 

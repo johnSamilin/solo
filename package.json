@@ -4,7 +4,9 @@
   "version": "3.5.0",
   "scripts": {
     "dev": "vite",
+    "dev:packaged": "IS_PACKAGED=true npm run dev",
     "build": "vite build && npm run copy-assets",
+    "build:packaged": "IS_PACKAGED=true vite build && npm run copy-assets",
     "build:minified": "MINIFY=true vite build && npm run copy-assets",
     "lint": "eslint .",
     "preview": "vite preview",

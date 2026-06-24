@@ -26,10 +26,10 @@ interface EmptyStateProps {
 }
 
 const EXAMPLE_FILTERS = [
-  { id: '1', label: 'Дети и воспоминания' },
-  { id: '2', label: 'Заметки и поездки, кроме Финляндия' },
-  { id: '3', label: 'Идеи и планы' },
-  { id: '4', label: 'Работа / проекты' },
+  // { id: '1', label: 'Дети и воспоминания' },
+  // { id: '2', label: 'Заметки и поездки, кроме Финляндия' },
+  // { id: '3', label: 'Идеи и планы' },
+  // { id: '4', label: 'Работа / проекты' },
 ];
 
 interface TagTreeNodeProps {

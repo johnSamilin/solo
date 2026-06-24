@@ -1,4 +1,5 @@
 import { ElectronAPI, FileMetadata } from '../types';
+import { createStubAPI } from './createStubAPI';
 
 export const isAndroid = !!window.SoloBridge;
 export const isElectron = !!window.electronAPI;
@@ -66,7 +67,9 @@ let cachedAPI: ElectronAPI | null | undefined;
 export function getNativeAPI(): ElectronAPI | null {
   if (cachedAPI !== undefined) return cachedAPI;
 
-  if (window.electronAPI) {
+  if (__IS_PACKAGED__) {
+    cachedAPI = createStubAPI();
+  } else if (window.electronAPI) {
     cachedAPI = window.electronAPI;
   } else if (window.SoloBridge) {
     cachedAPI = wrapAndroidBridge();

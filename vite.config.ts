@@ -9,6 +9,9 @@ export default defineConfig({
     exclude: ['lucide-react'],
   },
   base: './', // Use relative paths
+  define: {
+    __IS_PACKAGED__: process.env.IS_PACKAGED === 'true',
+  },
   build: {
     assetsInlineLimit: 4096,
     minify: process.env.MINIFY === 'true',
