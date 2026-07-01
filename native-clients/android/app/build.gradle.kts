@@ -7,6 +7,10 @@ android {
     namespace = "com.solo.app"
     compileSdk = 34
 
+    buildFeatures {
+        buildConfig = true
+    }
+
     defaultConfig {
         applicationId = "com.solo.app"
         minSdk = 24

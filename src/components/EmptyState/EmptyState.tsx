@@ -25,6 +25,7 @@ interface EmptyStateProps {
   onOpenSearch: (tagPath?: string) => void;
 }
 
+//@ts-ignore
 const EXAMPLE_FILTERS = [
   // { id: '1', label: 'Дети и воспоминания' },
   // { id: '2', label: 'Заметки и поездки, кроме Финляндия' },

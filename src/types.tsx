@@ -1,4 +1,5 @@
 import { Editor } from "@tiptap/react";
+import type { SyncStatus, SyncConflict, PeerDevice, SyncEvent } from './sync/types';
 
 export interface TagNode {
   id: string;
@@ -106,6 +107,18 @@ export interface ElectronAPI {
   selectFile: (filters?: { name: string; extensions: string[] }[]) => Promise<{ success: boolean; path?: string; error?: string }>;
   getDigikamTags: (dbPath: string) => Promise<{ success: boolean; tags?: DigikamTag[]; error?: string }>;
   getDigikamImagesByTag: (dbPath: string, tagId: number, limit?: number) => Promise<{ success: boolean; images?: DigikamImage[]; digikamTag: string; error?: string }>;
+
+  // Синхронизация (P2P Bluetooth)
+  syncStart?: () => Promise<{ success: boolean; error?: string }>;
+  syncStop?: () => Promise<{ success: boolean; error?: string }>;
+  syncGetStatus?: () => Promise<SyncStatus>;
+  syncDiscoverPeers?: () => Promise<PeerDevice[]>;
+  syncPairDevice?: (deviceId: string) => Promise<{ success: boolean; error?: string }>;
+  syncUnpairDevice?: (deviceId: string) => Promise<{ success: boolean; error?: string }>;
+  syncGetPeers?: () => Promise<PeerDevice[]>;
+  syncGetConflicts?: () => Promise<SyncConflict[]>;
+  syncResolveConflict?: (conflictId: number, strategy: 'local_wins' | 'remote_wins') => Promise<{ success: boolean; error?: string }>;
+  onSyncEvent?: (callback: (event: SyncEvent) => void) => () => void;
 }
 
 export interface DigikamTag {
@@ -140,6 +153,18 @@ interface AndroidBridgeRaw {
   uploadImage(base64Data: string, fileName: string): string;
   playTypewriterSound(): void;
   toggleZenMode(enable: boolean): string;
+  
+  // Sync methods (optional - may not be available on all devices)
+  syncStart?(): string;
+  syncStop?(): string;
+  syncGetStatus?(): string;
+  syncDiscoverPeers?(): string;
+  syncPairDevice?(deviceId: string): string;
+  syncUnpairDevice?(deviceId: string): string;
+  syncGetPeers?(): string;
+  syncGetConflicts?(): string;
+  syncResolveConflict?(conflictId: number, strategy: 'local_wins' | 'remote_wins'): string;
+  syncSetEventCallback?(callbackName: string): void;
 }
 
 declare global {

@@ -1,9 +1,10 @@
 import { X, FolderOpen } from "lucide-react";
-import { FC, useCallback, useState, useEffect } from "react";
+import { FC, useCallback } from "react";
 import { Typography } from "./Typography";
 import { Layout } from "./Layout";
 import { Tags } from "./Tags";
 import { Statistics } from "./Statistics";
+import { SyncSettings } from "../../Sync/SyncSettings";
 import { observer } from "mobx-react-lite";
 import { useStore } from "../../../stores/StoreProvider";
 import { useI18n } from "../../../i18n/I18nContext";
@@ -14,7 +15,7 @@ type SettingsModalProps = {
   onClose: () => void;
 };
 
-type TabType = 'typography' | 'layout' | 'data' | 'tags' | 'statistics';
+type TabType = 'typography' | 'layout' | 'data' | 'tags' | 'statistics' | 'sync';
 
 export const SettingsModal: FC<SettingsModalProps> = observer(({ onClose}) => {
   const { settingsStore, notesStore } = useStore();
@@ -66,6 +67,8 @@ export const SettingsModal: FC<SettingsModalProps> = observer(({ onClose}) => {
         return <Tags />;
       case 'statistics':
         return <Statistics />;
+      case 'sync':
+        return <SyncSettings />;
       case 'data':
         return (
           <div className="settings-group">
@@ -154,6 +157,12 @@ export const SettingsModal: FC<SettingsModalProps> = observer(({ onClose}) => {
             onClick={() => settingsStore.setActiveSettingsTab('statistics')}
           >
             {t.settings.statistics}
+          </button>
+          <button
+            className={`modal-tab ${settingsStore.activeSettingsTab === 'sync' ? 'active' : ''}`}
+            onClick={() => settingsStore.setActiveSettingsTab('sync')}
+          >
+            Sync
           </button>
           <button
             className={`modal-tab ${settingsStore.activeSettingsTab === 'data' ? 'active' : ''}`}

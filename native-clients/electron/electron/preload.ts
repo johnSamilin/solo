@@ -47,6 +47,23 @@ const api = {
     ipcRenderer.on('update-status', listener);
     return () => ipcRenderer.removeListener('update-status', listener);
   },
+
+  // ==================== Sync API ====================
+  syncStart: () => ipcRenderer.invoke('sync-start'),
+  syncStop: () => ipcRenderer.invoke('sync-stop'),
+  syncGetStatus: () => ipcRenderer.invoke('sync-get-status'),
+  syncDiscoverPeers: () => ipcRenderer.invoke('sync-discover-peers'),
+  syncPairDevice: (deviceId: string) => ipcRenderer.invoke('sync-pair-device', deviceId),
+  syncUnpairDevice: (deviceId: string) => ipcRenderer.invoke('sync-unpair-device', deviceId),
+  syncGetPeers: () => ipcRenderer.invoke('sync-get-peers'),
+  syncGetConflicts: () => ipcRenderer.invoke('sync-get-conflicts'),
+  syncResolveConflict: (conflictId: number, strategy: 'local_wins' | 'remote_wins') =>
+    ipcRenderer.invoke('sync-resolve-conflict', conflictId, strategy),
+  onSyncEvent: (callback: (event: any) => void) => {
+    const listener = (_: any, event: any) => callback(event);
+    ipcRenderer.on('sync-event', listener);
+    return () => ipcRenderer.removeListener('sync-event', listener);
+  },
 };
 
 contextBridge.exposeInMainWorld('electronAPI', api);
