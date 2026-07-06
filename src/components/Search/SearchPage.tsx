@@ -1,17 +1,19 @@
 import { FC, useState, useMemo, useEffect } from 'react';
 import { observer } from 'mobx-react-lite';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Save } from 'lucide-react';
 import { useStore } from '../../stores/StoreProvider';
-import { Note } from '../../types';
+import { Note, SavedFilter } from '../../types';
 import { SearchInput } from './SearchInput';
 import { SearchFilters } from './SearchFilters';
 import { SearchResults } from './SearchResults';
+import { SaveFilterModal } from '../Modals/SaveFilterModal';
 import './SearchPage.css';
 
 interface SearchPageProps {
   onClose: () => void;
   onNoteSelect: (note: Note) => void;
   initialTagPath?: string;
+  initialFilters?: SavedFilter;
 }
 
 interface TagFilter {
@@ -19,14 +21,24 @@ interface TagFilter {
   operator: 'AND' | 'OR' | 'NOT';
 }
 
-export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect, initialTagPath }) => {
-  const { notesStore, settingsStore, tagsStore } = useStore();
+export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect, initialTagPath, initialFilters }) => {
+  const { notesStore, settingsStore, tagsStore, savedFiltersStore } = useStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [tagFilters, setTagFilters] = useState<TagFilter[]>(
     initialTagPath ? [{ path: initialTagPath, operator: 'AND' }] : []
   );
   const [selectedTagOperator, setSelectedTagOperator] = useState<'AND' | 'OR' | 'NOT'>('AND');
   const [showOnlyEmptyNotes, setShowOnlyEmptyNotes] = useState(false);
+  const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
+
+  // Apply initialFilters when provided
+  useEffect(() => {
+    if (initialFilters) {
+      setSearchQuery(initialFilters.searchQuery);
+      setTagFilters(initialFilters.tagFilters);
+      setShowOnlyEmptyNotes(initialFilters.showOnlyEmptyNotes);
+    }
+  }, [initialFilters]);
 
   useEffect(() => {
     tagsStore.loadTagsFromElectron();
@@ -192,6 +204,8 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
     setShowOnlyEmptyNotes(false);
   };
 
+  const hasActiveFilters = searchQuery.trim().length > 0 || tagFilters.length > 0 || showOnlyEmptyNotes;
+
   return (
     <div className="search-page">
       <div className="search-header">
@@ -200,27 +214,53 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
           Back
         </button>
         <h1>Search Notes</h1>
+        {hasActiveFilters && (
+          <button
+            onClick={() => setIsSaveDialogOpen(true)}
+            className="search-save-filter-button"
+            style={{
+              marginLeft: 'auto',
+              padding: '0.5rem 1rem',
+              borderRadius: '0.5rem',
+              border: '1px solid var(--color-border)',
+              background: 'var(--color-white)',
+              color: 'var(--color-text)',
+              cursor: 'pointer',
+              fontSize: '0.875rem',
+              fontWeight: 500,
+              fontFamily: "'Outfit', system-ui, sans-serif",
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            <Save size={16} />
+            Сохранить поиск
+          </button>
+        )}
       </div>
 
       <div className="search-content">
-        <SearchInput
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-        />
-        
-        <SearchFilters
-          tagFilters={tagFilters}
-          onAddTagFilter={addTagFilter}
-          onRemoveTagFilter={removeTagFilter}
-          onUpdateTagOperator={updateTagOperator}
-          onClearAllFilters={clearAllFilters}
-          selectedTagOperator={selectedTagOperator}
-          onSetSelectedTagOperator={setSelectedTagOperator}
-          searchQuery={searchQuery}
-          showOnlyEmptyNotes={showOnlyEmptyNotes}
-          onToggleEmptyNotes={setShowOnlyEmptyNotes}
-        />
-
+        <div className='search-filters-panel'>
+          <SearchInput
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+          />
+          
+          <SearchFilters
+            tagFilters={tagFilters}
+            onAddTagFilter={addTagFilter}
+            onRemoveTagFilter={removeTagFilter}
+            onUpdateTagOperator={updateTagOperator}
+            onClearAllFilters={clearAllFilters}
+            selectedTagOperator={selectedTagOperator}
+            onSetSelectedTagOperator={setSelectedTagOperator}
+            searchQuery={searchQuery}
+            showOnlyEmptyNotes={showOnlyEmptyNotes}
+            onToggleEmptyNotes={setShowOnlyEmptyNotes}
+          />
+        </div>
         <SearchResults
           filteredNotes={filteredNotes}
           searchQuery={searchQuery}
@@ -228,6 +268,15 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
           onNoteSelect={onNoteSelect}
         />
       </div>
+
+      <SaveFilterModal
+        isOpen={isSaveDialogOpen}
+        onConfirm={(label) => {
+          savedFiltersStore.saveFilter(label, searchQuery, tagFilters, showOnlyEmptyNotes);
+          setIsSaveDialogOpen(false);
+        }}
+        onCancel={() => setIsSaveDialogOpen(false)}
+      />
     </div>
   );
 });

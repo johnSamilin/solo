@@ -13,6 +13,7 @@ import { FullWidthImage } from './extensions/FullWidthImage';
 import { CutIn } from './extensions/CutIn';
 import { Carousel } from './extensions/Carousel';
 import { useStore } from './stores/StoreProvider';
+import { SavedFilter } from './types';
 import { SettingsModal } from './components/Modals/SettingsModal/SettingsModal';
 import { NewNotebookModal } from './components/Modals/NewNoteBookModal';
 import { Sidebar } from './components/Sidebar/Sidebar';
@@ -34,6 +35,7 @@ const App = observer(() => {
   const [autoZenDisabled, setAutoZenDisabled] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchInitialTag, setSearchInitialTag] = useState<string | undefined>(undefined);
+  const [searchInitialFilters, setSearchInitialFilters] = useState<SavedFilter | undefined>(undefined);
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
   const [isParagraphTagModalOpen, setIsParagraphTagModalOpen] = useState(false);
   const [currentParagraphTags, setCurrentParagraphTags] = useState<string[]>([]);
@@ -368,13 +370,15 @@ const App = observer(() => {
 
       {isSearchOpen && (
         <SearchPage
-          onClose={() => { setIsSearchOpen(false); setSearchInitialTag(undefined); }}
+          onClose={() => { setIsSearchOpen(false); setSearchInitialTag(undefined); setSearchInitialFilters(undefined); }}
           onNoteSelect={(note) => {
             notesStore.setSelectedNote(note);
             setIsSearchOpen(false);
             setSearchInitialTag(undefined);
+            setSearchInitialFilters(undefined);
           }}
           initialTagPath={searchInitialTag}
+          initialFilters={searchInitialFilters}
         />
       )}
 
@@ -431,6 +435,12 @@ const App = observer(() => {
             onCreateNote={handleCreateNote}
             onOpenSearch={(tagPath) => {
               setSearchInitialTag(tagPath);
+              setSearchInitialFilters(undefined);
+              setIsSearchOpen(true);
+            }}
+            onOpenSearchWithFilters={(filter) => {
+              setSearchInitialFilters(filter);
+              setSearchInitialTag(undefined);
               setIsSearchOpen(true);
             }}
           />

@@ -300,7 +300,7 @@
   display: flex;
   justify-content: flex-end;
   gap: 0.75rem;
-  margin-top: 1.5rem;
+  margin: 1.5rem;
   padding-top: 1.5rem;
   border-top: 1px solid var(--color-border);
 }
