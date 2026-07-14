@@ -89,3 +89,13 @@ npm run electron:build  # Desktop version
 ## License
 
 NO LICENSE
+
+## Star History
+
+<a href="https://www.star-history.com/?type=date&repos=johnSamilin%2Fsolo">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=johnSamilin/solo&type=date&theme=dark&legend=top-left&sealed_token=Af0q_-g4pI1nw3R5Btm8o4MEKhv6hlgqentNeaPUIH3rvJCRLu8yj760L0gTwBu7psQCi5cYOBCJfgNSsAziV20_xKAaW1XWsAvDuv1VUsaHaC9eUmuNvXdIBLVHRd9SjFcB2Ku7Q1eu6OzxuN_Hi85r1CfgIOuAxf8pX_0S_E_fuacRqKLhbXkxR9qC" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=johnSamilin/solo&type=date&legend=top-left&sealed_token=Af0q_-g4pI1nw3R5Btm8o4MEKhv6hlgqentNeaPUIH3rvJCRLu8yj760L0gTwBu7psQCi5cYOBCJfgNSsAziV20_xKAaW1XWsAvDuv1VUsaHaC9eUmuNvXdIBLVHRd9SjFcB2Ku7Q1eu6OzxuN_Hi85r1CfgIOuAxf8pX_0S_E_fuacRqKLhbXkxR9qC" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=johnSamilin/solo&type=date&legend=top-left&sealed_token=Af0q_-g4pI1nw3R5Btm8o4MEKhv6hlgqentNeaPUIH3rvJCRLu8yj760L0gTwBu7psQCi5cYOBCJfgNSsAziV20_xKAaW1XWsAvDuv1VUsaHaC9eUmuNvXdIBLVHRd9SjFcB2Ku7Q1eu6OzxuN_Hi85r1CfgIOuAxf8pX_0S_E_fuacRqKLhbXkxR9qC" />
+ </picture>
+</a>
