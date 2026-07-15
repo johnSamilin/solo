@@ -63,7 +63,7 @@ Results are printed to stdout as JSON.`)
 func runIndex(args []string) error {
 	fs := flag.NewFlagSet("index", flag.ExitOnError)
 	root := fs.String("root", "", "root folder containing notes to index (required)")
-	modelDir := fs.String("model-dir", "", "directory containing model.onnx and vocab.txt (defaults to $SOLO_SEARCH_MODEL_DIR or ./models next to the executable)")
+	modelDir := fs.String("model-dir", "", "directory containing model.onnx, tokenizer.json and model.json (defaults to $SOLO_SEARCH_MODEL_DIR or ./models next to the executable)")
 	quiet := fs.Bool("quiet", false, "suppress progress output on stderr")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -85,9 +85,14 @@ func runIndex(args []string) error {
 	}
 	defer embedding.ShutdownRuntime()
 
+	profile, err := embedding.LoadProfile(cfg.ProfilePath())
+	if err != nil {
+		return fmt.Errorf("loading model profile: %w", err)
+	}
 	model, err := embedding.LoadModel(embedding.LoadOptions{
-		ModelPath: cfg.ModelPath(),
-		VocabPath: cfg.VocabPath(),
+		ModelPath:     cfg.ModelPath(),
+		TokenizerPath: cfg.TokenizerPath(),
+		Profile:       profile,
 	})
 	if err != nil {
 		return fmt.Errorf("loading model: %w", err)
@@ -120,7 +125,7 @@ func runIndex(args []string) error {
 func runQuery(args []string) error {
 	fs := flag.NewFlagSet("query", flag.ExitOnError)
 	root := fs.String("root", "", "root folder containing the notes index (required)")
-	modelDir := fs.String("model-dir", "", "directory containing model.onnx and vocab.txt")
+	modelDir := fs.String("model-dir", "", "directory containing model.onnx, tokenizer.json and model.json")
 	queryText := fs.String("query", "", "semantic search query text")
 	tagsExpr := fs.String("tags", "", "boolean tag expression, e.g. \"foo AND (bar OR baz)\"")
 	limit := fs.Int("limit", search.DefaultLimit, "maximum number of results to return")
@@ -157,9 +162,14 @@ func runQuery(args []string) error {
 		}
 		defer embedding.ShutdownRuntime()
 
+		profile, err := embedding.LoadProfile(cfg.ProfilePath())
+		if err != nil {
+			return fmt.Errorf("loading model profile: %w", err)
+		}
 		model, err = embedding.LoadModel(embedding.LoadOptions{
-			ModelPath: cfg.ModelPath(),
-			VocabPath: cfg.VocabPath(),
+			ModelPath:     cfg.ModelPath(),
+			TokenizerPath: cfg.TokenizerPath(),
+			Profile:       profile,
 		})
 		if err != nil {
 			return fmt.Errorf("loading model: %w", err)

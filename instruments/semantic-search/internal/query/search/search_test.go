@@ -135,3 +135,64 @@ func TestRunRequiresQueryOrTags(t *testing.T) {
 		t.Fatal("expected error when neither Query nor TagExpr provided")
 	}
 }
+
+// fakeEmbedder returns a fixed query vector, letting hybrid search be tested
+// without the ONNX runtime.
+type fakeEmbedder struct{ vec []float32 }
+
+func (f fakeEmbedder) EmbedQuery(string) ([]float32, error) { return f.vec, nil }
+
+func TestRunHybridMode(t *testing.T) {
+	s := openTestStoreWithData(t)
+
+	// Query vector aligned with a.html's paragraph embedding {1,0,0}.
+	resp, err := Run(Options{
+		Store: s,
+		Model: fakeEmbedder{vec: []float32{1, 0, 0}},
+		Query: "alpha project",
+	})
+	if err != nil {
+		t.Fatalf("Run error: %v", err)
+	}
+	if resp.Mode != ModeHybrid {
+		t.Errorf("Mode = %q, want %q", resp.Mode, ModeHybrid)
+	}
+	if resp.Count == 0 {
+		t.Fatal("expected hybrid results")
+	}
+	// a.html should rank first: it wins the semantic track (identical vector)
+	// and the lexical track (shares stems "alpha"/"project").
+	if resp.Results[0].FilePath != "a.html" {
+		t.Errorf("expected a.html ranked first, got %s (%+v)", resp.Results[0].FilePath, resp.Results)
+	}
+	for _, r := range resp.Results {
+		if r.SemanticScore == nil || r.LexicalScore == nil || r.Score == nil {
+			t.Errorf("hybrid result missing scores: %+v", r)
+		}
+	}
+}
+
+func TestRunHybridWithTagBoost(t *testing.T) {
+	s := openTestStoreWithData(t)
+
+	resp, err := Run(Options{
+		Store:   s,
+		Model:   fakeEmbedder{vec: []float32{0, 0, 1}},
+		Query:   "project",
+		TagExpr: "archived",
+	})
+	if err != nil {
+		t.Fatalf("Run error: %v", err)
+	}
+	if resp.Mode != ModeHybridTag {
+		t.Errorf("Mode = %q, want %q", resp.Mode, ModeHybridTag)
+	}
+	// c.html is archived and semantically aligned with {0,0,1}; the tag boost
+	// plus semantic match should put it first.
+	if resp.Results[0].FilePath != "c.html" {
+		t.Errorf("expected c.html first, got %s", resp.Results[0].FilePath)
+	}
+	if resp.Results[0].TagMatched == nil || !*resp.Results[0].TagMatched {
+		t.Errorf("expected top result TagMatched=true")
+	}
+}

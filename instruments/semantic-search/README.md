@@ -22,12 +22,22 @@ the detailed design in
   `FileMetadata` TypeScript type used by the Solo app.
 - Indexing computes a 384-dimensional sentence embedding
   (mean-pooled, L2-normalized) for every paragraph chunk using the
-  `all-MiniLM-L6-v2` model running locally through ONNX Runtime, and stores
-  it in a SQLite database at `<root>/.solo-index/index.db`.
+  **multilingual** `paraphrase-multilingual-MiniLM-L12-v2` model running
+  locally through ONNX Runtime, and stores it in a SQLite database at
+  `<root>/.solo-index/index.db`. This model covers 50+ languages including
+  Russian, so Cyrillic notes are embedded meaningfully (the previous
+  English-only `all-MiniLM-L6-v2` + WordPiece tokenizer has been removed).
+- In addition to the dense embedding, indexing computes a **language-aware
+  lexical signature** for each paragraph: text is Unicode-normalized,
+  tokenized, language-detected (Cyrillic vs Latin) and stemmed with the
+  matching Snowball stemmer (Russian/English). These stems are stored and
+  power the keyword (BM25) side of hybrid search.
 - Indexing is **incremental**: a file is only re-embedded if the combined
   hash of its HTML + JSON sidecar content changed since the last run (or if
   the embedding model version changed).
-- Querying supports three modes depending on which flags you provide.
+- Querying is **hybrid**: it fuses semantic (embedding cosine) and lexical
+  (BM25 over stems) rankings with Reciprocal Rank Fusion, optionally combined
+  with a tag filter/boost.
 
 ## Building
 
@@ -67,21 +77,50 @@ If `SOLO_SEARCH_ONNXRUNTIME_LIB` is not set, the library is loaded via the
 default dynamic linker search (`onnxruntime.so` must be on `LD_LIBRARY_PATH`
 or installed system-wide).
 
-### 2. Model + tokenizer files
+### 2. Model + tokenizer + profile files
 
-`solo-search` expects two files in its **model directory**:
+`solo-search` expects three files in its **model directory**:
 
-- `model.onnx` — the `all-MiniLM-L6-v2` encoder in ONNX format.
-- `vocab.txt` — the matching WordPiece vocabulary (one token per line).
+- `model.onnx` — the multilingual sentence-transformer encoder in ONNX
+  format.
+- `tokenizer.json` — the HuggingFace tokenizer description (SentencePiece /
+  Unigram for XLM-R based models). This replaces the old `vocab.txt` and is
+  loaded verbatim, so normalizers/pre-tokenizers behave exactly as trained.
+- `model.json` — a small declarative profile describing how to run and
+  interpret the encoder (see below). An example is committed at
+  `models/model.json`.
 
-Both are available from the Hugging Face mirror
-[`Xenova/all-MiniLM-L6-v2`](https://huggingface.co/Xenova/all-MiniLM-L6-v2):
+Files for `paraphrase-multilingual-MiniLM-L12-v2` are available from the
+Hugging Face mirror
+[`Xenova/paraphrase-multilingual-MiniLM-L12-v2`](https://huggingface.co/Xenova/paraphrase-multilingual-MiniLM-L12-v2):
 
 ```sh
 mkdir -p models
-curl -L https://huggingface.co/Xenova/all-MiniLM-L6-v2/resolve/main/onnx/model.onnx -o models/model.onnx
-curl -L https://huggingface.co/Xenova/all-MiniLM-L6-v2/resolve/main/vocab.txt      -o models/vocab.txt
+curl -L https://huggingface.co/Xenova/paraphrase-multilingual-MiniLM-L12-v2/resolve/main/onnx/model.onnx      -o models/model.onnx
+curl -L https://huggingface.co/Xenova/paraphrase-multilingual-MiniLM-L12-v2/resolve/main/tokenizer.json       -o models/tokenizer.json
+# model.json is already provided in this repo under models/model.json
 ```
+
+#### `model.json` profile
+
+```json
+{
+  "name": "paraphrase-multilingual-MiniLM-L12-v2",
+  "dimensions": 384,
+  "maxSeqLen": 128,
+  "pooling": "mean",
+  "queryPrefix": "",
+  "passagePrefix": ""
+}
+```
+
+- `dimensions` / `maxSeqLen` — embedding size and token sequence length.
+- `pooling` — `mean` (default, sentence-transformers) or `cls`.
+- `queryPrefix` / `passagePrefix` — optional instruction prefixes some models
+  (e.g. the e5 family: `"query: "` / `"passage: "`) require. Leave empty for
+  MiniLM-style models. Swapping to a different model is therefore a
+  data-only change to `model.json` + the two artifact files — no code
+  changes.
 
 The model directory is resolved in this order:
 
@@ -116,11 +155,21 @@ to stderr, so stdout can be piped directly into `jq` or another tool.
 
 ### Query modes
 
-| Flags provided        | Mode                  | Behavior                                                                 |
-|------------------------|-----------------------|---------------------------------------------------------------------------|
-| `--query` only          | `semantic`            | Pure cosine-similarity ranking over all indexed paragraphs.               |
-| `--tags` only           | `tags-only`           | Hard filter: only paragraphs/files whose tags satisfy the expression are returned (no similarity score), sorted newest-first. |
-| `--query` **and** `--tags` | `semantic+tag-boost`  | Cosine similarity ranking, with a fixed additive boost (`+0.15`) applied to results whose tags satisfy the expression. Non-matching results are still included, just ranked lower. |
+| Flags provided             | Mode                | Behavior                                                                 |
+|----------------------------|---------------------|---------------------------------------------------------------------------|
+| `--query` only             | `hybrid`            | Hybrid ranking: the semantic (cosine) and lexical (BM25 over stems) rankings are fused with Reciprocal Rank Fusion. |
+| `--tags` only              | `tags-only`         | Hard filter: only paragraphs/files whose tags satisfy the expression are returned (no similarity score), sorted newest-first. |
+| `--query` **and** `--tags` | `hybrid+tag-boost`  | Hybrid ranking as above, with a fixed additive boost (`+0.15`) applied to results whose tags satisfy the expression. Non-matching results are still included, just ranked lower. |
+
+**Hybrid ranking details.** Every paragraph is scored twice — by embedding
+cosine similarity and by Okapi BM25 over the language-aware stemmed query —
+and the two rankings are combined with Reciprocal Rank Fusion
+(`score = Σ 1/(k + rank)`, `k = 60`). RRF is robust to the two tracks' very
+different score scales, so no per-corpus weight tuning is needed. The BM25
+track is what makes exact, morphology-aware Russian matches reliable (e.g.
+"заметки" in the query matches "заметка" in a note via the shared stem),
+while the semantic track captures meaning/paraphrase similarity. Each result
+reports both `semanticScore` and `lexicalScore` alongside the fused `score`.
 
 ### Tag expression syntax
 
@@ -144,7 +193,7 @@ existing fuzzy tag-path matching used by Solo's web `SearchPage`.
 
 ```json
 {
-  "mode": "semantic+tag-boost",
+  "mode": "hybrid+tag-boost",
   "query": "trip budget",
   "tagExpr": "travel AND (budget OR money)",
   "count": 2,
@@ -158,17 +207,19 @@ existing fuzzy tag-path matching used by Solo's web `SearchPage`.
       "fileTags": ["travel", "journal"],
       "noteId": "note-travel-1",
       "fileCreatedAt": "2024-05-01T00:00:00Z",
-      "score": 0.57,
+      "score": 0.18,
       "semanticScore": 0.42,
+      "lexicalScore": 3.11,
       "tagMatched": true
     }
   ]
 }
 ```
 
-`score` is omitted entirely in `tags-only` mode (all matches are equally
-valid); `semanticScore` and `tagMatched` are included whenever a query /
-tag expression, respectively, was supplied.
+`score` (the fused RRF score) is omitted entirely in `tags-only` mode (all
+matches are equally valid); `semanticScore` and `lexicalScore` are included
+whenever a query was supplied, and `tagMatched` whenever a tag expression
+was supplied.
 
 ## Index storage
 
@@ -196,19 +247,20 @@ solo/instruments/semantic-search/
 ├── go.mod
 ├── Makefile
 ├── README.md
-├── models/                    # place model.onnx + vocab.txt here (not committed)
+├── models/                    # model.onnx + tokenizer.json (not committed) + model.json (committed)
 ├── cmd/solo-search/main.go    # CLI entry point (index / query subcommands)
 └── internal/
     ├── config/                # path resolution (root, model dir, index path)
-    ├── embedding/              # WordPiece tokenizer + ONNX Runtime session wrapper
+    ├── embedding/              # HF tokenizer.json loader + model.json profile + ONNX session wrapper
+    ├── lexical/                # language detection + Snowball stemming + BM25 (lexical track)
     ├── htmlparse/              # paragraph/heading/list-item chunk extraction
     ├── metadata/               # sidecar JSON (FileMetadata) loading
-    ├── store/                  # SQLite-backed index (files + paragraphs tables)
+    ├── store/                  # SQLite-backed index (files + paragraphs + lexical tokens)
     ├── fsutil/                 # note file walking + content hashing
     ├── indexer/                # incremental index build orchestration
     └── query/
         ├── tagexpr/            # boolean tag expression parser/evaluator
-        └── search/             # the 3 query modes + JSON response shaping
+        └── search/             # hybrid ranking (RRF) + tag modes + JSON response shaping
 ```
 
 ## Testing
@@ -218,11 +270,15 @@ make test
 ```
 
 Unit tests cover the tag-expression parser, HTML paragraph extraction
-(including nested block elements), the WordPiece tokenizer, the SQLite
-store round-trip, and all three search modes (using a mocked embedding
-store, not requiring the actual ONNX model at test time).
+(including nested block elements), the tokenizer framing/padding logic, the
+`lexical` package (Cyrillic/Latin language detection, Russian stemming of
+word forms to a shared stem, and BM25 ranking), the SQLite store round-trip,
+and all search modes including hybrid semantic+lexical fusion (using a
+mocked embedder, not requiring the actual ONNX model at test time). Tests
+that exercise the real multilingual tokenizer are skipped automatically when
+`tokenizer.json` is not present.
 
-An end-to-end run (real ONNX Runtime + real `all-MiniLM-L6-v2` model against
-sample notes) has been manually verified to produce correctly ranked
-semantic results, correct incremental re-indexing (skipping unchanged
-files), and correct behavior for all three query modes.
+Because the multilingual model and stemmers are new, the on-disk schema
+version and model-version tag were both bumped: opening an index built by a
+previous version automatically wipes it, so the next `index` run performs a
+clean full rebuild (there is no in-place migration).

@@ -13,6 +13,7 @@ import (
 	"github.com/solo-notes/semantic-search/internal/embedding"
 	"github.com/solo-notes/semantic-search/internal/fsutil"
 	"github.com/solo-notes/semantic-search/internal/htmlparse"
+	"github.com/solo-notes/semantic-search/internal/lexical"
 	"github.com/solo-notes/semantic-search/internal/metadata"
 	"github.com/solo-notes/semantic-search/internal/store"
 )
@@ -21,7 +22,11 @@ import (
 // changes in a way that makes previously stored vectors incomparable to
 // newly computed ones. Bump this alongside store.SchemaVersion when
 // swapping models.
-const ModelVersionTag = "all-MiniLM-L6-v2-onnx-v1"
+//
+// Switched from the English-only all-MiniLM to the multilingual
+// paraphrase-multilingual-MiniLM-L12-v2, plus the addition of stored lexical
+// tokens for hybrid search — both force a full re-index of existing corpora.
+const ModelVersionTag = "paraphrase-multilingual-MiniLM-L12-v2-hybrid-v1"
 
 // Options configures a single indexing run.
 type Options struct {
@@ -161,7 +166,7 @@ func indexOneFile(opts Options, note fsutil.NoteFile, sidecarPath, hash string) 
 		texts[i] = p.Text
 	}
 
-	embeddings, err := opts.Model.EmbedBatch(texts)
+	embeddings, err := opts.Model.EmbedPassageBatch(texts)
 	if err != nil {
 		return 0, fmt.Errorf("embedding paragraphs: %w", err)
 	}
@@ -174,6 +179,9 @@ func indexOneFile(opts Options, note fsutil.NoteFile, sidecarPath, hash string) 
 			Tag:           p.Tag,
 			Text:          p.Text,
 			ParagraphTags: p.ParagraphTags,
+			// Precompute the language-aware stemmed tokens for the BM25
+			// lexical track so querying never has to re-analyze documents.
+			LexicalTokens: lexical.Analyze(p.Text),
 			Embedding:     embeddings[i],
 		}
 	}

@@ -15,25 +15,39 @@ import (
 	"math"
 	"sort"
 
-	"github.com/solo-notes/semantic-search/internal/embedding"
+	"github.com/solo-notes/semantic-search/internal/lexical"
 	"github.com/solo-notes/semantic-search/internal/query/tagexpr"
 	"github.com/solo-notes/semantic-search/internal/store"
 )
 
 // TagBoostWeight controls how much a full tag-expression match contributes
-// to a result's score, expressed as a fraction added on top of the
-// semantic cosine similarity (which is already in [-1, 1], but typically
-// >0 for reasonably related sentences). A boosted match adds this constant
-// to the raw similarity score.
+// to a result's score. In hybrid mode the base score is the Reciprocal Rank
+// Fusion score (small, typically < 0.05), so the boost is scaled to remain
+// meaningful relative to it.
 const TagBoostWeight = 0.15
+
+// rrfK is the Reciprocal Rank Fusion constant. RRF fuses the semantic and
+// lexical rankings by summing 1/(k+rank) across both lists, which is robust
+// to the two tracks' very different score scales (cosine similarity vs
+// BM25) without any per-corpus weight tuning. k=60 is the value from the
+// original RRF paper and a widely used default.
+const rrfK = 60.0
 
 // Options configures a single search invocation.
 type Options struct {
 	Store       *store.Store
-	Model       *embedding.Model // may be nil if Query == ""
+	Model       Embedder // may be nil if Query == ""
 	Query       string
 	TagExpr     string
 	Limit       int // 0 => DefaultLimit
+}
+
+// Embedder is the minimal embedding surface the search layer needs. It is
+// satisfied by *embedding.Model in production and by a stub in tests, so the
+// hybrid ranking can be exercised without loading the ONNX runtime.
+type Embedder interface {
+	// EmbedQuery returns the (prefixed, pooled, normalized) query embedding.
+	EmbedQuery(text string) ([]float32, error)
 }
 
 // DefaultLimit is used when Options.Limit is unset (<=0).
@@ -51,26 +65,30 @@ type Result struct {
 	FileTheme     string   `json:"fileTheme,omitempty"`
 	FileCreatedAt string   `json:"fileCreatedAt,omitempty"`
 
-	// Score is the final ranking score. For query-only and query+tags
-	// modes this is the (possibly boosted) cosine similarity. For
-	// tags-only mode, Score is omitted (all matches are equally valid) —
-	// represented as a nil pointer to distinguish "no score" from 0.
+	// Score is the final ranking score. For query modes this is the
+	// Reciprocal Rank Fusion score of the semantic and lexical rankings
+	// (plus any tag boost). For tags-only mode, Score is omitted (all
+	// matches are equally valid) — a nil pointer distinguishes "no score"
+	// from 0.
 	Score *float64 `json:"score,omitempty"`
 	// SemanticScore is the raw cosine similarity, present whenever a query
 	// embedding was computed.
 	SemanticScore *float64 `json:"semanticScore,omitempty"`
+	// LexicalScore is the raw BM25 score of the paragraph against the
+	// stemmed query, present whenever a query was supplied.
+	LexicalScore *float64 `json:"lexicalScore,omitempty"`
 	// TagMatched reports whether this result satisfied the tag expression
 	// (present whenever a tag expression was supplied).
 	TagMatched *bool `json:"tagMatched,omitempty"`
 }
 
-// Mode identifies which of the three search strategies was used.
+// Mode identifies which search strategy was used.
 type Mode string
 
 const (
-	ModeSemantic    Mode = "semantic"           // query only
-	ModeTagsOnly    Mode = "tags-only"          // tags only
-	ModeSemanticTag Mode = "semantic+tag-boost" // query + tags
+	ModeHybrid    Mode = "hybrid"           // query only (semantic + lexical RRF)
+	ModeTagsOnly  Mode = "tags-only"        // tags only
+	ModeHybridTag Mode = "hybrid+tag-boost" // query + tags
 )
 
 // Response is the top-level structure serialized to stdout as JSON.
@@ -114,11 +132,11 @@ func Run(opts Options) (*Response, error) {
 
 	switch {
 	case hasQuery && hasTags:
-		return runSemanticWithTagBoost(opts, expr, paragraphs, limit)
+		return runHybrid(opts, expr, paragraphs, limit)
 	case hasTags:
 		return runTagsOnly(expr, paragraphs, limit)
 	default:
-		return runSemanticOnly(opts, paragraphs, limit)
+		return runHybrid(opts, nil, paragraphs, limit)
 	}
 }
 
@@ -155,19 +173,62 @@ func toResult(p store.StoredParagraph) Result {
 	}
 }
 
-func runSemanticOnly(opts Options, paragraphs []store.StoredParagraph, limit int) (*Response, error) {
-	queryVec, err := opts.Model.Embed(opts.Query)
+// runHybrid performs the hybrid semantic + lexical search. It ranks every
+// paragraph twice — once by dense cosine similarity and once by BM25 over
+// the stemmed query — then fuses the two rankings with Reciprocal Rank
+// Fusion. When expr is non-nil, paragraphs whose tags satisfy it receive an
+// additive score boost (results not matching the tags are still returned,
+// just ranked lower). expr==nil is the pure query mode.
+func runHybrid(opts Options, expr tagexpr.Expr, paragraphs []store.StoredParagraph, limit int) (*Response, error) {
+	queryVec, err := opts.Model.EmbedQuery(opts.Query)
 	if err != nil {
 		return nil, fmt.Errorf("embedding query: %w", err)
 	}
 
+	// --- Semantic track: cosine similarity for every paragraph. ---
+	semScores := make([]float64, len(paragraphs))
+	for i, p := range paragraphs {
+		semScores[i] = cosineSimilarity(queryVec, p.Embedding)
+	}
+	semRank := rankIndices(semScores)
+
+	// --- Lexical track: BM25 over the stemmed query against stored tokens. ---
+	docs := make([]lexical.Document, len(paragraphs))
+	for i, p := range paragraphs {
+		docs[i] = lexical.Document{ID: int64(i), Tokens: p.LexicalTokens}
+	}
+	bm25 := lexical.BuildIndex(docs)
+	lexScoreByID := bm25.Score(lexical.Analyze(opts.Query))
+	lexScores := make([]float64, len(paragraphs))
+	for i := range paragraphs {
+		lexScores[i] = lexScoreByID[int64(i)]
+	}
+	lexRank := rankIndices(lexScores)
+
+	// --- Fuse the two rankings with Reciprocal Rank Fusion. ---
 	results := make([]Result, 0, len(paragraphs))
-	for _, p := range paragraphs {
-		sim := cosineSimilarity(queryVec, p.Embedding)
+	for i, p := range paragraphs {
+		rrf := 1.0/(rrfK+float64(semRank[i])) + 1.0/(rrfK+float64(lexRank[i]))
+
+		var matched bool
+		if expr != nil {
+			matched = expr.Eval(combinedTags(p))
+			if matched {
+				rrf += TagBoostWeight
+			}
+		}
+
 		r := toResult(p)
-		s := sim
-		r.Score = &s
-		r.SemanticScore = &s
+		sem := semScores[i]
+		lex := lexScores[i]
+		final := rrf
+		r.SemanticScore = &sem
+		r.LexicalScore = &lex
+		r.Score = &final
+		if expr != nil {
+			m := matched
+			r.TagMatched = &m
+		}
 		results = append(results, r)
 	}
 
@@ -178,12 +239,37 @@ func runSemanticOnly(opts Options, paragraphs []store.StoredParagraph, limit int
 		results = results[:limit]
 	}
 
+	mode := ModeHybrid
+	tagExpr := ""
+	if expr != nil {
+		mode = ModeHybridTag
+		tagExpr = exprString(expr)
+	}
 	return &Response{
-		Mode:    ModeSemantic,
+		Mode:    mode,
 		Query:   opts.Query,
+		TagExpr: tagExpr,
 		Count:   len(results),
 		Results: results,
 	}, nil
+}
+
+// rankIndices returns, for each input index, its 1-based rank when sorted by
+// descending score (rank 1 = highest score). Ties are broken by original
+// index for determinism. Used to feed Reciprocal Rank Fusion.
+func rankIndices(scores []float64) []int {
+	order := make([]int, len(scores))
+	for i := range order {
+		order[i] = i
+	}
+	sort.SliceStable(order, func(a, b int) bool {
+		return scores[order[a]] > scores[order[b]]
+	})
+	rank := make([]int, len(scores))
+	for r, idx := range order {
+		rank[idx] = r + 1
+	}
+	return rank
 }
 
 func runTagsOnly(expr tagexpr.Expr, paragraphs []store.StoredParagraph, limit int) (*Response, error) {
@@ -216,47 +302,6 @@ func runTagsOnly(expr tagexpr.Expr, paragraphs []store.StoredParagraph, limit in
 
 	return &Response{
 		Mode:    ModeTagsOnly,
-		TagExpr: exprString(expr),
-		Count:   len(results),
-		Results: results,
-	}, nil
-}
-
-func runSemanticWithTagBoost(opts Options, expr tagexpr.Expr, paragraphs []store.StoredParagraph, limit int) (*Response, error) {
-	queryVec, err := opts.Model.Embed(opts.Query)
-	if err != nil {
-		return nil, fmt.Errorf("embedding query: %w", err)
-	}
-
-	results := make([]Result, 0, len(paragraphs))
-	for _, p := range paragraphs {
-		sim := cosineSimilarity(queryVec, p.Embedding)
-		matched := expr != nil && expr.Eval(combinedTags(p))
-
-		score := sim
-		if matched {
-			score += TagBoostWeight
-		}
-
-		r := toResult(p)
-		s := sim
-		final := score
-		r.SemanticScore = &s
-		r.Score = &final
-		r.TagMatched = &matched
-		results = append(results, r)
-	}
-
-	sort.Slice(results, func(i, j int) bool {
-		return *results[i].Score > *results[j].Score
-	})
-	if len(results) > limit {
-		results = results[:limit]
-	}
-
-	return &Response{
-		Mode:    ModeSemanticTag,
-		Query:   opts.Query,
 		TagExpr: exprString(expr),
 		Count:   len(results),
 		Results: results,

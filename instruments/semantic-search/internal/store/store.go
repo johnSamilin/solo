@@ -22,7 +22,11 @@ import (
 // v2: embeddings are stored in a compact int8-quantized format (see
 // encodeEmbedding/decodeEmbedding) rather than raw float32, cutting the
 // index size roughly 4x.
-const SchemaVersion = 2
+//
+// v3: adds a lexical_tokens column to paragraphs holding the stemmed,
+// language-aware token list used by the hybrid (BM25 + semantic) search.
+// Existing v2 databases are wiped and rebuilt on upgrade.
+const SchemaVersion = 3
 
 // Store wraps a *sql.DB providing typed access to the index tables.
 type Store struct {
@@ -79,6 +83,7 @@ func (s *Store) migrate() error {
 			tag            TEXT NOT NULL,
 			text           TEXT NOT NULL,
 			paragraph_tags TEXT NOT NULL DEFAULT '',
+			lexical_tokens TEXT NOT NULL DEFAULT '',
 			embedding      BLOB NOT NULL
 		);
 
@@ -236,7 +241,7 @@ func upsertFileTx(tx *sql.Tx, rec FileRecord) error {
 // insertParagraphTx inserts a single paragraph within the provided
 // transaction using the prepared statement stmt.
 func insertParagraphTx(stmt *sql.Stmt, p ParagraphRecord) error {
-	_, err := stmt.Exec(p.FilePath, p.ParagraphIdx, p.Tag, p.Text, joinTags(p.ParagraphTags), encodeEmbedding(p.Embedding))
+	_, err := stmt.Exec(p.FilePath, p.ParagraphIdx, p.Tag, p.Text, joinTags(p.ParagraphTags), joinTags(p.LexicalTokens), encodeEmbedding(p.Embedding))
 	if err != nil {
 		return fmt.Errorf("inserting paragraph: %w", err)
 	}
@@ -261,8 +266,8 @@ func (s *Store) IndexFile(rec FileRecord, paragraphs []ParagraphRecord) error {
 
 	if len(paragraphs) > 0 {
 		stmt, err := tx.Prepare(`
-			INSERT INTO paragraphs (file_path, paragraph_idx, tag, text, paragraph_tags, embedding)
-			VALUES (?, ?, ?, ?, ?, ?)
+			INSERT INTO paragraphs (file_path, paragraph_idx, tag, text, paragraph_tags, lexical_tokens, embedding)
+			VALUES (?, ?, ?, ?, ?, ?, ?)
 		`)
 		if err != nil {
 			return fmt.Errorf("preparing paragraph insert: %w", err)
@@ -324,6 +329,9 @@ type ParagraphRecord struct {
 	Tag           string
 	Text          string
 	ParagraphTags []string
+	// LexicalTokens holds the stemmed, language-aware token list used by the
+	// BM25 lexical track of hybrid search.
+	LexicalTokens []string
 	Embedding     []float32
 }
 
@@ -332,9 +340,9 @@ type ParagraphRecord struct {
 // file.
 func (s *Store) InsertParagraph(p ParagraphRecord) error {
 	_, err := s.db.Exec(`
-		INSERT INTO paragraphs (file_path, paragraph_idx, tag, text, paragraph_tags, embedding)
-		VALUES (?, ?, ?, ?, ?, ?)
-	`, p.FilePath, p.ParagraphIdx, p.Tag, p.Text, joinTags(p.ParagraphTags), encodeEmbedding(p.Embedding))
+		INSERT INTO paragraphs (file_path, paragraph_idx, tag, text, paragraph_tags, lexical_tokens, embedding)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
+	`, p.FilePath, p.ParagraphIdx, p.Tag, p.Text, joinTags(p.ParagraphTags), joinTags(p.LexicalTokens), encodeEmbedding(p.Embedding))
 	if err != nil {
 		return fmt.Errorf("inserting paragraph: %w", err)
 	}
@@ -358,7 +366,7 @@ type StoredParagraph struct {
 func (s *Store) AllParagraphs() ([]StoredParagraph, error) {
 	rows, err := s.db.Query(`
 		SELECT
-			p.file_path, p.paragraph_idx, p.tag, p.text, p.paragraph_tags, p.embedding,
+			p.file_path, p.paragraph_idx, p.tag, p.text, p.paragraph_tags, p.lexical_tokens, p.embedding,
 			f.tags, f.theme, f.created_at, f.note_id
 		FROM paragraphs p
 		JOIN files f ON f.path = p.file_path
@@ -372,12 +380,13 @@ func (s *Store) AllParagraphs() ([]StoredParagraph, error) {
 	for rows.Next() {
 		var (
 			filePath, tag, text, paragraphTagsRaw string
+			lexicalTokensRaw                      string
 			paragraphIdx                          int
 			embeddingBlob                         []byte
 			fileTagsRaw, fileTheme, createdAt     sql.NullString
 			noteID                                sql.NullString
 		)
-		if err := rows.Scan(&filePath, &paragraphIdx, &tag, &text, &paragraphTagsRaw, &embeddingBlob,
+		if err := rows.Scan(&filePath, &paragraphIdx, &tag, &text, &paragraphTagsRaw, &lexicalTokensRaw, &embeddingBlob,
 			&fileTagsRaw, &fileTheme, &createdAt, &noteID); err != nil {
 			return nil, fmt.Errorf("scanning paragraph row: %w", err)
 		}
@@ -388,6 +397,7 @@ func (s *Store) AllParagraphs() ([]StoredParagraph, error) {
 				Tag:           tag,
 				Text:          text,
 				ParagraphTags: splitTags(paragraphTagsRaw),
+				LexicalTokens: splitTags(lexicalTokensRaw),
 				Embedding:     decodeEmbedding(embeddingBlob),
 			},
 			FileTags:      splitTags(fileTagsRaw.String),

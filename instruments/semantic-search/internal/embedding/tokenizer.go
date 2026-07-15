@@ -1,76 +1,68 @@
-// Package embedding provides a minimal WordPiece tokenizer and an ONNX
-// Runtime based sentence embedder compatible with the all-MiniLM-L6-v2
-// model family (and other BERT-like encoders sharing the same tokenizer
-// vocabulary format and input/output tensor layout).
+// Package embedding provides a HuggingFace-tokenizer-backed sentence
+// embedder for multilingual sentence-transformer encoders such as
+// paraphrase-multilingual-MiniLM-L12-v2 (an XLM-RoBERTa derived model using
+// SentencePiece/Unigram tokenization).
+//
+// The previous English-only WordPiece implementation has been removed
+// entirely: multilingual models ship a `tokenizer.json` describing a
+// Unigram/BPE tokenizer plus its normalizers and pre-tokenizers, which we
+// load verbatim via github.com/sugarme/tokenizer rather than reimplementing
+// by hand. This is what makes correct Russian (Cyrillic) tokenization
+// possible.
 package embedding
 
 import (
-	"bufio"
 	"fmt"
-	"os"
-	"strings"
-	"unicode"
+
+	"github.com/sugarme/tokenizer"
+	"github.com/sugarme/tokenizer/pretrained"
+	"golang.org/x/text/unicode/norm"
 )
 
-const (
-	tokenUnk  = "[UNK]"
-	tokenCls  = "[CLS]"
-	tokenSep  = "[SEP]"
-	tokenPad  = "[PAD]"
-	maxWPChar = 200 // words longer than this become [UNK], matches HF default
-)
-
-// Tokenizer implements the BERT "BasicTokenizer + WordPiece" scheme used by
-// all-MiniLM-L6-v2 and most bert-base derived encoders. It reads a
-// WordPiece vocabulary file (vocab.txt, one token per line).
+// Tokenizer wraps a loaded HuggingFace tokenizer (from tokenizer.json) and
+// produces padded/truncated model input sequences. It replaces the former
+// hand-written WordPiece tokenizer.
 type Tokenizer struct {
-	vocab    map[string]int64
-	unkID    int64
-	clsID    int64
-	sepID    int64
-	padID    int64
-	maxSeq   int
+	tk     *tokenizer.Tokenizer
+	maxSeq int
+	// clsID/sepID/padID are resolved from the tokenizer's special tokens so
+	// we can frame and pad sequences consistently across model families
+	// (XLM-R uses <s>/</s>/<pad>; BERT uses [CLS]/[SEP]/[PAD]).
+	clsID int
+	sepID int
+	padID int
 }
 
-// NewTokenizerFromFile loads a WordPiece vocabulary from vocabPath.
-func NewTokenizerFromFile(vocabPath string, maxSeqLen int) (*Tokenizer, error) {
-	f, err := os.Open(vocabPath)
+// NewTokenizerFromFile loads a HuggingFace tokenizer.json from tokenizerPath.
+// maxSeqLen is the sequence length sequences are padded/truncated to.
+func NewTokenizerFromFile(tokenizerPath string, maxSeqLen int) (*Tokenizer, error) {
+	tk, err := pretrained.FromFile(tokenizerPath)
 	if err != nil {
-		return nil, fmt.Errorf("opening vocab file: %w", err)
-	}
-	defer f.Close()
-
-	vocab := make(map[string]int64, 32000)
-	scanner := bufio.NewScanner(f)
-	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
-	var idx int64
-	for scanner.Scan() {
-		tok := scanner.Text()
-		if tok == "" {
-			continue
-		}
-		vocab[tok] = idx
-		idx++
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("reading vocab file: %w", err)
+		return nil, fmt.Errorf("loading tokenizer.json %q: %w", tokenizerPath, err)
 	}
 
-	t := &Tokenizer{vocab: vocab, maxSeq: maxSeqLen}
-	var ok bool
-	if t.unkID, ok = vocab[tokenUnk]; !ok {
-		return nil, fmt.Errorf("vocab file missing %s token", tokenUnk)
-	}
-	if t.clsID, ok = vocab[tokenCls]; !ok {
-		return nil, fmt.Errorf("vocab file missing %s token", tokenCls)
-	}
-	if t.sepID, ok = vocab[tokenSep]; !ok {
-		return nil, fmt.Errorf("vocab file missing %s token", tokenSep)
-	}
-	if t.padID, ok = vocab[tokenPad]; !ok {
-		return nil, fmt.Errorf("vocab file missing %s token", tokenPad)
+	t := &Tokenizer{tk: tk, maxSeq: maxSeqLen}
+
+	// Resolve framing/padding special-token ids, tolerating either the
+	// XLM-RoBERTa (<s>/</s>/<pad>) or BERT ([CLS]/[SEP]/[PAD]) conventions.
+	t.clsID = firstKnownTokenID(tk, "<s>", "[CLS]")
+	t.sepID = firstKnownTokenID(tk, "</s>", "[SEP]")
+	t.padID = firstKnownTokenID(tk, "<pad>", "[PAD]")
+	if t.clsID < 0 || t.sepID < 0 || t.padID < 0 {
+		return nil, fmt.Errorf("tokenizer %q is missing expected framing/pad special tokens", tokenizerPath)
 	}
 	return t, nil
+}
+
+// firstKnownTokenID returns the id of the first of the given token strings
+// that exists in the tokenizer's vocabulary, or -1 if none are present.
+func firstKnownTokenID(tk *tokenizer.Tokenizer, candidates ...string) int {
+	for _, c := range candidates {
+		if id, ok := tk.TokenToId(c); ok {
+			return id
+		}
+	}
+	return -1
 }
 
 // Encoded holds the token id / attention mask / token type sequences ready
@@ -81,25 +73,48 @@ type Encoded struct {
 	TokenTypeIDs  []int64
 }
 
-// Encode tokenizes text into a single [CLS] ... [SEP] sequence, truncated
-// and padded to the tokenizer's configured max sequence length.
+// Encode NFC-normalizes text, tokenizes it with the loaded HuggingFace
+// tokenizer, frames it as <s> ... </s> (or [CLS] ... [SEP]) and
+// pads/truncates to the configured max sequence length.
+//
+// Note: the tokenizer.json's own normalizer (e.g. NFKC/lowercase for XLM-R)
+// still runs inside Tokenizer.EncodeSingle; the outer NFC pass here only
+// guarantees a canonical, well-formed input string (important for Cyrillic
+// combining sequences) before that model-specific normalization.
 func (t *Tokenizer) Encode(text string) Encoded {
-	words := basicTokenize(text)
+	text = norm.NFC.String(text)
+
+	en, err := t.tk.EncodeSingle(text, false)
+	if err != nil || en == nil {
+		// On tokenization failure, emit an empty (just-framed) sequence so
+		// the caller still produces a well-formed, if uninformative, vector
+		// rather than crashing on a single bad paragraph.
+		return t.frameAndPad(nil)
+	}
+	ids := make([]int, len(en.Ids))
+	copy(ids, en.Ids)
+	return t.frameAndPad(ids)
+}
+
+// frameAndPad wraps raw content token ids with the leading/trailing special
+// tokens, truncates to leave room for them, builds the attention mask, and
+// right-pads to maxSeq. token_type_ids are all zero (single-segment input).
+func (t *Tokenizer) frameAndPad(content []int) Encoded {
+	// Reserve two slots for the framing special tokens.
+	maxContent := t.maxSeq - 2
+	if maxContent < 0 {
+		maxContent = 0
+	}
+	if len(content) > maxContent {
+		content = content[:maxContent]
+	}
 
 	ids := make([]int64, 0, t.maxSeq)
-	ids = append(ids, t.clsID)
-	for _, w := range words {
-		for _, sub := range t.wordPiece(w) {
-			if len(ids) >= t.maxSeq-1 {
-				break
-			}
-			ids = append(ids, sub)
-		}
-		if len(ids) >= t.maxSeq-1 {
-			break
-		}
+	ids = append(ids, int64(t.clsID))
+	for _, id := range content {
+		ids = append(ids, int64(id))
 	}
-	ids = append(ids, t.sepID)
+	ids = append(ids, int64(t.sepID))
 
 	attn := make([]int64, len(ids))
 	for i := range attn {
@@ -108,85 +123,10 @@ func (t *Tokenizer) Encode(text string) Encoded {
 	typeIDs := make([]int64, len(ids))
 
 	for len(ids) < t.maxSeq {
-		ids = append(ids, t.padID)
+		ids = append(ids, int64(t.padID))
 		attn = append(attn, 0)
 		typeIDs = append(typeIDs, 0)
 	}
 
 	return Encoded{InputIDs: ids, AttentionMask: attn, TokenTypeIDs: typeIDs}
-}
-
-// wordPiece splits a single whitespace/punctuation-delimited word into
-// WordPiece subword ids using the greedy longest-match-first algorithm.
-func (t *Tokenizer) wordPiece(word string) []int64 {
-	runes := []rune(word)
-	if len(runes) > maxWPChar {
-		return []int64{t.unkID}
-	}
-
-	var out []int64
-	start := 0
-	for start < len(runes) {
-		end := len(runes)
-		var curID int64 = -1
-		for end > start {
-			sub := string(runes[start:end])
-			if start > 0 {
-				sub = "##" + sub
-			}
-			if id, ok := t.vocab[sub]; ok {
-				curID = id
-				break
-			}
-			end--
-		}
-		if curID == -1 {
-			return []int64{t.unkID}
-		}
-		out = append(out, curID)
-		start = end
-	}
-	return out
-}
-
-// basicTokenize performs whitespace splitting, lowercasing, and punctuation
-// separation, matching BERT's BasicTokenizer (without accent stripping,
-// which most modern vocabularies bake into casing already).
-func basicTokenize(text string) []string {
-	text = strings.ToLower(text)
-	var tokens []string
-	var cur strings.Builder
-
-	flush := func() {
-		if cur.Len() > 0 {
-			tokens = append(tokens, cur.String())
-			cur.Reset()
-		}
-	}
-
-	for _, r := range text {
-		switch {
-		case unicode.IsSpace(r):
-			flush()
-		case isPunct(r):
-			flush()
-			tokens = append(tokens, string(r))
-		default:
-			cur.WriteRune(r)
-		}
-	}
-	flush()
-	return tokens
-}
-
-func isPunct(r rune) bool {
-	if unicode.IsPunct(r) || unicode.IsSymbol(r) {
-		return true
-	}
-	// ASCII punctuation not always covered by unicode.IsPunct/IsSymbol
-	switch r {
-	case '~', '`', '^', '$', '+', '<', '=', '>', '|':
-		return true
-	}
-	return false
 }

@@ -11,13 +11,6 @@ import (
 	ort "github.com/yalue/onnxruntime_go"
 )
 
-// DefaultMaxSeqLen matches the training sequence length used by
-// all-MiniLM-L6-v2 (and is a safe default for similar small encoders).
-const DefaultMaxSeqLen = 256
-
-// DefaultDimensions is the embedding size produced by all-MiniLM-L6-v2.
-const DefaultDimensions = 384
-
 // MaxBatchSize caps how many texts are packed into a single ONNX Run() call.
 // Larger inputs are transparently split into sub-batches by EmbedBatch to
 // bound peak memory: a single tensor is batch * maxSeqLen * hidden floats,
@@ -53,30 +46,34 @@ func ShutdownRuntime() {
 // vectors via mean pooling over token embeddings.
 type Model struct {
 	tokenizer *Tokenizer
+	profile   *Profile
 	session   *ort.DynamicAdvancedSession
 	inputName [3]string // input_ids, attention_mask, token_type_ids
 	hasType   bool
 	outputName string
 	maxSeqLen int
 	dims      int
+	pooling   Pooling
 }
 
-// LoadOptions configures Model loading.
+// LoadOptions configures Model loading. The model directory must contain
+// model.onnx, tokenizer.json and model.json (the Profile).
 type LoadOptions struct {
-	ModelPath string
-	VocabPath string
-	MaxSeqLen int // 0 => DefaultMaxSeqLen
+	ModelPath     string
+	TokenizerPath string
+	Profile       *Profile
 }
 
-// LoadModel loads the tokenizer vocabulary and ONNX model, inspecting the
-// model's declared inputs/outputs to determine tensor names.
+// LoadModel loads the HuggingFace tokenizer and ONNX model according to the
+// supplied profile, inspecting the model's declared inputs/outputs to
+// determine tensor names.
 func LoadModel(opts LoadOptions) (*Model, error) {
-	maxSeq := opts.MaxSeqLen
-	if maxSeq <= 0 {
-		maxSeq = DefaultMaxSeqLen
+	if opts.Profile == nil {
+		return nil, fmt.Errorf("LoadModel: profile is required")
 	}
+	maxSeq := opts.Profile.MaxSeqLen
 
-	tok, err := NewTokenizerFromFile(opts.VocabPath, maxSeq)
+	tok, err := NewTokenizerFromFile(opts.TokenizerPath, maxSeq)
 	if err != nil {
 		return nil, fmt.Errorf("loading tokenizer: %w", err)
 	}
@@ -86,7 +83,13 @@ func LoadModel(opts LoadOptions) (*Model, error) {
 		return nil, fmt.Errorf("inspecting model %q: %w", opts.ModelPath, err)
 	}
 
-	m := &Model{tokenizer: tok, maxSeqLen: maxSeq, dims: DefaultDimensions}
+	m := &Model{
+		tokenizer: tok,
+		profile:   opts.Profile,
+		maxSeqLen: maxSeq,
+		dims:      opts.Profile.Dimensions,
+		pooling:   opts.Profile.Pooling,
+	}
 
 	inputNames := make([]string, 0, len(inputInfo))
 	for _, in := range inputInfo {
@@ -157,8 +160,34 @@ func (m *Model) Dimensions() int {
 	return m.dims
 }
 
+// EmbedQuery embeds a search query, applying the profile's QueryPrefix (used
+// by instruction-tuned models such as e5; empty for MiniLM-style models).
+func (m *Model) EmbedQuery(text string) ([]float32, error) {
+	return m.Embed(m.profile.QueryPrefix + text)
+}
+
+// EmbedPassage embeds an indexable passage/paragraph, applying the profile's
+// PassagePrefix. Used by the indexer so query and document sides receive the
+// matching prefixes the model was trained with.
+func (m *Model) EmbedPassage(text string) ([]float32, error) {
+	return m.Embed(m.profile.PassagePrefix + text)
+}
+
+// EmbedPassageBatch is the batch form of EmbedPassage.
+func (m *Model) EmbedPassageBatch(texts []string) ([][]float32, error) {
+	if m.profile.PassagePrefix == "" {
+		return m.EmbedBatch(texts)
+	}
+	prefixed := make([]string, len(texts))
+	for i, t := range texts {
+		prefixed[i] = m.profile.PassagePrefix + t
+	}
+	return m.EmbedBatch(prefixed)
+}
+
 // Embed tokenizes and runs the model for a single text, returning a
-// mean-pooled, L2-normalized sentence embedding of length Dimensions().
+// pooled (mean or CLS per profile), L2-normalized sentence embedding of
+// length Dimensions().
 func (m *Model) Embed(text string) ([]float32, error) {
 	vecs, err := m.EmbedBatch([]string{text})
 	if err != nil {
@@ -257,30 +286,50 @@ func (m *Model) embedBatchRaw(texts []string) ([][]float32, error) {
 
 	result := make([][]float32, batch)
 	for b := 0; b < batch; b++ {
-		sum := make([]float32, hidden)
-		var count float32
-		for s := 0; s < seq; s++ {
-			mask := attnMask[b*seq+s]
-			if mask == 0 {
-				continue
-			}
-			base := (b*seq + s) * hidden
-			for h := 0; h < hidden; h++ {
-				sum[h] += data[base+h]
-			}
-			count++
+		var vec []float32
+		if m.pooling == PoolingCLS {
+			vec = clsPool(data, attnMask, b, seq, hidden)
+		} else {
+			vec = meanPool(data, attnMask, b, seq, hidden)
 		}
-		if count == 0 {
-			count = 1
-		}
-		for h := 0; h < hidden; h++ {
-			sum[h] /= count
-		}
-		normalize(sum)
-		result[b] = sum
+		normalize(vec)
+		result[b] = vec
 	}
 
 	return result, nil
+}
+
+// meanPool averages token embeddings for batch item b over non-masked
+// positions (the sentence-transformers default pooling).
+func meanPool(data []float32, attnMask []int64, b, seq, hidden int) []float32 {
+	sum := make([]float32, hidden)
+	var count float32
+	for s := 0; s < seq; s++ {
+		if attnMask[b*seq+s] == 0 {
+			continue
+		}
+		base := (b*seq + s) * hidden
+		for h := 0; h < hidden; h++ {
+			sum[h] += data[base+h]
+		}
+		count++
+	}
+	if count == 0 {
+		count = 1
+	}
+	for h := 0; h < hidden; h++ {
+		sum[h] /= count
+	}
+	return sum
+}
+
+// clsPool returns the first token's embedding for batch item b (CLS/<s>
+// pooling).
+func clsPool(data []float32, attnMask []int64, b, seq, hidden int) []float32 {
+	out := make([]float32, hidden)
+	base := (b * seq) * hidden
+	copy(out, data[base:base+hidden])
+	return out
 }
 
 func normalize(v []float32) {

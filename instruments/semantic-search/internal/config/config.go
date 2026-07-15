@@ -31,9 +31,15 @@ const (
 	// directory.
 	ModelFileName = "model.onnx"
 
-	// VocabFileName is the expected WordPiece vocabulary file name inside the
-	// model directory.
-	VocabFileName = "vocab.txt"
+	// TokenizerFileName is the expected HuggingFace tokenizer file name
+	// (tokenizer.json) inside the model directory. It replaces the former
+	// WordPiece vocab.txt.
+	TokenizerFileName = "tokenizer.json"
+
+	// ProfileFileName is the declarative model profile (model.json) inside
+	// the model directory describing dimensions, maxSeqLen, pooling and
+	// optional query/passage prefixes.
+	ProfileFileName = "model.json"
 )
 
 // Config holds resolved paths used across the CLI.
@@ -91,9 +97,14 @@ func (c *Config) ModelPath() string {
 	return filepath.Join(c.ModelDir, ModelFileName)
 }
 
-// VocabPath returns the absolute path to the tokenizer vocabulary file.
-func (c *Config) VocabPath() string {
-	return filepath.Join(c.ModelDir, VocabFileName)
+// TokenizerPath returns the absolute path to the HuggingFace tokenizer.json.
+func (c *Config) TokenizerPath() string {
+	return filepath.Join(c.ModelDir, TokenizerFileName)
+}
+
+// ProfilePath returns the absolute path to the model.json profile.
+func (c *Config) ProfilePath() string {
+	return filepath.Join(c.ModelDir, ProfileFileName)
 }
 
 // IndexDir returns the absolute path to the folder holding the index
@@ -112,14 +123,17 @@ func (c *Config) EnsureIndexDir() error {
 	return os.MkdirAll(c.IndexDir(), 0o755)
 }
 
-// CheckModelFiles verifies that the model and vocabulary files exist,
-// returning a descriptive error otherwise.
+// CheckModelFiles verifies that the ONNX model, tokenizer.json and model.json
+// profile all exist, returning a descriptive error otherwise.
 func (c *Config) CheckModelFiles() error {
 	if _, err := os.Stat(c.ModelPath()); err != nil {
 		return fmt.Errorf("model file not found at %q (set --model-dir or %s): %w", c.ModelPath(), EnvModelDir, err)
 	}
-	if _, err := os.Stat(c.VocabPath()); err != nil {
-		return fmt.Errorf("vocab file not found at %q (set --model-dir or %s): %w", c.VocabPath(), EnvModelDir, err)
+	if _, err := os.Stat(c.TokenizerPath()); err != nil {
+		return fmt.Errorf("tokenizer file not found at %q (set --model-dir or %s): %w", c.TokenizerPath(), EnvModelDir, err)
+	}
+	if _, err := os.Stat(c.ProfilePath()); err != nil {
+		return fmt.Errorf("model profile not found at %q (set --model-dir or %s): %w", c.ProfilePath(), EnvModelDir, err)
 	}
 	return nil
 }

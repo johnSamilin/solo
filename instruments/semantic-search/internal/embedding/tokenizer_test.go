@@ -2,95 +2,100 @@ package embedding
 
 import (
 	"os"
-	"path/filepath"
 	"testing"
 )
 
-// writeTestVocab creates a minimal WordPiece vocabulary file sufficient for
-// tokenizing simple lowercase English test sentences.
-func writeTestVocab(t *testing.T) string {
+// findTokenizerJSON locates a real tokenizer.json for integration-style
+// tests, honoring SOLO_SEARCH_MODEL_DIR. Tests that need the actual
+// multilingual tokenizer skip when it is not present, so the suite still
+// runs in CI without the (large) model artifacts.
+func findTokenizerJSON(t *testing.T) string {
 	t.Helper()
-	dir := t.TempDir()
-	path := filepath.Join(dir, "vocab.txt")
-
-	tokens := []string{
-		"[PAD]", "[UNK]", "[CLS]", "[SEP]",
-		"hello", "world", "brown", "fox", "jump", "##s", "over", "the",
-		"lazy", "dog", ".", ",",
+	dir := os.Getenv("SOLO_SEARCH_MODEL_DIR")
+	if dir == "" {
+		dir = "../../models"
 	}
-	content := ""
-	for _, tok := range tokens {
-		content += tok + "\n"
-	}
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-		t.Fatalf("writing vocab: %v", err)
+	path := dir + "/tokenizer.json"
+	if _, err := os.Stat(path); err != nil {
+		t.Skipf("tokenizer.json not found at %q; skipping (set SOLO_SEARCH_MODEL_DIR)", path)
 	}
 	return path
 }
 
-func TestTokenizerEncodeBasic(t *testing.T) {
-	vocabPath := writeTestVocab(t)
-	tok, err := NewTokenizerFromFile(vocabPath, 16)
-	if err != nil {
-		t.Fatalf("NewTokenizerFromFile error: %v", err)
-	}
+// fakeTokenizer builds a Tokenizer with a nil underlying HF tokenizer and
+// fixed special-token ids, so the model-independent framing/padding logic
+// can be unit-tested without loading tokenizer.json.
+func fakeTokenizer(maxSeq int) *Tokenizer {
+	return &Tokenizer{maxSeq: maxSeq, clsID: 100, sepID: 101, padID: 0}
+}
 
-	enc := tok.Encode("hello world")
-	if len(enc.InputIDs) != 16 {
-		t.Fatalf("expected padded length 16, got %d", len(enc.InputIDs))
-	}
-	if enc.InputIDs[0] != tok.clsID {
-		t.Errorf("expected first token to be [CLS], got %d", enc.InputIDs[0])
-	}
+func TestFrameAndPadFramesAndPads(t *testing.T) {
+	tok := fakeTokenizer(8)
+	enc := tok.frameAndPad([]int{1, 2, 3})
 
-	// [CLS] hello world [SEP] pad...
+	if len(enc.InputIDs) != 8 {
+		t.Fatalf("expected padded length 8, got %d", len(enc.InputIDs))
+	}
+	if enc.InputIDs[0] != 100 {
+		t.Errorf("expected leading CLS id 100, got %d", enc.InputIDs[0])
+	}
+	if enc.InputIDs[4] != 101 {
+		t.Errorf("expected SEP id 101 at position 4, got %d", enc.InputIDs[4])
+	}
+	// Positions 0..4 are content+framing (mask 1), 5..7 are pad (mask 0).
 	nonPad := 0
 	for _, m := range enc.AttentionMask {
 		if m == 1 {
 			nonPad++
 		}
 	}
-	if nonPad != 4 {
-		t.Errorf("expected 4 non-pad tokens ([CLS] hello world [SEP]), got %d", nonPad)
+	if nonPad != 5 { // CLS + 3 content + SEP
+		t.Errorf("expected 5 non-pad tokens, got %d", nonPad)
 	}
 }
 
-func TestTokenizerWordPieceSplitting(t *testing.T) {
-	vocabPath := writeTestVocab(t)
-	tok, err := NewTokenizerFromFile(vocabPath, 16)
+func TestFrameAndPadTruncates(t *testing.T) {
+	tok := fakeTokenizer(4) // room for only 2 content tokens after framing
+	content := []int{10, 11, 12, 13, 14}
+	enc := tok.frameAndPad(content)
+
+	if len(enc.InputIDs) != 4 {
+		t.Fatalf("expected length 4, got %d", len(enc.InputIDs))
+	}
+	if enc.InputIDs[0] != 100 || enc.InputIDs[3] != 101 {
+		t.Errorf("expected CLS/SEP framing, got %v", enc.InputIDs)
+	}
+	// Only the first 2 content tokens should survive truncation.
+	if enc.InputIDs[1] != 10 || enc.InputIDs[2] != 11 {
+		t.Errorf("expected truncated content [10 11], got %v", enc.InputIDs[1:3])
+	}
+}
+
+// TestEncodeCyrillic verifies the real multilingual tokenizer produces a
+// non-trivial (non-all-UNK) token sequence for Russian text — the whole
+// point of switching away from the English WordPiece vocabulary. Skips when
+// the model artifacts are absent.
+func TestEncodeCyrillic(t *testing.T) {
+	path := findTokenizerJSON(t)
+	tok, err := NewTokenizerFromFile(path, 32)
 	if err != nil {
-		t.Fatalf("NewTokenizerFromFile error: %v", err)
+		t.Fatalf("NewTokenizerFromFile: %v", err)
 	}
 
-	// "jumps" should split into "jump" + "##s" given our fixture vocab.
-	ids := tok.wordPiece("jumps")
-	if len(ids) != 2 {
-		t.Fatalf("expected 2 subword ids for 'jumps', got %d: %v", len(ids), ids)
-	}
-}
+	enc := tok.Encode("Планирование путешествия по России")
 
-func TestTokenizerUnknownWord(t *testing.T) {
-	vocabPath := writeTestVocab(t)
-	tok, err := NewTokenizerFromFile(vocabPath, 16)
-	if err != nil {
-		t.Fatalf("NewTokenizerFromFile error: %v", err)
+	if len(enc.InputIDs) != 32 {
+		t.Fatalf("expected padded length 32, got %d", len(enc.InputIDs))
 	}
-
-	ids := tok.wordPiece("zzzznotinvocab")
-	if len(ids) != 1 || ids[0] != tok.unkID {
-		t.Errorf("expected single [UNK] id, got %v (unkID=%d)", ids, tok.unkID)
-	}
-}
-
-func TestBasicTokenizePunctuation(t *testing.T) {
-	words := basicTokenize("Hello, world.")
-	want := []string{"hello", ",", "world", "."}
-	if len(words) != len(want) {
-		t.Fatalf("got %v, want %v", words, want)
-	}
-	for i := range want {
-		if words[i] != want[i] {
-			t.Errorf("word %d: got %q, want %q", i, words[i], want[i])
+	// Count content tokens (attention mask == 1) excluding the two framing
+	// specials; there should be several real subword tokens.
+	content := 0
+	for _, m := range enc.AttentionMask {
+		if m == 1 {
+			content++
 		}
+	}
+	if content <= 2 {
+		t.Errorf("expected multiple content tokens for Cyrillic input, got %d", content-2)
 	}
 }
