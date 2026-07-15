@@ -177,6 +177,18 @@ The index lives entirely inside the notes root folder at
 required for the database itself). It is safe to delete this folder at any
 time to force a full rebuild on the next `index` run.
 
+Embeddings are stored **int8-quantized** (a per-vector `float32` scale plus
+one `int8` per dimension), which is ~4x smaller than raw `float32` blobs.
+The quantization error is negligible for cosine-similarity ranking. The
+schema is versioned; if a database was built with an older, incompatible
+layout, opening it automatically wipes the stale data so the next `index`
+run rebuilds it cleanly.
+
+Indexing writes each note's file record and all of its paragraphs in a
+single SQLite transaction (`IndexFile`), avoiding one fsync per paragraph.
+Embedding runs in batches capped at `MaxBatchSize` (32) texts per ONNX
+inference to bound peak memory for notes with many paragraphs.
+
 ## Project layout
 
 ```
