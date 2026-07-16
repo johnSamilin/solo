@@ -73,6 +73,57 @@ I believe that your data is only yours and should not belong to any corporation 
 - Electron for desktop builds
 - Kotlin for mobile
 
+### Feature Flags
+
+Feature flags live in [`feature-flags.json`](feature-flags.json) at the project root and are read **at compile time** (inlined into the bundle via Vite `define`).
+
+The top-level keys describe the run mode:
+
+- `PACKAGED` — embedded/plugin build (`__IS_PACKAGED__ === true`)
+- `DESKTOP` — native Electron client
+- `MOBILE` — native Android client
+
+```json
+{
+  "PACKAGED": { "extended-search": false },
+  "DESKTOP":  { "extended-search": true },
+  "MOBILE":   { "extended-search": false }
+}
+```
+
+The build mode is resolved **entirely at compile time** via the `PLATFORM`
+environment variable (each platform gets its own bundle):
+
+| Command | PLATFORM | Constants |
+| --- | --- | --- |
+| `npm run build:desktop` | `desktop` | `__IS_DESKTOP__ = true` |
+| `npm run build:android` | `android` | `__IS_ANDROID__ = true` |
+| `npm run build:packaged` | `packaged` | `__IS_PACKAGED__ = true` |
+| `npm run build` | — | builds desktop + android |
+
+Each flag is expanded into a compile-time boolean constant `__FF_<NAME>__`
+(e.g. `extended-search` → `__FF_EXTENDED_SEARCH__`), so unused branches are
+tree-shaken out of the per-platform bundle.
+
+Use the static `flags` object in code (best for tree-shaking):
+
+```ts
+import { flags } from './utils/featureFlags';
+
+if (flags.extendedSearch) {
+  // compile-time removed from bundles where the flag is false
+}
+```
+
+A dynamic helper is also available (no tree-shaking, uses the inlined
+active flag set):
+
+```ts
+import { isFeatureEnabled } from './utils/featureFlags';
+
+if (isFeatureEnabled('extended-search')) { /* ... */ }
+```
+
 ## Getting Started
 
 ```bash

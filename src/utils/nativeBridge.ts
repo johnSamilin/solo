@@ -1,8 +1,8 @@
 import { ElectronAPI, FileMetadata } from '../types';
 import { createStubAPI } from './createStubAPI';
 
-export const isAndroid = !!window.SoloBridge;
-export const isElectron = !!window.electronAPI;
+export const isAndroid = __IS_ANDROID__;
+export const isElectron = __IS_DESKTOP__;
 export const isNative = isAndroid || isElectron;
 
 function wrapAndroidBridge(): ElectronAPI | null {

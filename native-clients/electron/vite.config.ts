@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { buildFeatureDefines } from '../../feature-flags.build';
 
 export default defineConfig({
   plugins: [react()],
@@ -7,6 +8,9 @@ export default defineConfig({
     exclude: ['lucide-react'],
   },
   base: './',
+  define: {
+    ...buildFeatureDefines('DESKTOP'),
+  },
   build: {
     outDir: 'dist',
     assetsInlineLimit: 4096,

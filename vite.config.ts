@@ -1,5 +1,8 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { resolveBuildMode, buildFeatureDefines } from './feature-flags.build';
+
+const mode = resolveBuildMode();
 
 export default defineConfig({
   plugins: [
@@ -10,7 +13,7 @@ export default defineConfig({
   },
   base: './', // Use relative paths
   define: {
-    __IS_PACKAGED__: process.env.IS_PACKAGED === 'true',
+    ...buildFeatureDefines(mode),
   },
   build: {
     assetsInlineLimit: 4096,
