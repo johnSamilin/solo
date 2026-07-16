@@ -1,0 +1,11 @@
+{
+  "PACKAGED": {
+    "extended-search": false
+  },
+  "DESKTOP": {
+    "extended-search": true
+  },
+  "MOBILE": {
+    "extended-search": false
+  }
+}
