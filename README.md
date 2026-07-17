@@ -1,5 +1,7 @@
 # Solo - Minimalistic Private Note-Taking App
 
+[DEMO](https://johnsamilin.github.io/) - see and test the app and it's visual themes.
+
 Solo is a modern, privacy-focused note-taking application with an emphasis on typography and user experience. There's no AI, cloud storage and stuff. Just your thoughts.
 
 I believe that your data is only yours and should not belong to any corporation or even single app. That's why it stays in your file system in plain HTML so that you could have access to it any time without additional instruments.
