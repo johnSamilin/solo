@@ -7,6 +7,7 @@ import { SearchInput } from './SearchInput';
 import { SearchFilters } from './SearchFilters';
 import { SearchResults } from './SearchResults';
 import { SaveFilterModal } from '../Modals/SaveFilterModal';
+import { flags } from '../../utils/featureFlags';
 import './SearchPage.css';
 
 interface SearchPageProps {
@@ -30,6 +31,7 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
   const [selectedTagOperator, setSelectedTagOperator] = useState<'AND' | 'OR' | 'NOT'>('AND');
   const [showOnlyEmptyNotes, setShowOnlyEmptyNotes] = useState(false);
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
+  const [isExtendedSearch, setIsExtendedSearch] = useState(false);
 
   // Apply initialFilters when provided
   useEffect(() => {
@@ -243,6 +245,24 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
 
       <div className="search-content">
         <div className='search-filters-panel'>
+          {flags.extendedSearch && (
+            <label className="extended-search-toggle">
+              <span className="extended-search-toggle__labels">
+                <span className="extended-search-toggle__title">Extended search</span>
+                <span className="extended-search-toggle__hint">Turn this off if search works like shit</span>
+              </span>
+              <span className="extended-search-toggle__switch">
+                <input
+                  type="checkbox"
+                  role="switch"
+                  checked={isExtendedSearch}
+                  onChange={(e) => setIsExtendedSearch(e.target.checked)}
+                />
+                <span className="extended-search-toggle__slider" />
+              </span>
+            </label>
+          )}
+
           <SearchInput
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
