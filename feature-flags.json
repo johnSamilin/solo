@@ -1,11 +1,15 @@
 {
   "PACKAGED": {
-    "extended-search": false
+    "extended-search": false,
+    "deep-linking": true,
+    "default-theme": "terminal"
   },
   "DESKTOP": {
-    "extended-search": true
+    "extended-search": true,
+    "deep-linking": false
   },
   "MOBILE": {
-    "extended-search": false
+    "extended-search": false,
+    "deep-linking": false
   }
 }

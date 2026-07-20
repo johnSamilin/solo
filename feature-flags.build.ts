@@ -32,7 +32,7 @@ export function buildFeatureDefines(mode: BuildMode): Record<string, string | bo
   };
 
   for (const name of allFlagNames) {
-    defines[flagConstName(name)] = JSON.stringify(activeFlags[name] === true);
+    defines[flagConstName(name)] = JSON.stringify(activeFlags[name]);
   }
 
   return defines;

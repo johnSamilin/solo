@@ -83,6 +83,13 @@
   font-style: normal;
 }
 
+@font-face {
+  font-family: 'Pixelify Sans';
+  src: url('./assets/fonts/PixelifySans-VariableFont_wght.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
 body {
   margin: 0;
   font-family: 'Outfit', system-ui, sans-serif;

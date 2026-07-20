@@ -34,6 +34,8 @@ export const featureFlags: FeatureFlagSet = __ACTIVE_FEATURE_FLAGS__;
  */
 export const flags = {
   extendedSearch: __FF_EXTENDED_SEARCH__,
+  deepLinking: __FF_DEEP_LINKING__,
+  defaultTheme: __FF_DEFAULT_THEME__,
 } as const;
 
 /**

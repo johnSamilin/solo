@@ -9,7 +9,7 @@
     "build": "npm run build:desktop && npm run build:android",
     "build:desktop": "PLATFORM=desktop vite build && npm run copy-assets:desktop",
     "build:android": "PLATFORM=android vite build && npm run copy-assets:android",
-    "build:packaged": "PLATFORM=packaged vite build && npm run copy-assets:desktop",
+    "build:packaged": "rimraf dist && MINIFY=true node scripts/build-packaged.mjs --content ",
     "build:minified": "MINIFY=true PLATFORM=desktop vite build && npm run copy-assets:desktop",
     "lint": "eslint .",
     "preview": "vite preview",
@@ -37,7 +37,8 @@
     "mobx-react-lite": "^4.0.5",
     "pdfjs-dist": "^4.6.82",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "rimraf": "6.1.3"
   },
   "devDependencies": {
     "@babel/core": "^7.24.3",

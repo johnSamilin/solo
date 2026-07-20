@@ -28,6 +28,8 @@ import { loadNoteCss } from './utils/electron';
 import { getNativeAPI, isNative } from './utils/nativeBridge';
 import { injectNoteStyles, removeNoteStyles } from './utils/cssUtils';
 import { EmptyState } from './components/EmptyState/EmptyState';
+import { flags } from './utils/featureFlags';
+import { parseDeepLink, sanitizeNoteId, buildNoteUrl, buildBaseUrl } from './utils/deepLink';
 
 const App = observer(() => {
   const { notesStore, settingsStore, tagsStore } = useStore();
@@ -41,6 +43,11 @@ const App = observer(() => {
   const [currentParagraphTags, setCurrentParagraphTags] = useState<string[]>([]);
   const [isImageInsertModalOpen, setIsImageInsertModalOpen] = useState(false);
   const imageUploadRef = useRef<((file: File) => Promise<void>) | null>(null);
+  // Флаг, гарантирующий разовый разбор deep-link при загрузке.
+  const deepLinkApplied = useRef(false);
+  // Подавляет запись в history при программной навигации (deep link / popstate),
+  // чтобы не создавать дублирующих записей в истории браузера.
+  const suppressHistoryPush = useRef(false);
 
   const editor = useEditor({
     extensions: [
@@ -123,6 +130,100 @@ const App = observer(() => {
     },
   });
 
+
+  // Открыть заметку по id из deep-link / popstate.
+  // Возвращает true, если заметка найдена и открыта.
+  const openNoteById = (noteId: string): boolean => {
+    const note = notesStore.notes.find(n => n.id === noteId);
+    if (!note) return false;
+    notesStore.setSelectedNote(note);
+    return true;
+  };
+
+  // Синхронизация состояния приложения с URL (только packaged-сборка).
+  // Применяется при первой загрузке (deep link) и при навигации браузера
+  // назад/вперёд (popstate). Во время применения подавляем запись в history,
+  // т.к. URL уже соответствует нужному состоянию.
+  const applyUrlState = () => {
+    const target = parseDeepLink(window.location.search);
+    suppressHistoryPush.current = true;
+    try {
+      if (!target) {
+        // Нет deep-link параметров — закрываем открытую заметку/поиск.
+        notesStore.setSelectedNote(null);
+        editor?.commands.setContent('');
+        setIsSearchOpen(false);
+        return;
+      }
+
+      if (target.kind === 'note') {
+        // noteId уже прошёл санитизацию, но открываем только реально
+        // существующую заметку.
+        if (!openNoteById(target.noteId)) {
+          notesStore.setSelectedNote(null);
+          setIsSearchOpen(false);
+        }
+        return;
+      }
+
+      if (target.kind === 'search') {
+        setSearchInitialFilters(target.filter);
+        setSearchInitialTag(undefined);
+        setIsSearchOpen(true);
+      }
+    } finally {
+      suppressHistoryPush.current = false;
+    }
+  };
+
+  // Записывает состояние заметки в history браузера (только packaged).
+  // Пропускается при программной навигации (deep link / popstate).
+  useEffect(() => {
+    if (!flags.deepLinking) return;
+    if (!deepLinkApplied.current) return;
+    if (suppressHistoryPush.current) return;
+
+    const note = notesStore.selectedNote;
+    if (note) {
+      const url = buildNoteUrl(note.id);
+      const current = sanitizeNoteId(new URLSearchParams(window.location.search).get('note'));
+      if (current !== note.id) {
+        window.history.pushState({ noteId: note.id }, '', url);
+      }
+    } else {
+      // Заметка закрыта — если в URL остался note, возвращаемся к базовому URL.
+      const current = new URLSearchParams(window.location.search).get('note');
+      if (current) {
+        window.history.pushState({}, '', buildBaseUrl());
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notesStore.selectedNote?.id]);
+
+  // Deep-link: разовый разбор URL при загрузке приложения (только packaged).
+  // Ждём завершения загрузки заметок, чтобы можно было валидировать noteId.
+  useEffect(() => {
+    if (!flags.deepLinking) return;
+    if (notesStore.isLoading) return;
+    if (deepLinkApplied.current) return;
+    deepLinkApplied.current = true;
+
+    applyUrlState();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notesStore.isLoading, editor]);
+
+  // Deep-link: реакция на кнопки браузера назад/вперёд (только packaged).
+  useEffect(() => {
+    if (!flags.deepLinking) return;
+
+    const handlePopState = () => {
+      applyUrlState();
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor, notesStore.notes]);
 
   useEffect(() => {
     if (notesStore.selectedNote && !notesStore.isLoadingNoteContent) {
