@@ -4,10 +4,12 @@
 //	foo AND (bar OR baz)
 //	NOT archived AND project/alpha
 //
-// Tag matching is substring-based (a tag in the evaluated set "matches" an
-// expression atom if it contains the atom as a substring), mirroring the
-// existing fuzzy tag-path matching used by the Solo web client's
-// SearchPage/SearchResults components.
+// Tag matching is segment-based over the hierarchical tag paths: an atom
+// matches a tag when it equals the whole tag, equals one of the tag's
+// "/"-separated path segments, or is a path-prefix of the tag (so the atom
+// "foo" matches "foo/bar" but NOT "foobar", and the atom "ли" matches the
+// tag "ли" but NOT "мысли"). This avoids the false positives that a naive
+// substring match would produce on word boundaries.
 package tagexpr
 
 import (
@@ -19,8 +21,10 @@ import (
 // set of tags.
 type Expr interface {
 	// Eval reports whether the given tag set satisfies this expression.
-	// Matching is case-insensitive substring containment: an atom matches
-	// if any tag in tags contains the atom as a substring.
+	// Matching is case-insensitive and segment-based over the hierarchical
+	// tag paths: an atom matches a tag when it equals the whole tag, equals
+	// one of the tag's "/"-separated segments, or appears as a contiguous
+	// run of whole segments within it (see tagMatches).
 	Eval(tags []string) bool
 	// String renders the expression back to a canonical textual form,
 	// mostly useful for debugging/tests.
@@ -59,7 +63,46 @@ type atomExpr struct {
 func (a *atomExpr) Eval(tags []string) bool {
 	needle := strings.ToLower(a.value)
 	for _, t := range tags {
-		if strings.Contains(strings.ToLower(t), needle) {
+		if tagMatches(strings.ToLower(t), needle) {
+			return true
+		}
+	}
+	return false
+}
+
+// tagMatches reports whether the (already lower-cased) hierarchical tag path
+// matches the (already lower-cased) atom. Matching is segment-based over the
+// "/"-separated tag path rather than a naive substring test, so that:
+//
+//   - "foo" matches "foo", "foo/bar" and "a/foo/b" (whole segments), but
+//   - "foo" does NOT match "foobar" or "barfoo" (no partial-word matches),
+//   - "ли" matches "ли" but NOT "мысли".
+//
+// A multi-segment atom (e.g. "foo/bar") matches when it appears as a
+// contiguous run of whole segments within the tag path.
+func tagMatches(tag, atom string) bool {
+	if atom == "" {
+		return false
+	}
+	if tag == atom {
+		return true
+	}
+
+	tagSegs := strings.Split(tag, "/")
+	atomSegs := strings.Split(atom, "/")
+	if len(atomSegs) > len(tagSegs) {
+		return false
+	}
+
+	for start := 0; start+len(atomSegs) <= len(tagSegs); start++ {
+		matched := true
+		for i, seg := range atomSegs {
+			if tagSegs[start+i] != seg {
+				matched = false
+				break
+			}
+		}
+		if matched {
 			return true
 		}
 	}

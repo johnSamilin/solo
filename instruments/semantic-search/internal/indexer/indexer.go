@@ -8,6 +8,7 @@ package indexer
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/solo-notes/semantic-search/internal/embedding"
@@ -122,6 +123,100 @@ func Run(opts Options) (*Result, error) {
 	if err := opts.Store.SetLastFullIndex(time.Now()); err != nil {
 		return nil, fmt.Errorf("recording last index time: %w", err)
 	}
+
+	return res, nil
+}
+
+// OneOptions configures a single-file index update.
+type OneOptions struct {
+	Root  string
+	Store *store.Store
+	Model *embedding.Model
+	// RelPath is the note's path relative to Root (matching the identifier
+	// stored in the index). It must point at an .html note file.
+	RelPath string
+}
+
+// RunOne (re)indexes a single note identified by opts.RelPath without
+// walking or touching any other file in the corpus. It is meant for the
+// common case where exactly one note changed and re-scanning the whole root
+// would be wasteful.
+//
+// Behavior:
+//   - If the note file exists on disk, its paragraphs are re-embedded and
+//     its index entry is replaced (FilesIndexed=1), unless the stored
+//     content hash already matches (FilesSkipped=1).
+//   - If the note file no longer exists, its index entry (if any) is removed
+//     (FilesRemoved=1).
+//
+// Unlike Run, RunOne never rewrites the stored model version or the
+// last-full-index timestamp: it is an incremental patch, not a full pass. If
+// the stored model version differs from ModelVersionTag the file is always
+// re-embedded (a mixed-version index is still better than a stale entry, and
+// a subsequent full `index` run will reconcile the rest).
+func RunOne(opts OneOptions) (*Result, error) {
+	res := &Result{FilesScanned: 1}
+
+	if opts.RelPath == "" {
+		return nil, fmt.Errorf("a note path is required")
+	}
+
+	absPath := filepath.Join(opts.Root, opts.RelPath)
+	// Normalize RelPath back through filepath.Rel so callers may pass either
+	// a path relative to root or an absolute path within root, and we store
+	// the same canonical identifier the full walk would use.
+	relPath, err := filepath.Rel(opts.Root, absPath)
+	if err != nil {
+		return nil, fmt.Errorf("resolving note path relative to root: %w", err)
+	}
+
+	info, statErr := os.Stat(absPath)
+	if statErr != nil {
+		if os.IsNotExist(statErr) {
+			// The note was deleted: drop its index entry if present.
+			if err := opts.Store.DeleteFile(relPath); err != nil {
+				return nil, fmt.Errorf("removing index entry for %q: %w", relPath, err)
+			}
+			res.FilesRemoved = 1
+			return res, nil
+		}
+		return nil, fmt.Errorf("stat %q: %w", relPath, statErr)
+	}
+	if info.IsDir() {
+		return nil, fmt.Errorf("note path %q is a directory, not a file", relPath)
+	}
+
+	note := fsutil.NoteFile{AbsPath: absPath, RelPath: relPath}
+	sidecarPath := metadata.SidecarPath(absPath)
+
+	hash, err := fsutil.ContentHash(absPath, sidecarPath)
+	if err != nil {
+		return nil, fmt.Errorf("hashing %q: %w", relPath, err)
+	}
+
+	storedModelVersion, err := opts.Store.GetModelVersion()
+	if err != nil {
+		return nil, fmt.Errorf("reading stored model version: %w", err)
+	}
+	forceReindex := storedModelVersion != ModelVersionTag
+
+	if !forceReindex {
+		existingHash, err := opts.Store.GetFileHash(relPath)
+		if err != nil {
+			return nil, fmt.Errorf("checking existing hash for %q: %w", relPath, err)
+		}
+		if existingHash == hash {
+			res.FilesSkipped = 1
+			return res, nil
+		}
+	}
+
+	n, err := indexOneFile(Options{Root: opts.Root, Store: opts.Store, Model: opts.Model}, note, sidecarPath, hash)
+	if err != nil {
+		return nil, fmt.Errorf("indexing %q: %w", relPath, err)
+	}
+	res.FilesIndexed = 1
+	res.ParagraphsNew = n
 
 	return res, nil
 }

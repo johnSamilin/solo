@@ -134,6 +134,14 @@ The model directory is resolved in this order:
 # Build (or rebuild) the semantic index for a notes folder.
 solo-search index --root /path/to/notes
 
+# Incrementally (re)index a single note after it changed, without
+# re-scanning the whole root. --file may be absolute or relative to --root.
+solo-search index --root /path/to/notes --file subdir/my-note.html
+
+# If the note was deleted, the same command removes its entry from the index
+# (no model is loaded in that case).
+solo-search index --root /path/to/notes --file subdir/deleted-note.html
+
 # Pure semantic search.
 solo-search query --root /path/to/notes --query "vacation planning"
 
@@ -173,7 +181,7 @@ reports both `semanticScore` and `lexicalScore` alongside the fused `score`.
 
 ### Tag expression syntax
 
-`--tags` accepts a small boolean language over tag substrings:
+`--tags` accepts a small boolean language over hierarchical tag paths:
 
 ```
 foo
@@ -184,10 +192,14 @@ foo AND (bar OR baz)
 foo AND NOT archived
 ```
 
-Matching is case-insensitive substring containment: an atom matches a
-paragraph/file if any of its tags (paragraph-level `paragraphTags` union
-file-level `tags`) contains the atom as a substring — this mirrors the
-existing fuzzy tag-path matching used by Solo's web `SearchPage`.
+Matching is case-insensitive and **segment-based** over the `/`-separated
+tag paths: an atom matches a paragraph/file if any of its tags (paragraph-level
+`paragraphTags` union file-level `tags`) equals the atom, has the atom as one
+of its `/`-separated segments, or contains the atom as a contiguous run of
+whole segments. For example the atom `foo` matches the tags `foo` and
+`foo/bar`, but **not** `foobar`; likewise `ли` matches the tag `ли` but not
+`мысли`. This keeps hierarchical tag-path matching (like Solo's web
+`SearchPage`) while avoiding false positives on word boundaries.
 
 ### JSON output shape
 
