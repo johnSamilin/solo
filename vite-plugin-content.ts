@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { execSync } from 'child_process';
 import type { Plugin } from 'vite';
 
 /**
@@ -22,6 +23,7 @@ interface FileMetadata {
   id: string;
   tags: string[];
   createdAt: string;
+  updatedAt?: string;
   theme?: string;
   paragraphTags?: string[];
 }
@@ -69,6 +71,7 @@ function normalizeMetadata(raw: unknown): FileMetadata | undefined {
     id: typeof meta.id === 'string' ? meta.id : String(meta.id ?? ''),
     tags,
     createdAt: typeof meta.createdAt === 'string' ? meta.createdAt : '',
+    updatedAt: typeof meta.updatedAt === 'string' ? meta.updatedAt : undefined,
     theme: typeof meta.theme === 'string' ? meta.theme : undefined,
     paragraphTags: Array.isArray(meta.paragraphTags)
       ? meta.paragraphTags.map(String)
@@ -81,6 +84,29 @@ function normalizeMetadata(raw: unknown): FileMetadata | undefined {
  * Collects the absolute path of every `.html` note into `htmlFiles`
  * (keyed by its relative POSIX path) for later lazy loading.
  */
+/**
+ * Get the last commit date for a file, or fall back to its mtime.
+ * Returns an ISO‑8601 string.
+ */
+function getFileDate(filePath: string): string {
+  try {
+    const output = execSync(
+      `git log -1 --format=%cI -- ${JSON.stringify(filePath)}`,
+      { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 5000 },
+    ).trim();
+    if (output) return output;
+  } catch {
+    // git not available or file not tracked – fall through to mtime
+  }
+  // Fallback: file modification time
+  try {
+    const stat = fs.statSync(filePath);
+    return stat.mtime.toISOString();
+  } catch {
+    return new Date(0).toISOString();
+  }
+}
+
 function readDirectory(
   dirPath: string,
   basePath: string,
@@ -122,6 +148,15 @@ function readDirectory(
         } catch {
           // ignore malformed metadata
         }
+      }
+
+      if (!metadata) {
+        metadata = { id: relativePath, tags: [], createdAt: getFileDate(fullPath) };
+      }
+
+      // Ensure updatedAt is populated from git/mtime if not explicitly set in .json
+      if (!metadata.updatedAt) {
+        metadata.updatedAt = getFileDate(fullPath);
       }
 
       if (ext === '.html' && fs.existsSync(cssPath)) {

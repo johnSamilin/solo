@@ -402,6 +402,9 @@ export class NotesStore {
         isLoaded: false,
       };
       this.setFocusedNotebook(note.notebookId);
+      if (__IS_PACKAGED__) {
+        this._rootStore?.seenStore.markAsSeen(note);
+      }
     }
     this.isEditing = !!note;
   };

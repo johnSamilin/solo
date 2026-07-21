@@ -24,6 +24,7 @@ export interface Note {
   title: string;
   content: string;
   createdAt: Date;
+  updatedAt?: string;
   tags: string[];
   notebookId: string | null;
   theme?: string;
@@ -79,6 +80,7 @@ export interface FileMetadata {
   id: string;
   tags: string[];
   createdAt: string;
+  updatedAt?: string;
   theme?: string;
   paragraphTags?: string[];
 }
