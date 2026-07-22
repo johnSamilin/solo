@@ -13,6 +13,7 @@ import { FullWidthImage } from './extensions/FullWidthImage';
 import { CutIn } from './extensions/CutIn';
 import { Carousel } from './extensions/Carousel';
 import { useStore } from './stores/StoreProvider';
+import { SavedFilter } from './types';
 import { SettingsModal } from './components/Modals/SettingsModal/SettingsModal';
 import { NewNotebookModal } from './components/Modals/NewNoteBookModal';
 import { Sidebar } from './components/Sidebar/Sidebar';
@@ -27,6 +28,8 @@ import { loadNoteCss } from './utils/electron';
 import { getNativeAPI, isNative } from './utils/nativeBridge';
 import { injectNoteStyles, removeNoteStyles } from './utils/cssUtils';
 import { EmptyState } from './components/EmptyState/EmptyState';
+import { flags } from './utils/featureFlags';
+import { parseDeepLink, sanitizeNoteId, buildNoteUrl, buildBaseUrl } from './utils/deepLink';
 
 const App = observer(() => {
   const { notesStore, settingsStore, tagsStore } = useStore();
@@ -34,11 +37,17 @@ const App = observer(() => {
   const [autoZenDisabled, setAutoZenDisabled] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchInitialTag, setSearchInitialTag] = useState<string | undefined>(undefined);
+  const [searchInitialFilters, setSearchInitialFilters] = useState<SavedFilter | undefined>(undefined);
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
   const [isParagraphTagModalOpen, setIsParagraphTagModalOpen] = useState(false);
   const [currentParagraphTags, setCurrentParagraphTags] = useState<string[]>([]);
   const [isImageInsertModalOpen, setIsImageInsertModalOpen] = useState(false);
   const imageUploadRef = useRef<((file: File) => Promise<void>) | null>(null);
+  // Флаг, гарантирующий разовый разбор deep-link при загрузке.
+  const deepLinkApplied = useRef(false);
+  // Подавляет запись в history при программной навигации (deep link / popstate),
+  // чтобы не создавать дублирующих записей в истории браузера.
+  const suppressHistoryPush = useRef(false);
 
   const editor = useEditor({
     extensions: [
@@ -105,9 +114,13 @@ const App = observer(() => {
           const currentWords = currentContent.split(/\s+/).filter(word => word.length > 0).length;
           const newWords = currentWords - initialWords;
 
-          const currentSettings = notesStore.selectedNote?.theme ?
-            themes[notesStore.selectedNote.theme].settings :
-            settingsStore.settings;
+          // Учитываем тему заметки при проверке autoZenMode
+          const noteTheme = notesStore.selectedNote?.theme;
+          const currentSettings = noteTheme
+            ? themes[noteTheme].settings
+            : settingsStore.selectedTheme
+              ? themes[settingsStore.selectedTheme].settings
+              : settingsStore.settings;
 
           if (newWords > 5 && !settingsStore.isZenMode && !autoZenDisabled && currentSettings.autoZenMode) {
             settingsStore.toggleZenMode();
@@ -117,6 +130,100 @@ const App = observer(() => {
     },
   });
 
+
+  // Открыть заметку по id из deep-link / popstate.
+  // Возвращает true, если заметка найдена и открыта.
+  const openNoteById = (noteId: string): boolean => {
+    const note = notesStore.notes.find(n => n.id === noteId);
+    if (!note) return false;
+    notesStore.setSelectedNote(note);
+    return true;
+  };
+
+  // Синхронизация состояния приложения с URL (только packaged-сборка).
+  // Применяется при первой загрузке (deep link) и при навигации браузера
+  // назад/вперёд (popstate). Во время применения подавляем запись в history,
+  // т.к. URL уже соответствует нужному состоянию.
+  const applyUrlState = () => {
+    const target = parseDeepLink(window.location.search);
+    suppressHistoryPush.current = true;
+    try {
+      if (!target) {
+        // Нет deep-link параметров — закрываем открытую заметку/поиск.
+        notesStore.setSelectedNote(null);
+        editor?.commands.setContent('');
+        setIsSearchOpen(false);
+        return;
+      }
+
+      if (target.kind === 'note') {
+        // noteId уже прошёл санитизацию, но открываем только реально
+        // существующую заметку.
+        if (!openNoteById(target.noteId)) {
+          notesStore.setSelectedNote(null);
+          setIsSearchOpen(false);
+        }
+        return;
+      }
+
+      if (target.kind === 'search') {
+        setSearchInitialFilters(target.filter);
+        setSearchInitialTag(undefined);
+        setIsSearchOpen(true);
+      }
+    } finally {
+      suppressHistoryPush.current = false;
+    }
+  };
+
+  // Записывает состояние заметки в history браузера (только packaged).
+  // Пропускается при программной навигации (deep link / popstate).
+  useEffect(() => {
+    if (!flags.deepLinking) return;
+    if (!deepLinkApplied.current) return;
+    if (suppressHistoryPush.current) return;
+
+    const note = notesStore.selectedNote;
+    if (note) {
+      const url = buildNoteUrl(note.id);
+      const current = sanitizeNoteId(new URLSearchParams(window.location.search).get('note'));
+      if (current !== note.id) {
+        window.history.pushState({ noteId: note.id }, '', url);
+      }
+    } else {
+      // Заметка закрыта — если в URL остался note, возвращаемся к базовому URL.
+      const current = new URLSearchParams(window.location.search).get('note');
+      if (current) {
+        window.history.pushState({}, '', buildBaseUrl());
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notesStore.selectedNote?.id]);
+
+  // Deep-link: разовый разбор URL при загрузке приложения (только packaged).
+  // Ждём завершения загрузки заметок, чтобы можно было валидировать noteId.
+  useEffect(() => {
+    if (!flags.deepLinking) return;
+    if (notesStore.isLoading) return;
+    if (deepLinkApplied.current) return;
+    deepLinkApplied.current = true;
+
+    applyUrlState();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notesStore.isLoading, editor]);
+
+  // Deep-link: реакция на кнопки браузера назад/вперёд (только packaged).
+  useEffect(() => {
+    if (!flags.deepLinking) return;
+
+    const handlePopState = () => {
+      applyUrlState();
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor, notesStore.notes]);
 
   useEffect(() => {
     if (notesStore.selectedNote && !notesStore.isLoadingNoteContent) {
@@ -196,6 +303,7 @@ const App = observer(() => {
     editor,
   ]);
 
+  // Отдельный effect для применения темы (глобальной или на уровне заметки)
   useEffect(() => {
     const root = document.documentElement;
     const globalSettings = settingsStore.settings;
@@ -203,9 +311,11 @@ const App = observer(() => {
     root.style.setProperty('--sidebar-font-family', globalSettings.sidebarFontFamily);
     root.style.setProperty('--sidebar-font-size', globalSettings.sidebarFontSize);
 
-    const currentSettings = notesStore.selectedNote?.theme ? 
-      themes[notesStore.selectedNote.theme].settings : 
-      globalSettings;
+    // Тема заметки имеет приоритет над глобальной
+    const noteTheme = notesStore.selectedNote?.theme;
+    const currentSettings = noteTheme
+      ? themes[noteTheme].settings
+      : globalSettings;
 
     root.style.setProperty('--editor-font-family', currentSettings.editorFontFamily);
     root.style.setProperty('--editor-font-size', currentSettings.editorFontSize);
@@ -226,7 +336,23 @@ const App = observer(() => {
         editorContent.classList.remove('drop-caps');
       }
     }
-  }, [settingsStore.settings, notesStore.selectedNote?.theme]);
+
+    // Apply terminal theme class
+    const appElement = document.querySelector('.app');
+    if (appElement) {
+      const isTerminal = settingsStore.selectedTheme === 'terminal';
+      if (isTerminal) {
+        appElement.classList.add('terminal-theme');
+      } else {
+        appElement.classList.remove('terminal-theme');
+      }
+    }
+  }, [
+    settingsStore.settings,
+    settingsStore.selectedTheme,
+    notesStore.selectedNote?.id,
+    notesStore.selectedNote?.theme,
+  ]);
 
   const handleImageUpload = async (file: File) => {
     const api = getNativeAPI();
@@ -345,13 +471,15 @@ const App = observer(() => {
 
       {isSearchOpen && (
         <SearchPage
-          onClose={() => { setIsSearchOpen(false); setSearchInitialTag(undefined); }}
+          onClose={() => { setIsSearchOpen(false); setSearchInitialTag(undefined); setSearchInitialFilters(undefined); }}
           onNoteSelect={(note) => {
             notesStore.setSelectedNote(note);
             setIsSearchOpen(false);
             setSearchInitialTag(undefined);
+            setSearchInitialFilters(undefined);
           }}
           initialTagPath={searchInitialTag}
+          initialFilters={searchInitialFilters}
         />
       )}
 
@@ -408,6 +536,12 @@ const App = observer(() => {
             onCreateNote={handleCreateNote}
             onOpenSearch={(tagPath) => {
               setSearchInitialTag(tagPath);
+              setSearchInitialFilters(undefined);
+              setIsSearchOpen(true);
+            }}
+            onOpenSearchWithFilters={(filter) => {
+              setSearchInitialFilters(filter);
+              setSearchInitialTag(undefined);
               setIsSearchOpen(true);
             }}
           />

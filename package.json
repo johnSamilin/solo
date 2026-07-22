@@ -1,14 +1,19 @@
 {
   "name": "solo",
   "private": false,
-  "version": "3.5.0",
+  "version": "3.6.0",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && npm run copy-assets",
-    "build:minified": "MINIFY=true vite build && npm run copy-assets",
+    "dev:packaged": "PLATFORM=packaged npm run dev",
+    "dev:android": "PLATFORM=android npm run dev",
+    "build": "npm run build:desktop && npm run build:android",
+    "build:desktop": "PLATFORM=desktop vite build && npm run copy-assets:desktop",
+    "build:android": "PLATFORM=android vite build && npm run copy-assets:android",
+    "build:packaged": "rimraf dist && MINIFY=true node scripts/build-packaged.mjs --content",
+    "build:rss": "node scripts/generate-rss.mjs --out dist --content",
+    "build:minified": "MINIFY=true PLATFORM=desktop vite build && npm run copy-assets:desktop",
     "lint": "eslint .",
     "preview": "vite preview",
-    "copy-assets": "npm run copy-assets:desktop && npm run copy-assets:android",
     "copy-assets:android": "bash native-clients/android/copy-web-assets.sh",
     "copy-assets:desktop": "cp -R assets dist/assets && (cp -R dist/* native-clients/electron/electron/dist 2>/dev/null || true)",
     "test": "playwright test",
@@ -33,7 +38,8 @@
     "mobx-react-lite": "^4.0.5",
     "pdfjs-dist": "^4.6.82",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "rimraf": "6.1.3"
   },
   "devDependencies": {
     "@babel/core": "^7.24.3",
@@ -41,6 +47,7 @@
     "@babel/runtime": "^7.24.1",
     "@eslint/js": "^9.9.1",
     "@playwright/test": "^1.57.0",
+    "@types/node": "26.1.1",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",

@@ -314,10 +314,74 @@ class FileSystemManager(
         val imagesDir = File(root, "assets")
         imagesDir.mkdirs()
 
-        val imageFile = File(imagesDir, sanitizedName)
+        // Ensure a unique file name to avoid overwriting existing assets
+        val uniqueName = buildUniqueAssetName(imagesDir, sanitizedName)
+        val imageFile = File(imagesDir, uniqueName)
         imageFile.writeBytes(bytes)
 
-        return "assets/$sanitizedName"
+        // Return the same protocol-based URL as the Electron client so that
+        // notes reference images consistently across platforms (image://<fileName>).
+        return "image://$uniqueName"
+    }
+
+    private fun buildUniqueAssetName(dir: File, fileName: String): String {
+        var candidate = File(dir, fileName)
+        if (!candidate.exists()) return fileName
+
+        val dotIndex = fileName.lastIndexOf('.')
+        val base = if (dotIndex > 0) fileName.substring(0, dotIndex) else fileName
+        val ext = if (dotIndex > 0) fileName.substring(dotIndex) else ""
+
+        var counter = 1
+        while (candidate.exists()) {
+            val next = "$base-$counter$ext"
+            candidate = File(dir, next)
+            counter++
+        }
+        return candidate.name
+    }
+
+    /**
+     * Reads an image (or any asset) stored under the "assets" folder of the
+     * selected root folder. Used to serve the custom `image://` protocol inside
+     * the WebView, mirroring the Electron `protocol.handle('image', ...)` logic.
+     */
+    fun readAsset(fileName: String): ByteArray? {
+        val root = rootFolder ?: return null
+        val assetsDir = File(root, "assets")
+
+        // Decode possible URL-encoded characters (spaces, cyrillic, etc.)
+        val decodedName = try {
+            java.net.URLDecoder.decode(fileName, "UTF-8")
+        } catch (_: Exception) {
+            fileName
+        }
+
+        val assetFile = File(assetsDir, decodedName)
+
+        // Prevent path traversal outside of the assets directory.
+        val canonicalAssets = assetsDir.canonicalPath
+        val canonicalFile = assetFile.canonicalPath
+        if (!canonicalFile.startsWith(canonicalAssets)) return null
+
+        if (!assetFile.exists() || !assetFile.isFile) return null
+
+        return assetFile.readBytes()
+    }
+
+    fun guessMimeType(fileName: String): String {
+        val lower = fileName.lowercase()
+        return when {
+            lower.endsWith(".png") -> "image/png"
+            lower.endsWith(".jpg") || lower.endsWith(".jpeg") -> "image/jpeg"
+            lower.endsWith(".gif") -> "image/gif"
+            lower.endsWith(".webp") -> "image/webp"
+            lower.endsWith(".svg") -> "image/svg+xml"
+            lower.endsWith(".bmp") -> "image/bmp"
+            lower.endsWith(".ico") -> "image/x-icon"
+            lower.endsWith(".avif") -> "image/avif"
+            else -> "application/octet-stream"
+        }
     }
 
     private fun resolveAndValidate(relativePath: String): File {

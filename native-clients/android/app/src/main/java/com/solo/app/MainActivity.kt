@@ -11,9 +11,12 @@ import android.provider.Settings
 import android.view.View
 import android.view.WindowManager
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import java.io.ByteArrayInputStream
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -111,11 +114,62 @@ class MainActivity : AppCompatActivity() {
                 }
                 return false
             }
+
+            override fun shouldInterceptRequest(
+                view: WebView?,
+                request: WebResourceRequest?
+            ): WebResourceResponse? {
+                val url = request?.url ?: return null
+                if (url.scheme == "image") {
+                    return handleImageRequest(url)
+                }
+                return super.shouldInterceptRequest(view, request)
+            }
         }
 
         webView.webChromeClient = WebChromeClient()
 
         webView.loadUrl("file:///android_asset/solo/index.html")
+    }
+
+    /**
+     * Serves images referenced with the custom `image://<fileName>` protocol used
+     * inside notes. Mirrors the Electron `protocol.handle('image', ...)` handler:
+     * the file name is resolved against the `<rootFolder>/assets` directory.
+     */
+    private fun handleImageRequest(uri: Uri): WebResourceResponse? {
+        // Parse the file name from the raw URL rather than uri.host, because
+        // Uri.host lowercases the authority which would break file names that
+        // contain uppercase letters. Format: image://<fileName>[/...]
+        val raw = uri.toString()
+        val fileName = raw
+            .removePrefix("image://")
+            .substringBefore('?')
+            .substringBefore('#')
+            .trimStart('/')
+            .takeIf { it.isNotEmpty() }
+            ?: return null
+
+        val bytes = fileSystemManager.readAsset(fileName) ?: return WebResourceResponse(
+            "text/plain",
+            "utf-8",
+            404,
+            "Not Found",
+            emptyMap(),
+            ByteArrayInputStream(ByteArray(0))
+        )
+
+        val mimeType = fileSystemManager.guessMimeType(fileName)
+        val headers = mapOf("Access-Control-Allow-Origin" to "*")
+
+        return WebResourceResponse(
+            mimeType,
+            null,
+            200,
+            "OK",
+            headers,
+            ByteArrayInputStream(bytes)
+        )
     }
 
     private fun setupBackNavigation() {

@@ -52,7 +52,14 @@ export const SettingsModal: FC<SettingsModalProps> = observer(({ onClose}) => {
   const renderActiveTab = useCallback(() => {
     switch (settingsStore.activeSettingsTab) {
       case 'typography':
-        return <Typography settings={settingsStore.settings} setSettings={settingsStore.updateSettings} />;
+        return (
+          <Typography
+            settings={settingsStore.settings}
+            setSettings={settingsStore.updateSettings}
+            selectedTheme={settingsStore.selectedTheme}
+            onThemeChange={settingsStore.setSelectedTheme}
+          />
+        );
       case 'layout':
         return <Layout settings={settingsStore.settings} setSettings={settingsStore.updateSettings} />;
       case 'tags':
@@ -71,6 +78,7 @@ export const SettingsModal: FC<SettingsModalProps> = observer(({ onClose}) => {
                   value={settingsStore.dataFolder || 'No folder selected'}
                   readOnly
                   className="data-folder-input"
+                  disabled={__IS_PACKAGED__}
                 />
                 <button
                   onClick={handleSelectFolder}
@@ -92,6 +100,7 @@ export const SettingsModal: FC<SettingsModalProps> = observer(({ onClose}) => {
                   value={settingsStore.digikamDbPath || 'No database selected'}
                   readOnly
                   className="data-folder-input"
+                  disabled={__IS_PACKAGED__}
                 />
                 <button
                   onClick={handleSelectDigikamDb}

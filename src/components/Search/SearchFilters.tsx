@@ -1,4 +1,4 @@
-import { FC, useState } from 'react';
+import { FC, useState, useRef, useEffect } from 'react';
 import { Filter, ChevronDown, ChevronUp, X, Tag as TagIcon } from 'lucide-react';
 import { observer } from 'mobx-react-lite';
 import { useStore } from '../../stores/StoreProvider';
@@ -37,6 +37,34 @@ export const SearchFilters: FC<SearchFiltersProps> = observer(({
   const { tagsStore } = useStore();
   const [isFiltersCollapsed, setIsFiltersCollapsed] = useState(false);
   const [isTagSelectorOpen, setIsTagSelectorOpen] = useState(false);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (isTagSelectorOpen && dialog) {
+      dialog.showModal();
+    } else if (!isTagSelectorOpen && dialog) {
+      dialog.close();
+    }
+  }, [isTagSelectorOpen]);
+
+  // Sync state when dialog closes natively (backdrop click, Escape)
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    const handleClose = () => {
+      setIsTagSelectorOpen(false);
+    };
+
+    dialog.addEventListener('close', handleClose);
+    return () => dialog.removeEventListener('close', handleClose);
+  }, []);
+
+  const handleTagSelect = (tagPath: string) => {
+    onAddTagFilter(tagPath);
+    setIsTagSelectorOpen(false);
+  };
 
   const getOperatorColor = (operator: 'AND' | 'OR' | 'NOT') => {
     switch (operator) {
@@ -52,10 +80,7 @@ export const SearchFilters: FC<SearchFiltersProps> = observer(({
       <div key={node.id} style={{ paddingLeft: `${level}rem` }}>
         <div
           className="tag-selector-item"
-          onClick={() => {
-            onAddTagFilter(node.path);
-            setIsTagSelectorOpen(false);
-          }}
+          onClick={() => handleTagSelect(node.path)}
         >
           <TagIcon className="h-4 w-4" />
           <span>{node.name}</span>
@@ -67,7 +92,7 @@ export const SearchFilters: FC<SearchFiltersProps> = observer(({
 
   return (
     <div className={`search-panel ${isFiltersCollapsed ? 'collapsed' : ''}`}>
-      <button 
+      <button
         className="filters-toggle"
         onClick={() => setIsFiltersCollapsed(!isFiltersCollapsed)}
       >
@@ -113,7 +138,7 @@ export const SearchFilters: FC<SearchFiltersProps> = observer(({
           <div className="active-filters">
             {tagFilters.map((filter, index) => (
               <div key={index} className="tag-filter-chip">
-                <span 
+                <span
                   className="filter-operator"
                   style={{ backgroundColor: getOperatorColor(filter.operator) }}
                 >
@@ -141,16 +166,36 @@ export const SearchFilters: FC<SearchFiltersProps> = observer(({
 
           <div className="tag-selector">
             <button
-              onClick={() => setIsTagSelectorOpen(!isTagSelectorOpen)}
+              onClick={() => setIsTagSelectorOpen(true)}
               className="add-tag-filter-button"
             >
               <TagIcon className="h-4 w-4" />
               Add Tag Filter
             </button>
 
-            {isTagSelectorOpen && (
-              <div className="tag-selector-dropdown">
-                <div className="tag-selector-content">
+            <dialog
+              ref={dialogRef}
+              className="tag-selector-dialog"
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  e.preventDefault();
+                  setIsTagSelectorOpen(false);
+                }
+              }}
+            >
+              <div className="tag-selector-dialog-content">
+                <div className="tag-selector-header">
+                  <h2>Select Tag</h2>
+                  <button
+                    type="button"
+                    onClick={() => setIsTagSelectorOpen(false)}
+                    className="tag-selector-close"
+                    aria-label="Close"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                <div className="tag-selector-tags">
                   {tagsStore.tagTree.length > 0 ? (
                     renderTagTree(tagsStore.tagTree)
                   ) : (
@@ -158,7 +203,7 @@ export const SearchFilters: FC<SearchFiltersProps> = observer(({
                   )}
                 </div>
               </div>
-            )}
+            </dialog>
           </div>
 
           {(searchQuery || tagFilters.length > 0) && (

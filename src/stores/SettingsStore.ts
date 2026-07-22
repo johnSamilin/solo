@@ -1,16 +1,18 @@
 import { makeAutoObservable } from 'mobx';
 import { TypographySettings, Toast } from '../types';
 import { NotesStore } from './NotesStore';
-import { defaultSettings } from '../constants';
-import { isPlugin } from '../config';
+import { defaultSettings, themes } from '../constants';
+
 import { getNativeAPI } from '../utils/nativeBridge';
+import { flags } from '../utils/featureFlags';
 
 const STORAGE_KEY = 'solo-settings';
 const SECURE_STORAGE_KEY = 'solo-secure-settings';
 
 export class SettingsStore {
   private notesStore: NotesStore;
-  settings: TypographySettings = defaultSettings;
+  settings: TypographySettings = flags.defaultTheme ? themes[flags.defaultTheme]?.settings : defaultSettings;
+  selectedTheme: string | null = null;
   isZenMode = false;
   isToolbarExpanded = false;
   isSettingsOpen = false;
@@ -21,7 +23,9 @@ export class SettingsStore {
   dataFolder: string | null = null;
   digikamDbPath: string | null = null;
 
+
   constructor(notesStore: NotesStore) {
+    console.log(this.settings, themes[flags.defaultTheme]?.settings)
     this.notesStore = notesStore;
     makeAutoObservable(this);
     this.loadFromStorage();
@@ -57,27 +61,18 @@ export class SettingsStore {
 
   private loadFromStorage = async () => {
     try {
-      if (isPlugin) {
-        let data = await window.bridge.loadFromStorage(STORAGE_KEY);
-        if (typeof data === 'string') {
-          data = JSON.parse(data);
-        }
-        if (data) {
-          this.settings = data.settings;
-          this.isZenMode = data.isZenMode;
-          this.isToolbarExpanded = data.isToolbarExpanded;
-          this.digikamDbPath = data.digikamDbPath || null;
-        }
-      } else {
-        const stored = localStorage.getItem(STORAGE_KEY);
+      
+      const stored = localStorage.getItem(STORAGE_KEY);
 
-        if (stored) {
-          const data = JSON.parse(stored);
-          this.settings = data.settings;
-          this.isZenMode = data.isZenMode;
-          this.isToolbarExpanded = data.isToolbarExpanded;
-          this.digikamDbPath = data.digikamDbPath || null;
-        }
+      if (stored) {
+        const data = JSON.parse(stored);
+        this.settings = data.settings;
+        this.isZenMode = data.isZenMode;
+        this.isToolbarExpanded = data.isToolbarExpanded;
+        this.digikamDbPath = data.digikamDbPath || null;
+        this.selectedTheme = data.selectedTheme;
+      } else {
+        this.selectedTheme = flags.defaultTheme;
       }
 
     } catch (error) {
@@ -91,21 +86,22 @@ export class SettingsStore {
         settings: this.settings,
         isZenMode: this.isZenMode,
         isToolbarExpanded: this.isToolbarExpanded,
-        digikamDbPath: this.digikamDbPath
+        digikamDbPath: this.digikamDbPath,
+        selectedTheme: this.selectedTheme,
       };
 
-      if (isPlugin) {
-        try {
-          await window.bridge.saveToStorage(STORAGE_KEY, data);
-        } catch (er) {
-          await window.bridge?.saveToStorage(STORAGE_KEY, JSON.stringify(data));
-        }
-      } else {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch (error) {
       console.error('Error saving settings:', error);
     }
+  };
+
+  setSelectedTheme = (theme: string | null) => {
+    this.selectedTheme = theme;
+    if (theme && themes[theme]) {
+      this.updateSettings(themes[theme].settings);
+    }
+    this.saveToStorage();
   };
 
   updateSettings = (newSettings: Partial<TypographySettings>) => {

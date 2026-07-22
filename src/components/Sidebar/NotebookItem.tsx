@@ -17,7 +17,7 @@ type NotebookItemProps = {
 };
 
 export const NotebookItem = observer(({ notebook, level = 0, editor }: NotebookItemProps) => {
-  const { notesStore, settingsStore } = useStore();
+  const { notesStore, seenStore } = useStore();
   const { t } = useI18n();
   const [isContextMenuOpen, setIsContextMenuOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -124,6 +124,7 @@ export const NotebookItem = observer(({ notebook, level = 0, editor }: NotebookI
               className={`note-item ${notesStore.selectedNote?.id === note.id ? 'selected' : ''} ${note.fileType === 'pdf' ? 'note-item--pdf' : ''}`}
             >
               <div className="note-item-header">
+                {__IS_PACKAGED__ && seenStore.isUnseen(note) && <span className="note-item-badge" />}
                 {note.fileType === 'pdf' && <FileText size={14} className="note-item-pdf-icon" />}
                 <h3 className="note-item-title">{note.title}</h3>
               </div>

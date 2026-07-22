@@ -1,9 +1,10 @@
 import React, { FC, useState, useMemo, useEffect } from 'react';
 import { observer } from 'mobx-react-lite';
 import MeshGradient from 'mesh-gradient.js';
-import { Plus, ChevronRight, ChevronDown } from 'lucide-react';
+import { Plus, ChevronRight, ChevronDown, X, Edit2 } from 'lucide-react';
 import { useStore } from '../../stores/StoreProvider';
-import { TagNode } from '../../types';
+import { TagNode, SavedFilter } from '../../types';
+import { SaveFilterModal } from '../Modals/SaveFilterModal';
 import './EmptyState.css';
 
 const gradient = new MeshGradient();
@@ -23,14 +24,8 @@ const PASTEL_GRADIENTS = [
 interface EmptyStateProps {
   onCreateNote: () => void;
   onOpenSearch: (tagPath?: string) => void;
+  onOpenSearchWithFilters?: (filter: SavedFilter) => void;
 }
-
-const EXAMPLE_FILTERS = [
-  { id: '1', label: 'Дети и воспоминания' },
-  { id: '2', label: 'Заметки и поездки, кроме Финляндия' },
-  { id: '3', label: 'Идеи и планы' },
-  { id: '4', label: 'Работа / проекты' },
-];
 
 interface TagTreeNodeProps {
   node: TagNode;
@@ -70,39 +65,80 @@ const TagTreeNode: FC<TagTreeNodeProps> = ({ node, onTagClick }) => {
   );
 };
 
-export const EmptyState: FC<EmptyStateProps> = observer(({ onCreateNote, onOpenSearch }) => {
-  const { tagsStore } = useStore();
+export const EmptyState: FC<EmptyStateProps> = observer(({ onCreateNote, onOpenSearch, onOpenSearchWithFilters }) => {
+  const { tagsStore, savedFiltersStore } = useStore();
+  const [editingFilter, setEditingFilter] = useState<SavedFilter | null>(null);
 
   const handleTagClick = (path: string) => {
     onOpenSearch(path);
   };
 
+  const handleFilterClick = (filter: SavedFilter) => {
+    onOpenSearchWithFilters?.(filter);
+  };
+
+  const handleDeleteFilter = (e: React.MouseEvent, filterId: string) => {
+    e.stopPropagation();
+    savedFiltersStore.deleteFilter(filterId);
+  };
+
+  const handleEditFilter = (e: React.MouseEvent, filter: SavedFilter) => {
+    e.stopPropagation();
+    setEditingFilter(filter);
+  };
+
+  // Initialize gradients for saved filter canvases
   useEffect(() => {
-    EXAMPLE_FILTERS.forEach((filter, i) => {
-      gradient.initGradient("#bg-" + filter.id, PASTEL_GRADIENTS); 
-      gradient?.changePosition(filter.label.length);     
-    })
-  }, []);
+    savedFiltersStore.savedFilters.forEach(filter => {
+      const canvas = document.getElementById(`bg-saved-${filter.id}`) as HTMLCanvasElement;
+      if (canvas) {
+        try {
+          gradient.initGradient(`#bg-saved-${filter.id}`, PASTEL_GRADIENTS);
+          gradient?.changePosition(filter.label.length);
+        } catch (err) {
+          // Canvas might not be ready yet
+        }
+      }
+    });
+  }, [savedFiltersStore.savedFilters]);
 
   return (
     <div className="es-root">
       <div className="es-inner">
-        <section className="es-section es-section-saved-filters">
-          <div className="es-filters-grid">
-            {EXAMPLE_FILTERS.map((filter, i) => (
-              <div className="es-filter-card">
-                <canvas
-                  id={`bg-${filter.id}`}
+        {savedFiltersStore.savedFilters.length > 0 && (
+          <section className="es-section es-section-saved-filters">
+            <h2 className="es-section-title">Сохранённые фильтры</h2>
+            <div className="es-filters-grid">
+              {savedFiltersStore.savedFilters.map(filter => (
+                <div
+                  className="es-filter-card"
                   key={filter.id}
-                  className="es-filter-bg"
-                  onClick={() => onOpenSearch()}
+                  onClick={() => handleFilterClick(filter)}
                 >
-                </canvas>
-                <span className="es-filter-label">{filter.label}</span>
-              </div>
-            ))}
-          </div>
-        </section>
+                  <canvas
+                    id={`bg-saved-${filter.id}`}
+                    className="es-filter-bg"
+                  />
+                  <button
+                    className="es-filter-delete"
+                    onClick={(e) => handleDeleteFilter(e, filter.id)}
+                    title="Удалить фильтр"
+                  >
+                    <X size={14} />
+                  </button>
+                  <button
+                    className="es-filter-edit"
+                    onClick={(e) => handleEditFilter(e, filter)}
+                    title="Редактировать название"
+                  >
+                    <Edit2 size={12} />
+                  </button>
+                  <span className="es-filter-label">{filter.label}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {tagsStore.tagTree.length > 0 && (
           <section className="es-section">
@@ -122,6 +158,18 @@ export const EmptyState: FC<EmptyStateProps> = observer(({ onCreateNote, onOpenS
           </button>
         </div>
       </div>
+
+      <SaveFilterModal
+        isOpen={editingFilter !== null}
+        initialLabel={editingFilter?.label ?? ''}
+        onConfirm={(newLabel) => {
+          if (editingFilter) {
+            savedFiltersStore.updateLabel(editingFilter.id, newLabel);
+          }
+          setEditingFilter(null);
+        }}
+        onCancel={() => setEditingFilter(null)}
+      />
     </div>
   );
 });

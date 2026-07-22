@@ -7,9 +7,11 @@ import { useI18n } from "../../../i18n/I18nContext";
 type TypographyProps = {
   settings: TypographySettings;
   setSettings: (newSettings: Partial<TypographySettings>) => void;
+  selectedTheme: string | null;
+  onThemeChange: (themeKey: string | null) => void;
 };
 
-export const Typography: FC<TypographyProps> = ({ settings, setSettings }) => {
+export const Typography: FC<TypographyProps> = ({ settings, setSettings, selectedTheme, onThemeChange }) => {
   const { t } = useI18n();
   const soundRef = useRef<Howl>();
 
@@ -24,9 +26,14 @@ export const Typography: FC<TypographyProps> = ({ settings, setSettings }) => {
   }, [settings.typewriterSound]);
 
   const handleThemeChange = (themeKey: string) => {
-    const theme = themes[themeKey];
-    if (theme) {
-      setSettings(theme.settings);
+    if (themeKey === 'custom') {
+      onThemeChange(null);
+    } else {
+      onThemeChange(themeKey);
+      const theme = themes[themeKey];
+      if (theme) {
+        setSettings(theme.settings);
+      }
     }
   };
 
@@ -42,7 +49,7 @@ export const Typography: FC<TypographyProps> = ({ settings, setSettings }) => {
   };
 
   const isTypewriterFont = (font: string) => {
-    return ['GNU Typewriter', 'CMTypewriter', 'UMTypewriter'].includes(font);
+    return ['GNU Typewriter', 'CMTypewriter', 'UMTypewriter', 'PT Mono', 'Pixelify Sans'].includes(font);
   };
 
   return (
@@ -57,7 +64,7 @@ export const Typography: FC<TypographyProps> = ({ settings, setSettings }) => {
           >
             <option key="Air" value="Air">Custom</option>
             {Object.entries(themes).map(([key, theme]) => (
-              <option key={key} value={key}>
+              <option key={key} value={key} selected={key === selectedTheme}>
                 {theme.name}
               </option>
             ))}
@@ -72,6 +79,8 @@ export const Typography: FC<TypographyProps> = ({ settings, setSettings }) => {
             value={settings.editorFontFamily}
             onChange={(e) => setSettings({ ...settings, editorFontFamily: e.target.value })}
           >
+            <option value="PT Mono">PT Mono</option>
+            <option value="Pixelify Sans">Pixelify Sans</option>
             <option value="GNU Typewriter">GNU Typewriter</option>
             <option value="CMTypewriter">CMTypewriter</option>
             <option value="UMTypewriter">UMTypewriter</option>
@@ -93,7 +102,9 @@ export const Typography: FC<TypographyProps> = ({ settings, setSettings }) => {
             >
               <option value="typewriter-1">Classic</option>
               <option value="typewriter">Modern</option>
+              <option value="terminal">Terminal</option>
             </select>
+
           </div>
         )}
         <div className="setting-item">
@@ -128,6 +139,8 @@ export const Typography: FC<TypographyProps> = ({ settings, setSettings }) => {
             onChange={(e) => setSettings({ ...settings, titleFontFamily: e.target.value })}
           >
             <option value="Kaligrafica">Kaligrafica</option>
+            <option value="PT Mono">PT Mono</option>
+            <option value="Pixelify Sans">Pixelify Sans</option>
             <option value="GNU Typewriter">GNU Typewriter</option>
             <option value="CMTypewriter">CMTypewriter</option>
             <option value="UMTypewriter">UMTypewriter</option>
@@ -159,7 +172,10 @@ export const Typography: FC<TypographyProps> = ({ settings, setSettings }) => {
             value={settings.sidebarFontFamily}
             onChange={(e) => setSettings({ ...settings, sidebarFontFamily: e.target.value })}
           >
+            <option value="PT Mono">PT Mono</option>
+            <option value="Pixelify Sans">Pixelify Sans</option>
             <option value="GNU Typewriter">GNU Typewriter</option>
+
             <option value="CMTypewriter">CMTypewriter</option>
             <option value="UMTypewriter">UMTypewriter</option>
             <option value="Crimson Pro">Crimson Pro</option>

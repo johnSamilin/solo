@@ -11,11 +11,20 @@ export interface TagNode {
 
 export type NoteFileType = 'html' | 'pdf';
 
+export interface SavedFilter {
+  id: string;
+  label: string;
+  searchQuery: string;
+  tagFilters: { path: string; operator: 'AND' | 'OR' | 'NOT' }[];
+  showOnlyEmptyNotes: boolean;
+}
+
 export interface Note {
   id: string;
   title: string;
   content: string;
   createdAt: Date;
+  updatedAt?: string;
   tags: string[];
   notebookId: string | null;
   theme?: string;
@@ -71,6 +80,7 @@ export interface FileMetadata {
   id: string;
   tags: string[];
   createdAt: string;
+  updatedAt?: string;
   theme?: string;
   paragraphTags?: string[];
 }
