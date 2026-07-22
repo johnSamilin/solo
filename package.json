@@ -1,7 +1,7 @@
 {
   "name": "solo",
   "private": false,
-  "version": "3.5.0",
+  "version": "3.6.0",
   "scripts": {
     "dev": "vite",
     "dev:packaged": "PLATFORM=packaged npm run dev",
