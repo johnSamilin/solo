@@ -104,6 +104,7 @@ export interface ElectronAPI {
   toggleZenMode: (enable: boolean) => Promise<{ success: boolean; isZenMode?: boolean; error?: string }>;
   getZenMode: () => Promise<{ success: boolean; isZenMode?: boolean; error?: string }>;
   search: (searchString?: string, tags?: string[]) => Promise<{ success: boolean; results?: any[]; error?: string }>;
+  searchSemantic: (queryText?: string, tagsExpr?: string) => Promise<{ success: boolean; result?: SemanticSearchResponse; error?: string }>;
   createNotebook: (parentPath: string, name: string) => Promise<{ success: boolean; path?: string; error?: string }>;
   createNote: (parentPath: string, name: string) => Promise<{ success: boolean; htmlPath?: string; jsonPath?: string; error?: string, id: string }>;
   deleteNote: (relativePath: string) => Promise<{ success: boolean; error?: string }>;
@@ -114,6 +115,23 @@ export interface ElectronAPI {
   selectFile: (filters?: { name: string; extensions: string[] }[]) => Promise<{ success: boolean; path?: string; error?: string }>;
   getDigikamTags: (dbPath: string) => Promise<{ success: boolean; tags?: DigikamTag[]; error?: string }>;
   getDigikamImagesByTag: (dbPath: string, tagId: number, limit?: number) => Promise<{ success: boolean; images?: DigikamImage[]; digikamTag: string; error?: string }>;
+  // Semantic-search re-indexing (Electron-only; optional on other platforms).
+  reindexAll?: () => Promise<{ success: boolean; result?: ReindexResult; error?: string }>;
+  reindexNote?: (relativePath: string) => Promise<{ success: boolean; result?: ReindexResult; error?: string }>;
+  onReindexProgress?: (callback: (data: ReindexProgress) => void) => () => void;
+}
+
+export interface ReindexProgress {
+  processed: number;
+  total: number;
+}
+
+export interface ReindexResult {
+  FilesScanned?: number;
+  FilesIndexed?: number;
+  FilesSkipped?: number;
+  FilesRemoved?: number;
+  ParagraphsNew?: number;
 }
 
 export interface DigikamTag {
@@ -157,4 +175,27 @@ declare global {
     SoloBridge?: AndroidBridgeRaw;
     __soloSelectFolderCallback?: (resultJson: string) => void;
   }
+}
+
+export interface SemanticSearchResult {
+  filePath: string;
+  paragraphIndex: number;
+  tag: string;
+  text: string;
+  paragraphTags: string[];
+  fileTags: string[];
+  noteId: string;
+  fileCreatedAt: string;
+  score?: number;
+  semanticScore?: number;
+  lexicalScore?: number;
+  tagMatched?: boolean;
+}
+
+export interface SemanticSearchResponse {
+  mode: string;
+  query?: string;
+  tagExpr?: string;
+  count: number;
+  results: SemanticSearchResult[];
 }

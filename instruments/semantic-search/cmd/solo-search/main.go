@@ -58,11 +58,15 @@ func printUsage() {
 	fmt.Fprintln(os.Stderr, `solo-search - local-only semantic search over Solo notes
 
 Usage:
-	 solo-search index --root <dir> [--model-dir <dir>] [--file <note>]
+	 solo-search index --root <dir> [--model-dir <dir>] [--file <note>] [--progress-stdout]
 	 solo-search query --root <dir> [--query "<text>"] [--tags "<expr>"] [--model-dir <dir>] [--limit N]
 
 Passing --file to "index" (re)indexes only that single note, or removes it
 from the index if the file was deleted, instead of scanning the whole root.
+
+Passing --progress-stdout to "index" emits progress lines "[X/Y]" on stdout
+(the final stdout line is still the JSON result), for host UIs driving a
+progress bar.
 
 At least one of --query / --tags must be provided to "query".
 Results are printed to stdout as JSON.`)
@@ -74,6 +78,7 @@ func runIndex(args []string) error {
 	modelDir := fs.String("model-dir", "", "directory containing model.onnx, tokenizer.json and model.json (defaults to $SOLO_SEARCH_MODEL_DIR or ./models next to the executable)")
 	file := fs.String("file", "", "path to a single note (relative to --root, or absolute within it) to (re)index instead of walking the whole root; if the file no longer exists its index entry is removed")
 	quiet := fs.Bool("quiet", false, "suppress progress output on stderr")
+	progressStdout := fs.Bool("progress-stdout", false, "emit machine-readable progress lines \"[X/Y]\" on stdout (the final line is still the JSON result)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -124,6 +129,13 @@ func runIndex(args []string) error {
 		Store: st,
 		Model: model,
 		Progress: func(processed, total int, relPath string) {
+			// Machine-readable progress on stdout, consumed by the Electron
+			// host to drive the re-index progress bar. The final stdout line
+			// remains the JSON result, so consumers parse "[X/Y]" lines and
+			// treat the trailing JSON separately.
+			if *progressStdout {
+				fmt.Fprintf(os.Stdout, "[%d/%d]\n", processed, total)
+			}
 			if !*quiet {
 				fmt.Fprintf(os.Stderr, "[%d/%d] %s\n", processed, total, relPath)
 			}

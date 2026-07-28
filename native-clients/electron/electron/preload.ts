@@ -47,6 +47,14 @@ const api = {
     ipcRenderer.on('update-status', listener);
     return () => ipcRenderer.removeListener('update-status', listener);
   },
+  reindexAll: () => ipcRenderer.invoke('reindex-all'),
+  reindexNote: (relativePath: string) => ipcRenderer.invoke('reindex-note', relativePath),
+  onReindexProgress: (callback: (data: { processed: number; total: number }) => void) => {
+    const listener = (_: any, data: { processed: number; total: number }) => callback(data);
+    ipcRenderer.on('reindex-progress', listener);
+    return () => ipcRenderer.removeListener('reindex-progress', listener);
+  },
+  searchSemantic: (queryText?: string, tagsExpr?: string) => ipcRenderer.invoke('search-semantic', queryText, tagsExpr),
 };
 
 contextBridge.exposeInMainWorld('electronAPI', api);

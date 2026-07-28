@@ -105,6 +105,9 @@ export interface Translations {
     results: string;
     noResults: string;
     searchPlaceholder: string;
+    enterTags: string;
+    hideTags: string;
+    showTags: string;
   };
   timeline: {
     timeline: string;
@@ -261,6 +264,9 @@ export const translations: Record<Locale, Translations> = {
       results: 'Results',
       noResults: 'No results found',
       searchPlaceholder: 'Search notes... (fuzzy search supported)',
+      enterTags: 'Enter tags for search...',
+      hideTags: 'Hide tags',
+      showTags: 'Show tags',
     },
     timeline: {
       timeline: 'Timeline',
@@ -414,7 +420,10 @@ export const translations: Record<Locale, Translations> = {
       allTags: 'Все теги',
       results: 'Результаты',
       noResults: 'Ничего не найдено',
-      searchPlaceholder: 'Поиск заметок... (поддерживается нечёткий поиск)',
+      searchPlaceholder: 'Поддерживается нечёткий поиск',
+      enterTags: 'Введите теги для поиска...',
+      hideTags: 'Скрыть теги',
+      showTags: 'Показать теги',
     },
     timeline: {
       timeline: 'Хронология',

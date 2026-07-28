@@ -5,7 +5,9 @@ export default {
     icon: '../../assets/icons/png/512x512.png',
     asar: true,
     extraResource: [
-      './electron/dist'
+      './electron/dist',
+      './electron/dist/bin/solo-search',
+      './electron/dist/models'
     ],
     osxSign: {},
     osxNotarize: undefined,

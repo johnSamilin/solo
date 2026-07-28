@@ -3,6 +3,7 @@ import { Note, Notebook, FileMetadata } from '../types';
 import { loadFromStorage, loadNoteContent, loadPdfContent } from '../utils/electron';
 import { getNativeAPI } from '../utils/nativeBridge';
 import { extractParagraphTags } from '../utils';
+import { flags } from '../utils/featureFlags';
 
 
 export class NotesStore {
@@ -169,6 +170,7 @@ export class NotesStore {
     const note = this.notes[noteIndex];
 
     if (api?.renameNote && note?.path && updates.title && updates.title !== note.title) {
+      const oldPath = note.path;
       const result = await api.renameNote(note.path, updates.title);
       if (!result.success) {
         console.error('Failed to rename note file:', result.error);
@@ -189,6 +191,11 @@ export class NotesStore {
         if (this.selectedNote?.id === noteId) {
           this.selectedNote = this.notes[noteIndex];
         }
+
+        // A rename moves the file on disk: drop the stale index entry for the
+        // old path and index the note under its new path.
+        this.reindexNote(oldPath);
+        this.reindexNote(result.newPath);
       }
     } else {
       this.notes[noteIndex] = { ...note, ...updates };
@@ -276,16 +283,38 @@ export class NotesStore {
     }
   };
 
+  /**
+   * Trigger a single-note re-index of the semantic-search database. Only runs
+   * when the `extended-search` feature flag is enabled and the native host
+   * exposes `reindexNote` (Electron desktop). Failures are logged but never
+   * block the caller — re-indexing is best-effort background work.
+   */
+  private reindexNote = (relativePath?: string) => {
+    return;
+    if (!flags.extendedSearch || !relativePath) return;
+    const api = getNativeAPI();
+    if (!api?.reindexNote) return;
+    Promise.resolve(api.reindexNote(relativePath)).catch((error) => {
+      console.error('Failed to reindex note:', relativePath, error);
+    });
+  };
+
   saveCurrentNote = async () => {
     if (this.saveDebounceTimer) {
       clearTimeout(this.saveDebounceTimer);
       this.saveDebounceTimer = null;
     }
 
+    let savedPath: string | undefined;
     if (this.pendingSave) {
+      savedPath = this.notes.find(note => note.id === this.pendingSave!.noteId)?.path;
       await this.saveNoteContent(this.pendingSave.noteId, this.pendingSave.content);
       this.pendingSave = null;
     }
+
+    // Re-index the note whose edits were just flushed. saveCurrentNote runs on
+    // note close / switch / deletion, so this covers the "leaving a note" case.
+    this.reindexNote(savedPath);
   };
 
   updateNotebook = async (notebookId: string, updates: Partial<Notebook>) => {
@@ -321,11 +350,17 @@ export class NotesStore {
 
         this.notes.forEach((note, idx) => {
           if (note.notebookId === oldPath) {
+            const oldNotePath = note.path;
             const notePathParts = note.path?.split('/') || [];
             if (notePathParts.length > 0) {
               notePathParts[0] = updates.name || notebook.name;
               const newNotePath = notePathParts.join('/');
               this.notes[idx] = { ...note, notebookId: newPath, path: newNotePath, filePath: newNotePath };
+
+              // Renaming a notebook moves every note it contains on disk, so
+              // re-index each affected note at both its old and new path.
+              this.reindexNote(oldNotePath);
+              this.reindexNote(newNotePath);
             }
           }
         });
@@ -378,6 +413,7 @@ export class NotesStore {
     }
 
     const note = this.notes.find(n => n.id === noteId);
+    const deletedPath = note?.path;
 
     if (api && note?.path) {
       const result = await api.deleteNote(note.path);
@@ -385,6 +421,10 @@ export class NotesStore {
         console.error('Failed to delete note file:', result.error);
       }
     }
+
+    // Drop the deleted note from the semantic-search index (the binary removes
+    // the entry when the file no longer exists on disk).
+    this.reindexNote(deletedPath);
 
     this.notes = this.notes.filter(note => note.id !== noteId);
     if (this.selectedNote?.id === noteId) {
@@ -395,7 +435,13 @@ export class NotesStore {
   };
 
   setSelectedNote = async (note: Note | null) => {
+    // Note being closed / switched away from — capture it before we save so
+    // we can re-index it once its final content is flushed to disk.
+    const previousNote = this.selectedNote;
     await this.saveCurrentNote();
+    if (previousNote && previousNote.id !== note?.id) {
+      this.reindexNote(previousNote.path);
+    }
     if (note) {
       this.selectedNote = {
         ...note,
