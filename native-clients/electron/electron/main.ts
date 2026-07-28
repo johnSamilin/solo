@@ -1367,8 +1367,9 @@ const runSemanticSearch = async (queryText?: string, tagsExpr?: string): Promise
 
   return new Promise((resolve) => {
     let child;
+    const env = { ...process.env, SOLO_SEARCH_ONNXRUNTIME_LIB: runtime };
     try {
-      child = spawn(`SOLO_SEARCH_ONNXRUNTIME_LIB=${runtime} ${bin}`, args, { windowsHide: true });
+      child = spawn(bin, args, { windowsHide: true, env });
     } catch (error) {
       resolve({ success: false, error: (error as Error).message });
       return;
