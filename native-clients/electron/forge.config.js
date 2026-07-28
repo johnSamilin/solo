@@ -6,8 +6,6 @@ export default {
     asar: true,
     extraResource: [
       './electron/dist',
-      './electron/dist/bin/solo-search',
-      './electron/dist/models'
     ],
     osxSign: {},
     osxNotarize: undefined,

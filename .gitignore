@@ -36,3 +36,5 @@ native-clients/android/app/build
 native-clients/android/app/src/main/assets
 native-clients/android/.gradle
 native-clients/android/local.properties
+
+instruments/**/onnx-runtime

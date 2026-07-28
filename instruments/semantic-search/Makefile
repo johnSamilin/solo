@@ -16,7 +16,8 @@ GO_VERSION  := 1.23
 
 ## build: build a binary for the current host platform (for local testing).
 build:
-	CGO_ENABLED=1 go build -o $(DIST_DIR)/$(BINARY_NAME) ./cmd/solo-search
+	rm -rf dist && CGO_ENABLED=1 go build -o $(DIST_DIR)/$(BINARY_NAME) ./cmd/solo-search && \
+	cp -R models dist/models
 
 ## build-linux: cross-compile for linux/amd64 using the local Go toolchain.
 ## Requires a linux/amd64 C cross-compiler to be available (e.g. via

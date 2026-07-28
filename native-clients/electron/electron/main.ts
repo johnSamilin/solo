@@ -25,9 +25,7 @@ const resolveSearchBinary = (): string => {
   }
   const exeName = process.platform === 'win32' ? 'solo-search.exe' : 'solo-search';
   const candidates = [
-    path.join(process.resourcesPath, exeName),
-    path.join(process.resourcesPath, 'bin', exeName),
-    path.join(process.resourcesPath, 'dist', exeName),
+    path.join(process.resourcesPath, 'dist/instruments/semantic-search', exeName),
   ];
   for (const candidate of candidates) {
     if (existsSync(candidate)) {
@@ -47,7 +45,7 @@ const resolveModelDir = (): string | null => {
   if (process.env.SOLO_SEARCH_MODEL_DIR && existsSync(process.env.SOLO_SEARCH_MODEL_DIR)) {
     return process.env.SOLO_SEARCH_MODEL_DIR;
   }
-  const candidate = path.join(process.resourcesPath, 'models');
+  const candidate = path.join(process.resourcesPath, 'dist/instruments/semantic-search/models');
   return existsSync(candidate) ? candidate : null;
 };
 
@@ -159,8 +157,6 @@ const createWindow = () => {
     mainWindow.webContents.openDevTools();
   } else {
     const indexPath = path.join(process.resourcesPath, 'dist', 'index.html');
-    console.log('Loading index.html from:', indexPath);
-    console.log('Resources path:', process.resourcesPath);
     mainWindow.loadFile(indexPath);
   }
 
@@ -1177,7 +1173,6 @@ ipcMain.handle('get-digikam-images-by-tag', async (_event, dbPath: string, tagId
 
     const stmt = db.prepare(query);
     const images = stmt.all(tagId, limit);
-    console.log('Digikam query: ' + query + ` (results: ${images.length}). params: ${JSON.stringify({tagId})}`);
 
     return { success: true, images };
   } catch (error) {
@@ -1351,6 +1346,7 @@ const runSemanticSearch = async (queryText?: string, tagsExpr?: string): Promise
   const bin = resolveSearchBinary();
   const modelDir = resolveModelDir();
   
+  const runtime = path.join(process.resourcesPath, 'dist/instruments/semantic-search/onnx-runtime/lib/libonnxruntime.so');
   // Build arguments for solo-search query
   const args = ['query', '--root', dataFolder];
   if (modelDir) {
@@ -1364,12 +1360,15 @@ const runSemanticSearch = async (queryText?: string, tagsExpr?: string): Promise
   }
   
   // Set a reasonable limit for results
-  args.push('--limit', '100');
+  // args.push('--limit', '100');
+
+  console.log(`SOLO_SEARCH_ONNXRUNTIME_LIB=${runtime} ${bin}`)
+  console.log(args)
 
   return new Promise((resolve) => {
     let child;
     try {
-      child = spawn(bin, args, { windowsHide: true });
+      child = spawn(`SOLO_SEARCH_ONNXRUNTIME_LIB=${runtime} ${bin}`, args, { windowsHide: true });
     } catch (error) {
       resolve({ success: false, error: (error as Error).message });
       return;
