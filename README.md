@@ -1,4 +1,13 @@
-# Solo - Minimalistic Private Note-Taking App
+# Solo — minimalistic private note‑taking app (HTML files, typography-first)
+
+Solo is a privacy‑focused note‑taking app with a strong emphasis on typography and reading/writing experience.
+No cloud. No accounts. No AI. Your notes stay on your disk as **plain HTML**.
+
+- **Local-first**: notes are files you own
+- **Typography-first**: themes + fine-grained layout controls
+- **Timeline + notebooks + tags**
+- **Integrations**: Onyx Boox PDF annotations, Digikam tag-based image carousels
+
 
 [DEMO](https://johnsamilin.github.io/) - see and test the app and it's visual themes.
 
@@ -10,60 +19,39 @@ I believe that your data is only yours and should not belong to any corporation 
 
 <img width="1150" height="912" alt="Screenshot2" src="https://github.com/user-attachments/assets/74fe3592-23f3-4c2e-a3c6-3eb50cbb1fdb" />
 
-[![Demo](docs/demo.png)](https://youtu.be/-xA6Gce_e0M)
+## Why Solo
+Most note apps lock you into a database, a cloud, or a proprietary format.
+Solo stores notes as **HTML in your filesystem**, so you can read, backup, sync, and migrate them anytime.
+
+## Download
+### Desktop (Linux, Mac)
+- Download the latest release: **Releases → Solo-x.y.z** (recommended)
+- Or build from source (see below)
+
+### Android
+- Download the latest release: **Releases → Solo-x.y.z** (recommended)
+- Or build from source (see below)
 
 # Contact
 [Contact me](https://t.me/WatasheeBaka) if you have any questions.
 
-## Key Features
+## Features
+### Writing
+- Rich text editor (TipTap)
+- Links, images, tasks, headings
+- Zen mode, keyboard shortcuts, word/paragraph count
 
-### Integrations
-- Supports Onyx Boox PDF annotations
-- Supports Digikam so that you could insert image carousels based on tags
+### Organization
+- Notebooks (nested), tags (hierarchical)
+- Timeline view + date picker navigation
 
-### 📝 Rich Text Editing
-- Full-featured Markdown-style editor
-- Support for headings, lists, and task lists
-- Image and link embedding
-- Clean, distraction-free interface
+### Typography
+- Themes: [Air](https://johnsamilin.github.io/?note=Theme-+air.html), [Typewriter](https://johnsamilin.github.io/?note=Theme-+typewriter.html), [Narrow](https://johnsamilin.github.io/?note=Theme-+narrow.html), [FBI](https://johnsamilin.github.io/?note=Theme-+FBI.html), [Alighieri](https://johnsamilin.github.io/?note=Theme-+Alighieri.html), [Terminal](https://johnsamilin.github.io/?note=Theme-+terminal.html)  
+- Controls: font, size, line height, margins, paragraph spacing, drop caps, content width
 
-### 📚 Organization
-- Hierarchical notebook structure
-- Nested notebooks support
-- Tag system with hierarchical organization
-- Flexible note categorization
-- Timeline view for chronological event visualization
-- Date picker navigation for quick timeline browsing
-
-### 🎨 Typography & Layout
-- Multiple predefined themes:
-  - Air: Spacious layout with drop caps
-  - Typewriter: Monospace font with classic spacing
-  - Narrow: Compact layout with minimal margins
-  - FBI: typewriter-inspired
-  - Alighieri
-- Customizable typography settings:
-  - Font family selection
-  - Font size options
-  - Line height adjustment
-  - Page margins
-  - Paragraph spacing
-- Drop caps support with size customization
-- Adjustable content width
-
-### 💫 User Experience
-- Zen mode for distraction-free writing
-- Word and paragraph count
-- Floating action button with quick access to tools
-- Keyboard shortcuts for common actions
-- Responsive sidebar with collapsible sections
-- Smart sync notifications for unsynced changes
-- Timeline view with callout-style note connections
-- Date picker for quick timeline navigation
-
-### 📱 Cross-Platform Support
-- Desktop application (Linux)
-- Mobile application (Android) - DIY
+## Integrations
+- **Onyx Boox**: import / work with PDF annotations
+- **Digikam**: insert image carousels based on tags
 
 ## Technical Details
 
