@@ -9,6 +9,7 @@ import { SearchResults } from './SearchResults';
 import { SaveFilterModal } from '../Modals/SaveFilterModal';
 import { flags } from '../../utils/featureFlags';
 import { getNativeAPI } from '../../utils/nativeBridge';
+import { performSemanticSearchWithNotes, buildTagExpression, TagFilter, filterNotes, fuzzyMatch, getTextMatchingParagraphs, getMatchingParagraphs } from '../../utils/search';
 import './SearchPage.css';
 import { useI18n } from '../../i18n/I18nContext';
 
@@ -19,10 +20,6 @@ interface SearchPageProps {
   initialFilters?: SavedFilter;
 }
 
-interface TagFilter {
-  path: string;
-  operator: 'AND' | 'OR' | 'NOT';
-}
 
 export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect, initialTagPath, initialFilters }) => {
   const { notesStore, settingsStore, tagsStore, savedFiltersStore } = useStore();
@@ -69,20 +66,19 @@ useEffect(() => {
 }, []);
 
 // Perform semantic search when search parameters change
-useEffect(() => {
-  if (flags.extendedSearch && isExtendedSearch) {
-    const timer = setTimeout(() => {
-      performSemanticSearch().then(results => {
-        setSemanticResults(results);
-      });
-    }, 300); // Задержка для предотвращения частых запросов
-    
-    return () => clearTimeout(timer);
-  } else {
-    // Reset semantic results when extended search is disabled
-    setSemanticResults([]);
-  }
-}, [searchQuery, tagFilters, flags.extendedSearch, isExtendedSearch, relevanceThreshold]);
+ useEffect(() => {
+   if (flags.extendedSearch && isExtendedSearch) {
+     const timer = setTimeout(async () => {
+       const results = await performSemanticSearchWithNotes(searchQuery, tagFilters, notesStore.notes, relevanceThreshold);
+       setSemanticResults(results);
+     }, 300); // Задержка для предотвращения частых запросов
+     
+     return () => clearTimeout(timer);
+   } else {
+     // Reset semantic results when extended search is disabled
+     setSemanticResults([]);
+   }
+ }, [searchQuery, tagFilters, notesStore.notes, flags.extendedSearch, isExtendedSearch, relevanceThreshold]);
 
   const handleReindex = async () => {
     const api = getNativeAPI();
@@ -103,334 +99,19 @@ useEffect(() => {
     }
   };
 
-  // Fuzzy search function
-  const fuzzyMatch = (text: string, query: string): boolean => {
-    if (!query) return true;
-    
-    const normalizedText = text.toLowerCase();
-    const normalizedQuery = query.toLowerCase();
-    
-    let queryIndex = 0;
-    for (let i = 0; i < normalizedText.length && queryIndex < normalizedQuery.length; i++) {
-      if (normalizedText[i] === normalizedQuery[queryIndex]) {
-        queryIndex++;
-      }
-    }
-    return queryIndex === normalizedQuery.length;
-  };
 
-  // Extract paragraphs that have matching tags
-  const getMatchingParagraphs = (content: string, tagFilters: TagFilter[]): string[] => {
-    if (tagFilters.length === 0) return [];
-    
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = content;
-    
-    const elements = tempDiv.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li');
-    const matchingParagraphs: string[] = [];
-    
-    elements.forEach(element => {
-      const dataTags = element.getAttribute('data-tags') || '';
-      if (!dataTags) return;
-      
-      const paragraphTags = dataTags.split(',').map(tag => tag.trim()).filter(tag => tag);
-      
-      const matches = tagFilters.some(filter => {
-        return paragraphTags.some(tag => tag.includes(filter.path));
-      });
-      
-      if (matches) {
-        matchingParagraphs.push(element.outerHTML);
-      }
-    });
-    
-    return matchingParagraphs;
-  };
-
-  // Extract matching paragraphs from note content based on text search
-  const getTextMatchingParagraphs = (content: string, query: string): string[] => {
-    if (!query.trim()) return [];
-    
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = content;
-    
-    const elements = tempDiv.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li');
-    const matchingParagraphs: string[] = [];
-    
-    elements.forEach(element => {
-      const text = element.textContent || '';
-      
-      if (fuzzyMatch(text, query)) {
-        matchingParagraphs.push(element.outerHTML);
-      }
-    });
-    
-    return matchingParagraphs;
-  };
-
-  // Filter notes based on search query, tag input and tag filters
-  const standardFilteredNotes = useMemo(() => {
-    const hasSearchQuery = searchQuery.trim().length > 0;
-    const hasTagFilters = tagFilters.length > 0;
-    const hasTagInput = tagInputValue.trim().length > 0;
-    const hasAnyFilter = hasSearchQuery || hasTagFilters || hasTagInput || showOnlyEmptyNotes;
-
-    if (!hasAnyFilter) {
-      return [];
-    }
-
-    let notes = notesStore.getVisibleNotes();
-
-    // Apply empty notes filter
-    if (showOnlyEmptyNotes) {
-      notes = notes.filter(note => notesStore.isNoteEmpty(note));
-    }
-
-    // Apply text search
-    if (hasSearchQuery) {
-      notes = notes.filter(note => {
-        if (fuzzyMatch(note.title, searchQuery.trim())) {
-          return true;
-        }
-
-        const matchingParagraphs = getTextMatchingParagraphs(note.content, searchQuery.trim());
-        return matchingParagraphs.length > 0;
-      });
-    }
-
-    // Apply tag filters
-    if (hasTagFilters) {
-      notes = notes.filter(note => {
-        const matchingParagraphs = getMatchingParagraphs(note.content, tagFilters);
-        if (matchingParagraphs.length > 0) {
-          return true;
-        }
-
-        const allTags = [...note.tags, ...(note.paragraphTags || [])];
-
-        const andFilters = tagFilters.filter(f => f.operator === 'AND');
-        const orFilters = tagFilters.filter(f => f.operator === 'OR');
-        const notFilters = tagFilters.filter(f => f.operator === 'NOT');
-
-        const andMatch = andFilters.length === 0 || andFilters.every(filter =>
-          allTags.some(tag => tag.includes(filter.path))
-        );
-
-        const orMatch = orFilters.length === 0 || orFilters.some(filter =>
-          allTags.some(tag => tag.includes(filter.path))
-        );
-
-        const notMatch = notFilters.every(filter =>
-          !allTags.some(tag => tag.includes(filter.path))
-        );
-
-        return andMatch && orMatch && notMatch;
-      });
-    }
-
-    // Apply tag input filter
-    if (hasTagInput) {
-      const tagInputTerms = tagInputValue.trim().split(/\s+/).filter(term => term.length > 0);
-      
-      if (tagInputTerms.length > 0) {
-        // For now we'll use AND logic between terms in the tag input field
-        notes = notes.filter(note => {
-          const allNoteTags = [...note.tags, ...(note.paragraphTags || [])];
-          return tagInputTerms.every(term =>
-            allNoteTags.some(tag => tag.toLowerCase().includes(term.toLowerCase()))
-          );
-        });
-      }
-    }
-
-    // Sort by relevance
-    return notes.slice().sort((a, b) => {
-      if (searchQuery.trim()) {
-        const aTitle = a.title.toLowerCase().includes(searchQuery.toLowerCase());
-        const bTitle = b.title.toLowerCase().includes(searchQuery.toLowerCase());
-        
-        if (aTitle && !bTitle) return -1;
-        if (!aTitle && bTitle) return 1;
-      }
-
-      return b.createdAt.getTime() - a.createdAt.getTime();
-    });
-  }, [searchQuery, tagFilters, tagInputValue, showOnlyEmptyNotes, notesStore.notes]);
-
-  // Функция для преобразования результатов семантического поиска в формат Note
-  const convertSemanticResultsToNotes = (semanticResults: any): Note[] => {
-    const groupedResults = new Map<string, { note: Note, scores: number[] }>();
-    
-    semanticResults.results.forEach((result: any) => {
-      // Извлекаем ID заметки из пути файла или из поля noteId
-      const noteId = result.noteId || result.filePath.replace(/\.[^/.]+$/, ''); // убираем расширение файла
-      
-      // Находим соответствующую заметку в хранилище
-      const note = notesStore.notes.find(n => n.id === noteId || n.filePath === result.filePath);
-      
-      if (note) {
-        if (groupedResults.has(note.id)) {
-          // Если заметка уже есть, добавляем к ней оценку
-          groupedResults.get(note.id)!.scores.push(result.score || 0);
-        } else {
-          // Создаем новую запись для заметки
-          groupedResults.set(note.id, {
-            note: { ...note },
-            scores: [result.score || 0]
-          });
-        }
-      }
-    });
-    
-    // Преобразуем в массив и вычисляем среднюю оценку для сортировки
-    return Array.from(groupedResults.values()).map(item => ({
-      ...item.note,
-      // Используем максимальный или средний скор из всех параграфов заметки
-      relevanceScore: Math.max(...item.scores)
-    })).sort((a, b) => {
-      // Сортировка по дате по возрастанию
-      return a.createdAt.getTime() - b.createdAt.getTime();
-    });
-  };
-
-  // Обновленная функция поиска с использованием семантики
-  const performSemanticSearch = async () => {
-    if (!flags.extendedSearch || !isExtendedSearch) {
-      return [];
-    }
-    
-    setIsSearching(true);
-    try {
-      const api = getNativeAPI();
-      if (!api?.searchSemantic) {
-        console.error('Semantic search API not available');
-        return [];
-      }
-      
-      // Подготовка текстового запроса и выражения тегов
-      const queryText = searchQuery.trim() || undefined;
-      const tagFiltersStr = tagFilters.length > 0
-        ? tagFilters.map(f => `${f.operator} ${f.path}`).join(' ').trim()
-        : undefined;
-      
-      const response = await api.searchSemantic(queryText, tagFiltersStr);
-      
-      if (!response.success || !response.result) {
-        console.error('Semantic search failed:', response.error);
-        return [];
-      }
-      
-      // Фильтрация по порогу релевантности
-      const filteredResults = {
-        ...response.result,
-        results: response.result.results.filter(result =>
-          result.score === undefined || result.score >= relevanceThreshold
-        )
-      };
-      
-      // Преобразование результатов в формат Note
-      return convertSemanticResultsToNotes(filteredResults);
-    } catch (error) {
-      console.error('Error during semantic search:', error);
-      return [];
-    } finally {
-      setIsSearching(false);
-    }
-  };
 
   // Обновленный useMemo для фильтрации заметок с учетом семантического поиска
-  const filteredNotes = useMemo(() => {
-    // Если включен расширенный поиск, используем семантический поиск
-    if (flags.extendedSearch && isExtendedSearch) {
-      return semanticResults;
-    }
-    
-    const hasSearchQuery = searchQuery.trim().length > 0;
-    const hasTagFilters = tagFilters.length > 0;
-    const hasTagInput = tagInputValue.trim().length > 0;
-    const hasAnyFilter = hasSearchQuery || hasTagFilters || hasTagInput || showOnlyEmptyNotes;
-
-    if (!hasAnyFilter) {
-      return [];
-    }
-
-    let notes = notesStore.getVisibleNotes();
-
-    // Apply empty notes filter
-    if (showOnlyEmptyNotes) {
-      notes = notes.filter(note => notesStore.isNoteEmpty(note));
-    }
-
-    // Apply text search
-    if (hasSearchQuery) {
-      notes = notes.filter(note => {
-        if (fuzzyMatch(note.title, searchQuery.trim())) {
-          return true;
-        }
-
-        const matchingParagraphs = getTextMatchingParagraphs(note.content, searchQuery.trim());
-        return matchingParagraphs.length > 0;
-      });
-    }
-
-    // Apply tag filters
-    if (hasTagFilters) {
-      notes = notes.filter(note => {
-        const matchingParagraphs = getMatchingParagraphs(note.content, tagFilters);
-        if (matchingParagraphs.length > 0) {
-          return true;
-        }
-
-        const allTags = [...note.tags, ...(note.paragraphTags || [])];
-
-        const andFilters = tagFilters.filter(f => f.operator === 'AND');
-        const orFilters = tagFilters.filter(f => f.operator === 'OR');
-        const notFilters = tagFilters.filter(f => f.operator === 'NOT');
-
-        const andMatch = andFilters.length === 0 || andFilters.every(filter =>
-          allTags.some(tag => tag.includes(filter.path))
-        );
-
-        const orMatch = orFilters.length === 0 || orFilters.some(filter =>
-          allTags.some(tag => tag.includes(filter.path))
-        );
-
-        const notMatch = notFilters.every(filter =>
-          !allTags.some(tag => tag.includes(filter.path))
-        );
-
-        return andMatch && orMatch && notMatch;
-      });
-    }
-
-    // Apply tag input filter
-    if (hasTagInput) {
-      const tagInputTerms = tagInputValue.trim().split(/\s+/).filter(term => term.length > 0);
-      
-      if (tagInputTerms.length > 0) {
-        // For now we'll use AND logic between terms in the tag input field
-        notes = notes.filter(note => {
-          const allNoteTags = [...note.tags, ...(note.paragraphTags || [])];
-          return tagInputTerms.every(term =>
-            allNoteTags.some(tag => tag.toLowerCase().includes(term.toLowerCase()))
-          );
-        });
-      }
-    }
-
-    // Sort by relevance
-    return notes.slice().sort((a, b) => {
-      if (searchQuery.trim()) {
-        const aTitle = a.title.toLowerCase().includes(searchQuery.toLowerCase());
-        const bTitle = b.title.toLowerCase().includes(searchQuery.toLowerCase());
-        
-        if (aTitle && !bTitle) return -1;
-        if (!aTitle && bTitle) return 1;
-      }
-
-      return b.createdAt.getTime() - a.createdAt.getTime();
-    });
-  }, [searchQuery, tagFilters, tagInputValue, showOnlyEmptyNotes, notesStore.notes, semanticResults, flags.extendedSearch, isExtendedSearch]);
+   const filteredNotes = useMemo(() => {
+     // Если включен расширенный поиск, используем семантический поиск
+     if (flags.extendedSearch && isExtendedSearch) {
+       return semanticResults;
+     }
+     
+     // Use the standard filtering function from the shared module
+     const allNotes = notesStore.getVisibleNotes();
+     return filterNotes(allNotes, searchQuery, tagFilters, tagInputValue, showOnlyEmptyNotes);
+   }, [searchQuery, tagFilters, tagInputValue, showOnlyEmptyNotes, notesStore.getVisibleNotes, semanticResults, flags.extendedSearch, isExtendedSearch]);
   const addTagFilter = (tagPath: string) => {
     if (!tagFilters.some(f => f.path === tagPath)) {
       setTagFilters([...tagFilters, { path: tagPath, operator: selectedTagOperator }]);
@@ -645,7 +326,7 @@ useEffect(() => {
           </div>
         </div>
         <SearchResults
-          filteredNotes={flags.extendedSearch && isExtendedSearch ? semanticResults : standardFilteredNotes}
+          filteredNotes={filteredNotes}
           searchQuery={searchQuery}
           tagFilters={tagFilters}
           onNoteSelect={onNoteSelect}

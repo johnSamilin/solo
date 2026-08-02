@@ -750,3 +750,17 @@ body {
   white-space: nowrap;
   display: inline-block;
 }
+
+/* Highlighted paragraphs in search results */
+.highlighted-paragraph {
+  background-color: #fffacd !important; /* Light yellow highlight */
+  border-left: 3px solid #ffd700 !important; /* Gold left border */
+  padding-left: 12px !important;
+  margin: 8px 0 !important;
+}
+
+.paragraph-separator {
+  border: none !important;
+  border-top: 1px dashed #ccc !important;
+  margin: 10px 0 !important;
+}
