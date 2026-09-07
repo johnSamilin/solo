@@ -65,13 +65,13 @@ useEffect(() => {
   return unsubscribe;
 }, []);
 
-// Perform semantic search when search parameters change
- useEffect(() => {
-   if (flags.extendedSearch && isExtendedSearch) {
-     const timer = setTimeout(async () => {
-       const results = await performSemanticSearchWithNotes(searchQuery, tagFilters, notesStore.notes, relevanceThreshold);
-       setSemanticResults(results);
-     }, 300); // Задержка для предотвращения частых запросов
+  // Query the local model only when there is a text query. Tags remain a legacy filter.
+  useEffect(() => {
+    if (flags.extendedSearch && isExtendedSearch && searchQuery.trim()) {
+      const timer = setTimeout(async () => {
+        const results = await performSemanticSearchWithNotes(searchQuery, [], notesStore.notes, relevanceThreshold);
+        setSemanticResults(results);
+      }, 300); // Задержка для предотвращения частых запросов
      
      return () => clearTimeout(timer);
    } else {
@@ -104,9 +104,22 @@ useEffect(() => {
   // Обновленный useMemo для фильтрации заметок с учетом семантического поиска
    const filteredNotes = useMemo(() => {
      // Если включен расширенный поиск, используем семантический поиск
-     if (flags.extendedSearch && isExtendedSearch) {
-       return semanticResults;
-     }
+      if (flags.extendedSearch && isExtendedSearch) {
+        const allNotes = notesStore.getVisibleNotes();
+
+        if (tagFilters.length > 0 || tagInputValue.trim()) {
+          const tagResults = filterNotes(allNotes, '', tagFilters, tagInputValue, showOnlyEmptyNotes);
+
+          if (!searchQuery.trim()) {
+            return tagResults;
+          }
+
+          const tagResultIds = new Set(tagResults.map(note => note.id));
+          return semanticResults.filter(note => tagResultIds.has(note.id));
+        }
+
+        return semanticResults;
+      }
      
      // Use the standard filtering function from the shared module
      const allNotes = notesStore.getVisibleNotes();
