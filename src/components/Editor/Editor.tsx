@@ -9,11 +9,11 @@ import { DateEditDialog } from "./DateEditDialog";
 import { ImageContextMenu } from "./ImageContextMenu";
 import { AnnotatedLayout } from "./AnnotatedLayout";
 import { StandardLayout } from "./StandardLayout";
+import { TagsDisplay } from "./TagsDisplay";
 import { useTypewriterSound } from "./hooks/useTypewriterSound";
 import { useImageHandling } from "./hooks/useImageHandling";
 import { useSpeechRecognition } from "./hooks/useSpeechRecognition";
 import { useZenMode } from "./hooks/useZenMode";
-import { themes } from "../../constants";
 import { PdfViewer } from "../PdfViewer/PdfViewer";
 
 import './Editor.css';
@@ -136,6 +136,7 @@ export const Editor: FC<EditorProps> = observer(({
     return (
       <div className="editor" ref={editorContentRef}>
         <PdfViewer base64Data={notesStore.selectedNote.content} />
+        <TagsDisplay />
 
         {settingsStore.isNoteSettingsOpen && (
           <NoteSettingsModal
