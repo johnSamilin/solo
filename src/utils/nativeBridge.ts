@@ -33,7 +33,7 @@ function wrapAndroidBridge(): ElectronAPI | null {
     updateFile: (relativePath: string, content: string) =>
       Promise.resolve(parseJson(bridge.updateFile(relativePath, content))),
     updateMetadata: (relativePath: string, metadata: FileMetadata) =>
-      Promise.resolve(parseJson(bridge.updateMetadata(relativePath, JSON.stringify(metadata)))),
+      Promise.resolve(parseJson(bridge.updateMetadata(relativePath, JSON.stringify(metadata, null, 2)))),
     readStructure: () => Promise.resolve(parseJson(bridge.readStructure())),
     scanAllTags: () => Promise.resolve(parseJson(bridge.scanAllTags())),
     toggleZenMode: (enable: boolean) => Promise.resolve(parseJson(bridge.toggleZenMode(enable))),
