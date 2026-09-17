@@ -78,7 +78,7 @@ class FileSystemManager(
         val result = JSONArray()
         root.listFiles()
             ?.filter { !it.name.startsWith(".") }
-            ?.sortedBy { it.name.lowercase() }
+            ?.sortedWith(::compareFileOrder)
             ?.forEach { child ->
                 val node = buildFileNode(child, "")
                 if (node != null) result.put(node)
@@ -100,7 +100,7 @@ class FileSystemManager(
             val children = JSONArray()
             file.listFiles()
                 ?.filter { !it.name.startsWith(".") }
-                ?.sortedWith(compareBy<File> { !it.isDirectory }.thenBy { it.name.lowercase() })
+                ?.sortedWith(::compareFileOrder)
                 ?.forEach { child ->
                     val childNode = buildFileNode(child, relativePath)
                     if (childNode != null) children.put(childNode)
@@ -152,6 +152,24 @@ class FileSystemManager(
         }
 
         return null
+    }
+
+    private fun compareFileOrder(left: File, right: File): Int {
+        if (left.isDirectory != right.isDirectory) {
+            return if (left.isDirectory) -1 else 1
+        }
+        if (left.isDirectory) return 0
+
+        return getCreatedAt(left).compareTo(getCreatedAt(right))
+    }
+
+    private fun getCreatedAt(file: File): String {
+        val metadataFile = File(file.absolutePath.replace(Regex("\\.(html|pdf)$"), ".json"))
+        return try {
+            JSONObject(metadataFile.readText(Charsets.UTF_8)).optString("createdAt", "")
+        } catch (_: Exception) {
+            ""
+        }
     }
 
     fun scanAllTags(): List<String> {
