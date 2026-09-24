@@ -8,24 +8,24 @@ interface NoteNavigationProps {
 }
 
 export const NoteNavigation: FC<NoteNavigationProps> = observer(({ onCreateNote }) => {
-  const { notesStore, settingsStore } = useStore();
+  const { notesStore } = useStore();
 
   if (!notesStore.selectedNote) return null;
 
-  const visibleNotes = notesStore.getVisibleNotes();
-  const currentIndex = visibleNotes.findIndex(note => note.id === notesStore.selectedNote?.id);
+  const sidebarNotes = notesStore.getSidebarNotes();
+  const currentIndex = sidebarNotes.findIndex(note => note.id === notesStore.selectedNote?.id);
   const hasPrev = currentIndex > 0;
-  const hasNext = currentIndex < visibleNotes.length - 1;
+  const hasNext = currentIndex < sidebarNotes.length - 1;
 
   const handlePrevNote = () => {
     if (hasPrev) {
-      notesStore.setSelectedNote(visibleNotes[currentIndex - 1]);
+      notesStore.setSelectedNote(sidebarNotes[currentIndex - 1]);
     }
   };
 
   const handleNextNote = () => {
     if (hasNext) {
-      notesStore.setSelectedNote(visibleNotes[currentIndex + 1]);
+      notesStore.setSelectedNote(sidebarNotes[currentIndex + 1]);
     }
   };
 

@@ -475,6 +475,17 @@ export class NotesStore {
     return this.notes;
   };
 
+  getSidebarNotes = () => {
+    const collectNotes = (parentId: string | null): Note[] => {
+      return [
+        ...this.getNotebookNotes(parentId),
+        ...this.getChildNotebooks(parentId).flatMap(notebook => collectNotes(notebook.id)),
+      ];
+    };
+
+    return collectNotes(null);
+  };
+
   getChildNotebooks = (parentId: string | null) => {
     return this.notebooksByParentId.get(parentId) ?? [];
   };
