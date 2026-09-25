@@ -1,5 +1,5 @@
 import { makeAutoObservable, runInAction } from 'mobx';
-import { SavedFilter } from '../types';
+import { SavedFilter, SavedSearchExportProfile } from '../types';
 import { generateUniqueId } from '../utils';
 
 const STORAGE_KEY = 'solo-saved-filters';
@@ -39,6 +39,14 @@ export class SavedFiltersStore {
 
   deleteFilter(id: string) {
     this.savedFilters = this.savedFilters.filter(f => f.id !== id);
+    this.saveToStorage();
+  }
+
+  updateExportProfile(id: string, profile: SavedSearchExportProfile) {
+    const filter = this.savedFilters.find(savedFilter => savedFilter.id === id);
+    if (!filter) return;
+
+    filter.exportProfile = profile;
     this.saveToStorage();
   }
 

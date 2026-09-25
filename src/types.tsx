@@ -11,12 +11,42 @@ export interface TagNode {
 
 export type NoteFileType = 'html' | 'pdf';
 
+export type ExportFormat = 'pdf' | 'epub';
+
+export interface ExportHeaderFooter {
+  enabled: boolean;
+  header: string;
+  footer: string;
+  pageNumberPosition: 'top-left' | 'top-center' | 'top-right' | 'bottom-left' | 'bottom-center' | 'bottom-right';
+}
+
+export interface ExportCover {
+  enabled: boolean;
+  title: string;
+  author: string;
+  imageData?: string;
+  imageMediaType?: 'image/jpeg' | 'image/png' | 'image/webp';
+}
+
+export interface SavedSearchExportProfile {
+  format: ExportFormat;
+  autoExport: boolean;
+  outputPath?: string;
+  title: string;
+  author: string;
+  includeTableOfContents: boolean;
+  cover: ExportCover;
+  headerFooter: ExportHeaderFooter;
+  pageSize: 'A4' | 'Letter';
+}
+
 export interface SavedFilter {
   id: string;
   label: string;
   searchQuery: string;
   tagFilters: { path: string; operator: 'AND' | 'OR' | 'NOT' }[];
   showOnlyEmptyNotes: boolean;
+  exportProfile?: SavedSearchExportProfile;
 }
 
 export interface Note {
@@ -116,6 +146,32 @@ export interface ElectronAPI {
   selectFile: (filters?: { name: string; extensions: string[] }[]) => Promise<{ success: boolean; path?: string; error?: string }>;
   getDigikamTags: (dbPath: string) => Promise<{ success: boolean; tags?: DigikamTag[]; error?: string }>;
   getDigikamImagesByTag: (dbPath: string, tagId: number, limit?: number) => Promise<{ success: boolean; images?: DigikamImage[]; digikamTag: string; error?: string }>;
+  exportFile: (request: ExportFileRequest) => Promise<ExportFileResult>;
+  selectExportCoverImage: () => Promise<ExportCoverImageResult>;
+}
+
+export interface ExportFileRequest {
+  format: ExportFormat;
+  suggestedFileName: string;
+  outputPath?: string;
+  html?: string;
+  epubBase64?: string;
+  pageSize: SavedSearchExportProfile['pageSize'];
+  pageNumberPosition: ExportHeaderFooter['pageNumberPosition'];
+  showPageNumbers: boolean;
+}
+
+export interface ExportFileResult {
+  success: boolean;
+  outputPath?: string;
+  error?: string;
+}
+
+export interface ExportCoverImageResult {
+  success: boolean;
+  data?: string;
+  mediaType?: ExportCover['imageMediaType'];
+  error?: string;
 }
 
 export interface DigikamTag {

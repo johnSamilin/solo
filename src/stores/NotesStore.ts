@@ -395,7 +395,11 @@ export class NotesStore {
   };
 
   setSelectedNote = async (note: Note | null) => {
+    const previousNote = this.selectedNote;
     await this.saveCurrentNote();
+    if (previousNote && previousNote.id !== note?.id) {
+      this._rootStore?.onCurrentNoteSaved();
+    }
     if (note) {
       this.selectedNote = {
         ...note,
@@ -405,6 +409,9 @@ export class NotesStore {
       if (__IS_PACKAGED__) {
         this._rootStore?.seenStore.markAsSeen(note);
       }
+    } else {
+      this.selectedNote = null;
+      this.setFocusedNotebook(null);
     }
     this.isEditing = !!note;
   };
@@ -475,6 +482,17 @@ export class NotesStore {
     return this.notes;
   };
 
+  getSidebarNotes = () => {
+    const collectNotes = (parentId: string | null): Note[] => {
+      return [
+        ...this.getNotebookNotes(parentId),
+        ...this.getChildNotebooks(parentId).flatMap(notebook => collectNotes(notebook.id)),
+      ];
+    };
+
+    return collectNotes(null);
+  };
+
   getChildNotebooks = (parentId: string | null) => {
     return this.notebooksByParentId.get(parentId) ?? [];
   };
@@ -516,10 +534,17 @@ export class NotesStore {
       const content = note.fileType === 'pdf'
         ? await loadPdfContent(note.filePath)
         : await loadNoteContent(note.filePath);
-      this.updateNote(note.id, { content });
-      if (this.selectedNote) {
-        this.selectedNote.isLoaded = true;
-      }
+      runInAction(() => {
+        const storedNote = this.notes.find(item => item.id === note.id);
+        if (storedNote) {
+          storedNote.content = content;
+        }
+
+        if (this.selectedNote?.id === note.id) {
+          this.selectedNote.content = content;
+          this.selectedNote.isLoaded = true;
+        }
+      });
     } catch (error) {
       console.error('Failed to load note content:', error);
     } finally {

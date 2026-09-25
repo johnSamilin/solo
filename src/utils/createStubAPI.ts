@@ -527,6 +527,12 @@ export function createStubAPI(): ElectronAPI {
     getDigikamImagesByTag: async () => {
       return { success: false, error: 'Not available in packaged build', digikamTag: '' };
     },
+    exportFile: async () => {
+      return { success: false, error: 'Export is not available in packaged build' };
+    },
+    selectExportCoverImage: async () => {
+      return { success: false, error: 'Export is not available in packaged build' };
+    },
   };
   return stub as unknown as ElectronAPI;
 }

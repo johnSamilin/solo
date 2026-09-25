@@ -4,16 +4,13 @@ import { observer } from 'mobx-react-lite';
 import { Note } from '../../types';
 import { useStore } from '../../stores/StoreProvider';
 import { themes } from '../../constants';
+import { getNoteDisplayContent, SearchTagFilter } from './noteDisplayContent';
 
-interface TagFilter {
-  path: string;
-  operator: 'AND' | 'OR' | 'NOT';
-}
 
 interface SearchResultsProps {
   filteredNotes: Note[];
   searchQuery: string;
-  tagFilters: TagFilter[];
+  tagFilters: SearchTagFilter[];
   onNoteSelect: (note: Note) => void;
 }
 
@@ -26,115 +23,6 @@ export const SearchResults: FC<SearchResultsProps> = observer(({
   const { notesStore, settingsStore } = useStore();
   const [loadingNotes, setLoadingNotes] = useState<Set<string>>(new Set());
 
-  // Fuzzy search function
-  const fuzzyMatch = (text: string, query: string): boolean => {
-    if (!query) return true;
-    
-    const normalizedText = text.toLowerCase();
-    const normalizedQuery = query.toLowerCase();
-    
-    let queryIndex = 0;
-    for (let i = 0; i < normalizedText.length && queryIndex < normalizedQuery.length; i++) {
-      if (normalizedText[i] === normalizedQuery[queryIndex]) {
-        queryIndex++;
-      }
-    }
-    return queryIndex === normalizedQuery.length;
-  };
-
-  // Extract matching paragraphs from note content based on text search
-  const getTextMatchingParagraphs = (content: string, query: string): string[] => {
-    if (!query.trim()) return [];
-    
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = content;
-    
-    const elements = tempDiv.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li');
-    const matchingParagraphs: string[] = [];
-    
-    elements.forEach(element => {
-      const text = element.textContent || '';
-      
-      if (fuzzyMatch(text, query)) {
-        matchingParagraphs.push(element.outerHTML);
-      }
-    });
-    
-    return matchingParagraphs;
-  };
-
-  // Extract paragraphs that have matching tags
-  const getMatchingParagraphs = (content: string, tagFilters: TagFilter[]): string[] => {
-    if (tagFilters.length === 0) return [];
-    
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = content;
-    
-    const elements = tempDiv.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li');
-    const matchingParagraphs: string[] = [];
-    
-    elements.forEach(element => {
-      const dataTags = element.getAttribute('data-tags') || '';
-      if (!dataTags) return;
-      
-      const paragraphTags = dataTags.split(',').map(tag => tag.trim()).filter(tag => tag);
-      
-      const matches = tagFilters.some(filter => {
-        return paragraphTags.some(tag => tag.includes(filter.path));
-      });
-      
-      if (matches) {
-        matchingParagraphs.push(element.outerHTML);
-      }
-    });
-    
-    return matchingParagraphs;
-  };
-
-  // Check if note title or full content matches query
-  const noteFullyMatches = (note: Note, query: string): boolean => {
-    if (!query.trim()) return true;
-    
-    const titleMatches = fuzzyMatch(note.title, query);
-    if (titleMatches) return true;
-    
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = note.content;
-    const fullText = tempDiv.textContent || '';
-    
-    return fuzzyMatch(fullText, query);
-  };
-
-  // Filter content based on censorship mode
-  const getFilteredContent = (note: Note): string => {
-    return note.content;
-  };
-
-  // Get content to display for a note
-  const getNoteDisplayContent = (note: Note, query: string): { content: string; isPartial: boolean } => {
-    const filteredContent = getFilteredContent(note);
-    
-    const matchingTagParagraphs = getMatchingParagraphs(filteredContent, tagFilters);
-    
-    if (!query.trim() && tagFilters.length === 0) {
-      return { content: filteredContent, isPartial: false };
-    }
-    
-    if (query.trim() && noteFullyMatches(note, query) && tagFilters.length === 0) {
-      return { content: filteredContent, isPartial: false };
-    }
-    
-    const textMatchingParagraphs = query.trim() ? getTextMatchingParagraphs(filteredContent, query) : [];
-    
-    const allMatchingParagraphs = [...new Set([...textMatchingParagraphs, ...matchingTagParagraphs])];
-    
-    if (allMatchingParagraphs.length > 0) {
-      const partialContent = allMatchingParagraphs.join('<br/><br/>');
-      return { content: partialContent, isPartial: true };
-    }
-    
-    return { content: filteredContent, isPartial: false };
-  };
 
   const handleNoteClick = async (note: Note) => {
     if (!note.content) {
@@ -177,7 +65,7 @@ export const SearchResults: FC<SearchResultsProps> = observer(({
 
   const renderNoteContent = (note: Note) => {
     const isLoading = loadingNotes.has(note.id);
-    const { content: displayContent, isPartial } = getNoteDisplayContent(note, searchQuery);
+    const { content: displayContent, isPartial } = getNoteDisplayContent(note, searchQuery, tagFilters);
     
     const noteTheme = note.theme ? themes[note.theme]?.settings : settingsStore.settings;
     const noteStyles = noteTheme ? {

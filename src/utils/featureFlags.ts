@@ -36,6 +36,7 @@ export const flags = {
   extendedSearch: __FF_EXTENDED_SEARCH__,
   deepLinking: __FF_DEEP_LINKING__,
   defaultTheme: __FF_DEFAULT_THEME__,
+  exportNotes: __FF_EXPORT_NOTES__,
 } as const;
 
 /**

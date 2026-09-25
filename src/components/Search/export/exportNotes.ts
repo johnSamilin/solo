@@ -1,0 +1,122 @@
+import JSZip from 'jszip';
+import { ExportFileRequest, Note, SavedFilter, SavedSearchExportProfile } from '../../../types';
+import { defaultSettings, themes } from '../../../constants';
+import { loadNoteCss } from '../../../utils/electron';
+import { getNoteDisplayContent } from '../noteDisplayContent';
+import gnuTypewriterUrl from '../../../assets/fonts/gtw.ttf?url';
+import cmTypewriterUrl from '../../../assets/fonts/CMTypewriter/cmunvt.ttf?url';
+import cmTypewriterItalicUrl from '../../../assets/fonts/CMTypewriter/cmunvi.ttf?url';
+import umTypewriterUrl from '../../../assets/fonts/UMTypewriter/UMTypewriter-Regular.otf?url';
+import umTypewriterItalicUrl from '../../../assets/fonts/UMTypewriter/UMTypewriter-Italic.otf?url';
+import umTypewriterBoldUrl from '../../../assets/fonts/UMTypewriter/UMTypewriter-Bold.otf?url';
+import umTypewriterBoldItalicUrl from '../../../assets/fonts/UMTypewriter/UMTypewriter-BoldItalic.otf?url';
+import kaligraficaUrl from '../../../assets/fonts/kaligrafica.ttf?url';
+import pixelifyUrl from '../../../assets/fonts/PixelifySans-VariableFont_wght.ttf?url';
+
+const escapeHtml = (value: string) => value.replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]!));
+
+type ExportChapter = { note: Note; content: string; css: string; className: string };
+type ExportFont = { family: string; fileName: string; format: 'truetype' | 'opentype'; style: string; weight: string; url: string; bytes: Uint8Array };
+
+const fontSources = [
+  ['GNU Typewriter', 'GNU-Typewriter.ttf', 'truetype', 'normal', '400', gnuTypewriterUrl],
+  ['CMTypewriter', 'CMTypewriter.ttf', 'truetype', 'normal', '400', cmTypewriterUrl],
+  ['CMTypewriter', 'CMTypewriter-Italic.ttf', 'truetype', 'italic', '400', cmTypewriterItalicUrl],
+  ['UMTypewriter', 'UMTypewriter-Regular.otf', 'opentype', 'normal', '400', umTypewriterUrl],
+  ['UMTypewriter', 'UMTypewriter-Italic.otf', 'opentype', 'italic', '400', umTypewriterItalicUrl],
+  ['UMTypewriter', 'UMTypewriter-Bold.otf', 'opentype', 'normal', '700', umTypewriterBoldUrl],
+  ['UMTypewriter', 'UMTypewriter-BoldItalic.otf', 'opentype', 'italic', '700', umTypewriterBoldItalicUrl],
+  ['Kaligrafica', 'Kaligrafica.ttf', 'truetype', 'normal', '400', kaligraficaUrl],
+  ['Pixelify Sans', 'Pixelify-Sans.ttf', 'truetype', 'normal', '400', pixelifyUrl],
+] as const;
+
+const loadExportFonts = async (): Promise<ExportFont[]> => (await Promise.all(fontSources.map(async ([family, fileName, format, style, weight, url]) => {
+  try {
+    return { family, fileName, format, style, weight, url, bytes: new Uint8Array(await (await fetch(url)).arrayBuffer()) };
+  } catch {
+    return undefined;
+  }
+}))).filter((font): font is ExportFont => Boolean(font));
+
+const selectContent = (note: Note, filter: SavedFilter) => {
+  const { content, isPartial } = getNoteDisplayContent(note, filter.searchQuery, filter.tagFilters);
+  return isPartial ? `<div class="export-fragment">…${content}…</div>` : content;
+};
+
+const toXhtml = (html: string) => {
+  const root = document.createElement('div');
+  root.innerHTML = html;
+  return Array.from(root.childNodes).map(node => new XMLSerializer().serializeToString(node)).join('');
+};
+
+const scopeCss = (css: string, scope: string) => css.replace(/(^|})(\s*[^@}][^{]*)\{/g, (_match, prefix, selectors) => `${prefix}${selectors.split(',').map((selector: string) => `${scope} ${selector.trim()}`).join(', ')}{`);
+
+const buildChapters = async (notes: Note[], filter: SavedFilter) => Promise.all(notes.map(async (note, index) => {
+  const settings = note.theme && themes[note.theme] ? themes[note.theme].settings : defaultSettings;
+  const className = `chapter-${index}`;
+  let customCss = '';
+  if (note.cssPath) {
+    try { customCss = await loadNoteCss(note.cssPath); } catch { customCss = ''; }
+  }
+  const css = `.${className}{font-family:${settings.editorFontFamily};font-size:${settings.editorFontSize};line-height:${settings.editorLineHeight}}.${className} h1{font-family:${settings.titleFontFamily};font-size:${settings.titleFontSize}}.${className} p{margin-bottom:${settings.paragraphSpacing}}${scopeCss(customCss, `.${className}`)}`;
+  return { note, content: selectContent(note, filter), css, className };
+}));
+
+const fontCss = (fonts: ExportFont[], embedded: boolean) => fonts.map(font => `@font-face{font-family:"${font.family}";src:url("${embedded ? `data:font/${font.format === 'opentype' ? 'otf' : 'ttf'};base64,${toBase64(font.bytes)}` : `fonts/${font.fileName}`}") format("${font.format}");font-style:${font.style};font-weight:${font.weight}}`).join('');
+
+const buildHtml = (profile: SavedSearchExportProfile, chapters: ExportChapter[], fonts: ExportFont[]) => {
+  const chapterHtml = chapters.map(({ note, content, className }, index) => `<article id="chapter-${index}" class="chapter ${className}"><h1>${escapeHtml(note.title)}</h1>${content}</article>`).join('');
+  const styles = chapters.map(chapter => chapter.css).join('');
+  const toc = profile.includeTableOfContents
+    ? `<nav class="toc"><h1>Содержание</h1><ol>${chapters.map(({ note }, index) => `<li><a href="#chapter-${index}">${escapeHtml(note.title)}</a></li>`).join('')}</ol></nav>`
+    : '';
+  const coverImage = profile.cover.imageData && profile.cover.imageMediaType ? `<img src="data:${profile.cover.imageMediaType};base64,${profile.cover.imageData}" alt="" />` : '';
+  const cover = profile.cover.enabled ? `<section class="cover">${coverImage}<h1>${escapeHtml(profile.cover.title || profile.title)}</h1><p>${escapeHtml(profile.cover.author || profile.author)}</p></section>` : '';
+  return `<!doctype html><html><head><meta charset="utf-8"><style>${fontCss(fonts, true)}@page{margin:20mm}@page:first{margin:0}body{font-family:serif;line-height:1.5;color:#111}.cover{position:relative;height:100vh;overflow:hidden;break-after:page;text-align:center;color:#fff;background:#111}.cover img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.cover h1,.cover p{position:relative;z-index:1;margin:0;text-shadow:0 2px 8px #000}.cover h1{padding:72vh 2rem 0;font-size:2.5rem}.cover p{padding:0.75rem 2rem}.toc{break-after:page}.chapter{margin:0 0 2rem}img,figure,.carousel,table{break-inside:avoid;page-break-inside:avoid;max-width:100%}.carousel{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}.carousel img{width:100%;height:auto}h1,h2,h3{break-after:avoid;page-break-after:avoid}.export-fragment{margin:1.5em 0;font-style:italic}${styles}</style></head><body>${cover}${toc}${chapterHtml}</body></html>`;
+};
+
+const toBase64 = (bytes: Uint8Array) => {
+  let value = '';
+  bytes.forEach(byte => { value += String.fromCharCode(byte); });
+  return btoa(value);
+};
+
+const buildEpub = async (profile: SavedSearchExportProfile, chapters: ExportChapter[], fonts: ExportFont[]) => {
+  const zip = new JSZip();
+  zip.file('mimetype', 'application/epub+zip', { compression: 'STORE' });
+  zip.file('META-INF/container.xml', '<?xml version="1.0"?><container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>');
+  const manifest = chapters.map((_, index) => `<item id="chapter-${index}" href="chapter-${index}.xhtml" media-type="application/xhtml+xml"/>`).join('');
+  const spine = chapters.map((_, index) => `<itemref idref="chapter-${index}"/>`).join('');
+  const fontManifest = fonts.map((font, index) => `<item id="font-${index}" href="fonts/${font.fileName}" media-type="application/font-sfnt"/>`).join('');
+  const coverExtension = profile.cover.imageMediaType === 'image/png' ? 'png' : profile.cover.imageMediaType === 'image/webp' ? 'webp' : 'jpg';
+  const coverManifest = profile.cover.enabled && profile.cover.imageData && profile.cover.imageMediaType ? `<item id="cover" href="images/cover.${coverExtension}" media-type="${profile.cover.imageMediaType}" properties="cover-image"/><item id="cover-page" href="cover.xhtml" media-type="application/xhtml+xml"/>` : '';
+  const coverSpine = coverManifest ? '<itemref idref="cover-page"/>' : '';
+  zip.file('OEBPS/content.opf', `<?xml version="1.0" encoding="utf-8"?><package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="book"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="book">solo-export</dc:identifier><dc:title>${escapeHtml(profile.title)}</dc:title><dc:creator>${escapeHtml(profile.author)}</dc:creator><dc:language>ru</dc:language></metadata><manifest>${manifest}${fontManifest}${coverManifest}<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/><item id="styles" href="styles.css" media-type="text/css"/></manifest><spine>${coverSpine}${spine}</spine></package>`);
+  zip.file('OEBPS/nav.xhtml', `<html xmlns="http://www.w3.org/1999/xhtml"><body><nav epub:type="toc" xmlns:epub="http://www.idpf.org/2007/ops"><ol>${chapters.map(({ note }, index) => `<li><a href="chapter-${index}.xhtml">${escapeHtml(note.title)}</a></li>`).join('')}</ol></nav></body></html>`);
+  zip.file('OEBPS/styles.css', `${fontCss(fonts, false)}.cover{position:relative;height:100vh;overflow:hidden;background:#111}.cover img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}${chapters.map(chapter => chapter.css).join('')}`);
+  fonts.forEach(font => zip.file(`OEBPS/fonts/${font.fileName}`, font.bytes));
+  if (coverManifest && profile.cover.imageData) zip.file(`OEBPS/images/cover.${coverExtension}`, Uint8Array.from(atob(profile.cover.imageData), character => character.charCodeAt(0)));
+  if (coverManifest) zip.file('OEBPS/cover.xhtml', `<html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="styles.css" /></head><body><section class="cover"><img src="images/cover.${coverExtension}" alt="" /></section></body></html>`);
+  chapters.forEach(({ note, content, className }, index) => zip.file(`OEBPS/chapter-${index}.xhtml`, `<html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="styles.css" /></head><body><article class="${className}"><h1>${escapeHtml(note.title)}</h1>${toXhtml(content)}</article></body></html>`));
+  return toBase64(await zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE' }));
+};
+
+export const createExportFileRequest = async (
+  profile: SavedSearchExportProfile,
+  filter: SavedFilter,
+  notes: Note[],
+  outputPath?: string,
+): Promise<ExportFileRequest> => {
+  const chapters = await buildChapters(notes, filter);
+  const fonts = await loadExportFonts();
+  return {
+  format: profile.format,
+  suggestedFileName: `${profile.title || filter.label}.${profile.format}`,
+  outputPath,
+  html: profile.format === 'pdf' ? buildHtml(profile, chapters, fonts) : undefined,
+  epubBase64: profile.format === 'epub' ? await buildEpub(profile, chapters, fonts) : undefined,
+  pageSize: profile.pageSize,
+  pageNumberPosition: profile.headerFooter.pageNumberPosition || 'bottom-center',
+  showPageNumbers: profile.headerFooter.enabled,
+  };
+};

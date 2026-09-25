@@ -122,10 +122,6 @@ export interface Translations {
     wordCount: string;
     close: string;
   };
-  readingMode: {
-    readingMode: string;
-    exitReading: string;
-  };
   imageModal: {
     insertImage: string;
     imageUrl: string;
@@ -278,10 +274,6 @@ export const translations: Record<Locale, Translations> = {
       wordCount: 'Word Count',
       close: 'Close',
     },
-    readingMode: {
-      readingMode: 'Reading Mode',
-      exitReading: 'Exit Reading Mode',
-    },
     imageModal: {
       insertImage: 'Insert Image',
       imageUrl: 'Image URL',
@@ -431,10 +423,6 @@ export const translations: Record<Locale, Translations> = {
       updated: 'Обновлено',
       wordCount: 'Количество слов',
       close: 'Закрыть',
-    },
-    readingMode: {
-      readingMode: 'Режим чтения',
-      exitReading: 'Выйти из режима чтения',
     },
     imageModal: {
       insertImage: 'Вставить изображение',
