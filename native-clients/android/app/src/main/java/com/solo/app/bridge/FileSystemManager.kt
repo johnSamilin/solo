@@ -76,17 +76,22 @@ class FileSystemManager(
         if (!root.exists()) return "[]"
 
         val result = JSONArray()
+        val metadataCache = mutableMapOf<String, JSONObject?>()
         root.listFiles()
             ?.filter { !it.name.startsWith(".") }
-            ?.sortedWith(::compareFileOrder)
+            ?.sortedWith { left, right -> compareFileOrder(left, right, metadataCache) }
             ?.forEach { child ->
-                val node = buildFileNode(child, "")
+                val node = buildFileNode(child, "", metadataCache)
                 if (node != null) result.put(node)
             }
         return result.toString()
     }
 
-    private fun buildFileNode(file: File, parentRelativePath: String): JSONObject? {
+    private fun buildFileNode(
+        file: File,
+        parentRelativePath: String,
+        metadataCache: MutableMap<String, JSONObject?>
+    ): JSONObject? {
         val relativePath = if (parentRelativePath.isEmpty()) file.name
         else "$parentRelativePath/${file.name}"
 
@@ -100,9 +105,9 @@ class FileSystemManager(
             val children = JSONArray()
             file.listFiles()
                 ?.filter { !it.name.startsWith(".") }
-                ?.sortedWith(::compareFileOrder)
+                ?.sortedWith { left, right -> compareFileOrder(left, right, metadataCache) }
                 ?.forEach { child ->
-                    val childNode = buildFileNode(child, relativePath)
+                    val childNode = buildFileNode(child, relativePath, metadataCache)
                     if (childNode != null) children.put(childNode)
                 }
 
@@ -125,25 +130,13 @@ class FileSystemManager(
                 }
             }
 
-            val metadataFile = if (file.name.endsWith(".html")) {
-                File(file.absolutePath.replace(".html", ".json"))
-            } else {
-                File(file.absolutePath.replace(".pdf", ".json"))
+            val metadataFile = File(file.absolutePath.replace(Regex("\\.(html|pdf)$"), ".json"))
+            val metadata = readMetadata(file, metadataCache)
+            if (metadata != null) {
+                node.put("metadata", metadata)
             }
-            
-            if (metadataFile.exists()) {
-                try {
-                    val metadataContent = metadataFile.readText(Charsets.UTF_8)
-                    val metadata = JSONObject(metadataContent)
-                    node.put("metadata", metadata)
-                    
-                    // Add file type for both HTML and PDF files
-                    val fileType = if (file.name.endsWith(".pdf")) "pdf" else "html"
-                    node.put("fileType", fileType)
-                } catch (_: Exception) {
-                }
-            } else {
-                // Add file type for files without metadata
+
+            if (metadata != null || !metadataFile.exists()) {
                 val fileType = if (file.name.endsWith(".pdf")) "pdf" else "html"
                 node.put("fileType", fileType)
             }
@@ -154,22 +147,35 @@ class FileSystemManager(
         return null
     }
 
-    private fun compareFileOrder(left: File, right: File): Int {
+    private fun compareFileOrder(
+        left: File,
+        right: File,
+        metadataCache: MutableMap<String, JSONObject?>
+    ): Int {
         if (left.isDirectory != right.isDirectory) {
             return if (left.isDirectory) -1 else 1
         }
         if (left.isDirectory) return 0
 
-        return getCreatedAt(left).compareTo(getCreatedAt(right))
+        return getCreatedAt(left, metadataCache).compareTo(getCreatedAt(right, metadataCache))
     }
 
-    private fun getCreatedAt(file: File): String {
-        val metadataFile = File(file.absolutePath.replace(Regex("\\.(html|pdf)$"), ".json"))
-        return try {
-            JSONObject(metadataFile.readText(Charsets.UTF_8)).optString("createdAt", "")
+    private fun getCreatedAt(file: File, metadataCache: MutableMap<String, JSONObject?>): String {
+        return readMetadata(file, metadataCache)?.optString("createdAt", "") ?: ""
+    }
+
+    private fun readMetadata(file: File, metadataCache: MutableMap<String, JSONObject?>): JSONObject? {
+        val path = file.absolutePath
+        if (metadataCache.containsKey(path)) return metadataCache[path]
+
+        val metadataFile = File(path.replace(Regex("\\.(html|pdf)$"), ".json"))
+        val metadata = try {
+            JSONObject(metadataFile.readText(Charsets.UTF_8))
         } catch (_: Exception) {
-            ""
+            null
         }
+        metadataCache[path] = metadata
+        return metadata
     }
 
     fun scanAllTags(): List<String> {
