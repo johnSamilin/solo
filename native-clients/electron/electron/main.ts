@@ -294,6 +294,98 @@ app.on('window-all-closed', () => {
   }
 });
 
+type ExportFileRequest = {
+  format: 'pdf' | 'epub';
+  suggestedFileName: string;
+  outputPath?: string;
+  html?: string;
+  epubBase64?: string;
+  pageSize: 'A4' | 'Letter';
+  pageNumberPosition: 'top-left' | 'top-center' | 'top-right' | 'bottom-left' | 'bottom-center' | 'bottom-right';
+  showPageNumbers: boolean;
+};
+
+const safeExportFileName = (fileName: string, extension: string) => {
+  const baseName = path.basename(fileName).replace(/[^a-zA-Z0-9._ -]/g, '_');
+  return baseName.toLowerCase().endsWith(`.${extension}`) ? baseName : `${baseName}.${extension}`;
+};
+
+const writeExportFile = async (targetPath: string, content: Buffer) => {
+  const temporaryPath = `${targetPath}.${Date.now()}.tmp`;
+  await fs.writeFile(temporaryPath, content);
+  await fs.rename(temporaryPath, targetPath);
+};
+
+ipcMain.handle('select-export-cover-image', async () => {
+  if (!mainWindow) return { success: false, error: 'No window available' };
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openFile'],
+    filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp'] }],
+  });
+  if (result.canceled || result.filePaths.length === 0) return { success: false, error: 'Image selection cancelled' };
+
+  const extension = path.extname(result.filePaths[0]).toLowerCase();
+  const mediaType = extension === '.png' ? 'image/png' : extension === '.webp' ? 'image/webp' : 'image/jpeg';
+  const bytes = await fs.readFile(result.filePaths[0]);
+  if (bytes.byteLength > 10 * 1024 * 1024) return { success: false, error: 'Cover image must be smaller than 10 MB' };
+  return { success: true, data: bytes.toString('base64'), mediaType };
+});
+
+ipcMain.handle('export-file', async (_event, request: ExportFileRequest) => {
+  try {
+    if (!request || (request.format !== 'pdf' && request.format !== 'epub')) {
+      return { success: false, error: 'Unsupported export format' };
+    }
+
+    const extension = request.format;
+    const defaultPath = safeExportFileName(request.suggestedFileName || 'solo-export', extension);
+    const result = request.outputPath ? { filePath: request.outputPath } : await dialog.showSaveDialog(mainWindow ?? undefined, {
+      defaultPath,
+      filters: [{ name: request.format.toUpperCase(), extensions: [extension] }],
+    });
+    const targetPath = result.filePath;
+
+    if (!targetPath || path.extname(targetPath).toLowerCase() !== `.${extension}`) {
+      return { success: false, error: 'Export cancelled or has an invalid file extension' };
+    }
+
+    if (request.format === 'epub') {
+      if (!request.epubBase64) return { success: false, error: 'EPUB content is missing' };
+      await writeExportFile(targetPath, Buffer.from(request.epubBase64, 'base64'));
+      return { success: true, outputPath: targetPath };
+    }
+
+    if (!request.html) return { success: false, error: 'PDF content is missing' };
+    const exportWindow = new BrowserWindow({
+      show: false,
+      webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false },
+    });
+    const temporaryHtmlPath = path.join(app.getPath('temp'), `solo-export-${Date.now()}-${Math.random().toString(36).slice(2)}.html`);
+    try {
+      await fs.writeFile(temporaryHtmlPath, request.html);
+      await exportWindow.loadFile(temporaryHtmlPath);
+      await exportWindow.webContents.executeJavaScript('document.fonts.ready.then(() => true)');
+      const [vertical, horizontal] = request.pageNumberPosition.split('-');
+      const pageTemplate = `<div style="width:100%;font-size:9px;color:#666;text-align:${horizontal};padding:0 12mm"><span class="pageNumber"></span></div>`;
+      const pdf = await exportWindow.webContents.printToPDF({
+        pageSize: request.pageSize,
+        printBackground: true,
+        displayHeaderFooter: request.showPageNumbers,
+        headerTemplate: request.showPageNumbers && vertical === 'top' ? pageTemplate : '<span></span>',
+        footerTemplate: request.showPageNumbers && vertical === 'bottom' ? pageTemplate : '<span></span>',
+        margins: { top: vertical === 'top' ? 0.8 : 0.4, bottom: vertical === 'bottom' ? 0.8 : 0.4, left: 0.4, right: 0.4 },
+      });
+      await writeExportFile(targetPath, pdf);
+      return { success: true, outputPath: targetPath };
+    } finally {
+      exportWindow.destroy();
+      await fs.unlink(temporaryHtmlPath).catch(() => undefined);
+    }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to export file' };
+  }
+});
+
 interface FileMetadata {
   id: string;
   tags: string[];

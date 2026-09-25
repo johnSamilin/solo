@@ -1,12 +1,14 @@
 import { FC, useState, useMemo, useEffect } from 'react';
 import { observer } from 'mobx-react-lite';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, BookOpen, Save } from 'lucide-react';
 import { useStore } from '../../stores/StoreProvider';
 import { Note, SavedFilter } from '../../types';
 import { SearchInput } from './SearchInput';
 import { SearchFilters } from './SearchFilters';
 import { SearchResults } from './SearchResults';
 import { SaveFilterModal } from '../Modals/SaveFilterModal';
+import { ExportSettingsModal } from './export/ExportSettingsModal';
+import { flags } from '../../utils/featureFlags';
 import './SearchPage.css';
 
 interface SearchPageProps {
@@ -30,6 +32,7 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
   const [selectedTagOperator, setSelectedTagOperator] = useState<'AND' | 'OR' | 'NOT'>('AND');
   const [showOnlyEmptyNotes, setShowOnlyEmptyNotes] = useState(false);
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
+  const [isExportSettingsOpen, setIsExportSettingsOpen] = useState(false);
 
   // Apply initialFilters when provided
   useEffect(() => {
@@ -214,26 +217,19 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
           Back
         </button>
         <h1>Search Notes</h1>
+        {flags.exportNotes && initialFilters && (
+          <button
+            onClick={() => setIsExportSettingsOpen(true)}
+            className="search-save-filter-button search-export-button"
+          >
+            <BookOpen size={16} />
+            Экспорт
+          </button>
+        )}
         {hasActiveFilters && (
           <button
             onClick={() => setIsSaveDialogOpen(true)}
-            className="search-save-filter-button"
-            style={{
-              marginLeft: 'auto',
-              padding: '0.5rem 1rem',
-              borderRadius: '0.5rem',
-              border: '1px solid var(--color-border)',
-              background: 'var(--color-white)',
-              color: 'var(--color-text)',
-              cursor: 'pointer',
-              fontSize: '0.875rem',
-              fontWeight: 500,
-              fontFamily: "'Outfit', system-ui, sans-serif",
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              transition: 'all 0.2s ease',
-            }}
+            className={`search-save-filter-button ${flags.exportNotes && initialFilters ? 'search-save-filter-button--adjacent' : 'search-save-filter-button--push'}`}
           >
             <Save size={16} />
             Сохранить поиск
@@ -277,6 +273,13 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
         }}
         onCancel={() => setIsSaveDialogOpen(false)}
       />
+      {flags.exportNotes && initialFilters && isExportSettingsOpen && (
+        <ExportSettingsModal
+          filter={initialFilters}
+          notes={filteredNotes}
+          onClose={() => setIsExportSettingsOpen(false)}
+        />
+      )}
     </div>
   );
 });

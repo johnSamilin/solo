@@ -47,6 +47,36 @@
   font-family: 'Outfit', system-ui, sans-serif;
 }
 
+.search-save-filter-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  background: var(--color-white);
+  color: var(--color-text);
+  cursor: pointer;
+  font-family: 'Outfit', system-ui, sans-serif;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.search-save-filter-button:hover {
+  background: var(--color-bg);
+  border-color: var(--color-text-light);
+}
+
+.search-save-filter-button--push,
+.search-export-button {
+  margin-left: auto;
+}
+
+.search-save-filter-button--adjacent {
+  margin-left: 0.5rem;
+}
+
 .search-content {
   flex: 1;
   display: flex;

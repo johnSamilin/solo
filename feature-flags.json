@@ -2,14 +2,17 @@
   "PACKAGED": {
     "extended-search": false,
     "deep-linking": true,
-    "default-theme": "terminal"
+    "default-theme": "terminal",
+    "export-notes": false
   },
   "DESKTOP": {
     "extended-search": true,
-    "deep-linking": false
+    "deep-linking": false,
+    "export-notes": true
   },
   "MOBILE": {
     "extended-search": false,
-    "deep-linking": false
+    "deep-linking": false,
+    "export-notes": false
   }
 }
