@@ -57,6 +57,7 @@ function wrapAndroidBridge(): ElectronAPI | null {
     getDigikamImagesByTag: () => Promise.resolve({ success: false, error: 'Not supported on Android', digikamTag: '' }),
     exportFile: () => Promise.resolve({ success: false, error: 'Export is not supported on Android' }),
     selectExportCoverImage: () => Promise.resolve({ success: false, error: 'Export is not supported on Android' }),
+    readImage: () => Promise.resolve({ success: false, error: 'Not supported on Android' }),
     uploadImage: (imageData: string, fileName: string) =>
       Promise.resolve(parseJson(bridge.uploadImage(imageData, fileName))),
     openPdfFile: (relativePath: string) =>

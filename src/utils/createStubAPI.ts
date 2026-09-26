@@ -533,6 +533,9 @@ export function createStubAPI(): ElectronAPI {
     selectExportCoverImage: async () => {
       return { success: false, error: 'Export is not available in packaged build' };
     },
+    readImage: async () => {
+      return { success: false, error: 'Not available in packaged build' };
+    },
   };
   return stub as unknown as ElectronAPI;
 }

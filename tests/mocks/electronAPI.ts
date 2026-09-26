@@ -224,6 +224,18 @@ export function createMockElectronAPI(initialState?: Partial<MockState>): Electr
     getDigikamImagesByTag: async (dbPath: string, tagId: number, limit?: number) => {
       return { success: true, images: [], digikamTag: 'test-tag' };
     },
+
+    exportFile: async () => {
+      return { success: false, error: 'Export is not available in test environment' };
+    },
+
+    selectExportCoverImage: async () => {
+      return { success: false, error: 'Export is not available in test environment' };
+    },
+
+    readImage: async (url: string) => {
+      return { success: false, error: 'Not available in test environment' };
+    },
   };
 }
 

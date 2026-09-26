@@ -40,6 +40,7 @@ const api = {
   openPdfFile: (relativePath: string) => ipcRenderer.invoke('open-pdf-file', relativePath),
   exportFile: (request: unknown) => ipcRenderer.invoke('export-file', request),
   selectExportCoverImage: () => ipcRenderer.invoke('select-export-cover-image'),
+  readImage: (url: string) => ipcRenderer.invoke('read-image', url),
   openLogFile: () => ipcRenderer.invoke('open-log-file'),
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
   downloadUpdate: () => ipcRenderer.invoke('download-update'),

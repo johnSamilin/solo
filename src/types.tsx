@@ -148,6 +148,7 @@ export interface ElectronAPI {
   getDigikamImagesByTag: (dbPath: string, tagId: number, limit?: number) => Promise<{ success: boolean; images?: DigikamImage[]; digikamTag: string; error?: string }>;
   exportFile: (request: ExportFileRequest) => Promise<ExportFileResult>;
   selectExportCoverImage: () => Promise<ExportCoverImageResult>;
+  readImage: (url: string) => Promise<ReadImageResult>;
 }
 
 export interface ExportFileRequest {
@@ -171,6 +172,13 @@ export interface ExportCoverImageResult {
   success: boolean;
   data?: string;
   mediaType?: ExportCover['imageMediaType'];
+  error?: string;
+}
+
+export interface ReadImageResult {
+  success: boolean;
+  data?: string;
+  mediaType?: string;
   error?: string;
 }
 

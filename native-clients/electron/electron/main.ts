@@ -331,6 +331,58 @@ ipcMain.handle('select-export-cover-image', async () => {
   return { success: true, data: bytes.toString('base64'), mediaType };
 });
 
+const mediaTypeForExtension = (extension: string): string => {
+  switch (extension.toLowerCase()) {
+    case '.png': return 'image/png';
+    case '.webp': return 'image/webp';
+    case '.gif': return 'image/gif';
+    case '.bmp': return 'image/bmp';
+    case '.svg': return 'image/svg+xml';
+    case '.avif': return 'image/avif';
+    default: return 'image/jpeg';
+  }
+};
+
+ipcMain.handle('read-image', async (_event, url: string) => {
+  try {
+    if (typeof url !== 'string' || url.length === 0) {
+      return { success: false, error: 'Image URL is missing' };
+    }
+
+    let filePath: string;
+    if (url.startsWith('image://')) {
+      const fileName = url.slice('image://'.length);
+      if (!dataFolder) return { success: false, error: 'No data folder selected' };
+      filePath = path.join(dataFolder, 'assets', fileName);
+      if (!filePath.startsWith(path.join(dataFolder, 'assets'))) {
+        return { success: false, error: 'Invalid image path' };
+      }
+    } else if (url.startsWith('file://')) {
+      const parsed = new URL(url);
+      filePath = decodeURIComponent(parsed.pathname);
+      if (process.platform === 'win32' && filePath.startsWith('/')) {
+        filePath = filePath.slice(1);
+      }
+    } else {
+      return { success: false, error: 'Unsupported image URL' };
+    }
+
+    if (!existsSync(filePath)) {
+      return { success: false, error: 'Image file does not exist' };
+    }
+
+    const stat = await fs.stat(filePath);
+    if (!stat.isFile()) {
+      return { success: false, error: 'Image path is not a regular file' };
+    }
+
+    const buffer = await fs.readFile(filePath);
+    return { success: true, data: buffer.toString('base64'), mediaType: mediaTypeForExtension(path.extname(filePath)) };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
+});
+
 ipcMain.handle('export-file', async (_event, request: ExportFileRequest) => {
   try {
     if (!request || (request.format !== 'pdf' && request.format !== 'epub')) {
