@@ -76,22 +76,19 @@ class FileSystemManager(
         if (!root.exists()) return "[]"
 
         val result = JSONArray()
-        val metadataCache = mutableMapOf<String, JSONObject?>()
-        root.listFiles()
-            ?.filter { !it.name.startsWith(".") }
-            ?.sortedWith { left, right -> compareFileOrder(left, right, metadataCache) }
-            ?.forEach { child ->
-                val node = buildFileNode(child, "", metadataCache)
-                if (node != null) result.put(node)
-            }
+        buildChildNodes(root, "").forEach { result.put(it) }
         return result.toString()
     }
 
-    private fun buildFileNode(
-        file: File,
-        parentRelativePath: String,
-        metadataCache: MutableMap<String, JSONObject?>
-    ): JSONObject? {
+    private fun buildChildNodes(dir: File, parentRelativePath: String): List<JSONObject> {
+        return dir.listFiles()
+            ?.filter { !it.name.startsWith(".") }
+            ?.mapNotNull { buildFileNode(it, parentRelativePath) }
+            ?.sortedWith(::compareNodes)
+            .orEmpty()
+    }
+
+    private fun buildFileNode(file: File, parentRelativePath: String): JSONObject? {
         val relativePath = if (parentRelativePath.isEmpty()) file.name
         else "$parentRelativePath/${file.name}"
 
@@ -103,14 +100,7 @@ class FileSystemManager(
             }
 
             val children = JSONArray()
-            file.listFiles()
-                ?.filter { !it.name.startsWith(".") }
-                ?.sortedWith { left, right -> compareFileOrder(left, right, metadataCache) }
-                ?.forEach { child ->
-                    val childNode = buildFileNode(child, relativePath, metadataCache)
-                    if (childNode != null) children.put(childNode)
-                }
-
+            buildChildNodes(file, relativePath).forEach { children.put(it) }
             node.put("children", children)
             return node
         }
@@ -131,7 +121,7 @@ class FileSystemManager(
             }
 
             val metadataFile = File(file.absolutePath.replace(Regex("\\.(html|pdf)$"), ".json"))
-            val metadata = readMetadata(file, metadataCache)
+            val metadata = readMetadata(file)
             if (metadata != null) {
                 node.put("metadata", metadata)
             }
@@ -147,35 +137,25 @@ class FileSystemManager(
         return null
     }
 
-    private fun compareFileOrder(
-        left: File,
-        right: File,
-        metadataCache: MutableMap<String, JSONObject?>
-    ): Int {
-        if (left.isDirectory != right.isDirectory) {
-            return if (left.isDirectory) -1 else 1
-        }
-        if (left.isDirectory) return 0
-
-        return getCreatedAt(left, metadataCache).compareTo(getCreatedAt(right, metadataCache))
+    private fun compareNodes(left: JSONObject, right: JSONObject): Int {
+        val leftIsFolder = left.optString("type") == "folder"
+        val rightIsFolder = right.optString("type") == "folder"
+        if (leftIsFolder != rightIsFolder) return if (leftIsFolder) -1 else 1
+        if (leftIsFolder) return 0
+        return getCreatedAt(left).compareTo(getCreatedAt(right))
     }
 
-    private fun getCreatedAt(file: File, metadataCache: MutableMap<String, JSONObject?>): String {
-        return readMetadata(file, metadataCache)?.optString("createdAt", "") ?: ""
+    private fun getCreatedAt(node: JSONObject): String {
+        return node.optJSONObject("metadata")?.optString("createdAt", "") ?: ""
     }
 
-    private fun readMetadata(file: File, metadataCache: MutableMap<String, JSONObject?>): JSONObject? {
-        val path = file.absolutePath
-        if (metadataCache.containsKey(path)) return metadataCache[path]
-
-        val metadataFile = File(path.replace(Regex("\\.(html|pdf)$"), ".json"))
-        val metadata = try {
+    private fun readMetadata(file: File): JSONObject? {
+        val metadataFile = File(file.absolutePath.replace(Regex("\\.(html|pdf)$"), ".json"))
+        return try {
             JSONObject(metadataFile.readText(Charsets.UTF_8))
         } catch (_: Exception) {
             null
         }
-        metadataCache[path] = metadata
-        return metadata
     }
 
     fun scanAllTags(): List<String> {
