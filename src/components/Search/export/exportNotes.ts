@@ -225,7 +225,10 @@ export const createExportFileRequest = async (
   currentSettings: TypographySettings = defaultSettings,
   outputPath?: string,
 ): Promise<ExportFileRequest> => {
-  const chapters = await buildChapters(notes, filter, currentSettings);
+  const sortedNotes = notes.slice().sort((a, b) => {
+      return a.createdAt.getTime() - b.createdAt.getTime();
+    });
+  const chapters = await buildChapters(sortedNotes, filter, currentSettings);
   const fonts = await loadExportFonts();
   return {
   format: profile.format,

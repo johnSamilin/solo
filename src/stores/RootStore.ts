@@ -105,7 +105,7 @@ export class RootStore {
         if (firstTitle && !secondTitle) return -1;
         if (!firstTitle && secondTitle) return 1;
       }
-      return second.createdAt.getTime() - first.createdAt.getTime();
+      return first.createdAt.getTime() - second.createdAt.getTime();
     });
   };
 }
