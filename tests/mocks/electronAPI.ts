@@ -236,6 +236,10 @@ export function createMockElectronAPI(initialState?: Partial<MockState>): Electr
     readImage: async (url: string) => {
       return { success: false, error: 'Not available in test environment' };
     },
+
+    fetchUrl: async (url: string) => {
+      return { success: false, error: 'Not available in test environment' };
+    },
   };
 }
 

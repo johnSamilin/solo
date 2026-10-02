@@ -3,6 +3,11 @@ package com.solo.app.bridge
 import android.webkit.JavascriptInterface
 import com.solo.app.MainActivity
 import com.solo.app.utils.SecurityUtils
+import java.io.ByteArrayOutputStream
+import java.io.InputStream
+import java.net.HttpURLConnection
+import java.net.URI
+import java.net.URL
 
 class WebViewBridge(
     private val activity: MainActivity,
@@ -179,4 +184,83 @@ class WebViewBridge(
             """{"success":false,"error":"${SecurityUtils.escapeJson(e.message ?: "Unknown error")}"}"""
         }
     }
+
+    @JavascriptInterface
+    fun fetchUrl(url: String): String {
+        return try {
+            val result = fetchArticle(url)
+            if (result.success) {
+                """{"success":true,"content":${SecurityUtils.toJsonString(result.content)},"finalUrl":${SecurityUtils.toJsonString(result.finalUrl)},"contentType":${SecurityUtils.toJsonString(result.contentType)}}"""
+            } else {
+                """{"success":false,"error":"${SecurityUtils.escapeJson(result.error)}"}"""
+            }
+        } catch (e: Exception) {
+            """{"success":false,"error":"${SecurityUtils.escapeJson(e.message ?: "Unknown error")}"}"""
+        }
+    }
+
+    private fun fetchArticle(url: String): FetchResult {
+        var currentUrl = url
+        var redirects = 0
+
+        while (redirects < 5) {
+            val connection = URL(currentUrl).openConnection() as HttpURLConnection
+            connection.instanceFollowRedirects = false
+            connection.connectTimeout = 15000
+            connection.readTimeout = 20000
+            connection.setRequestProperty(
+                "User-Agent",
+                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
+            )
+
+            try {
+                val code = connection.responseCode
+                if (code in 300..399) {
+                    val location = connection.getHeaderField("Location")
+                        ?: return FetchResult(false, "", currentUrl, "", "Redirect without Location header")
+                    currentUrl = URI(currentUrl).resolve(location).toString()
+                    redirects++
+                    connection.disconnect()
+                    continue
+                }
+
+                val contentType = connection.contentType ?: ""
+                val stream = if (code in 200..299) connection.inputStream else connection.errorStream
+                val content = if (stream != null) String(readBounded(stream, 5 * 1024 * 1024), Charsets.UTF_8) else ""
+                connection.disconnect()
+
+                if (code !in 200..299) {
+                    return FetchResult(false, "", currentUrl, contentType, "Request failed with status $code")
+                }
+                return FetchResult(true, content, currentUrl, contentType, "")
+            } catch (e: Exception) {
+                connection.disconnect()
+                throw e
+            }
+        }
+
+        return FetchResult(false, "", currentUrl, "", "Too many redirects")
+    }
+
+    private fun readBounded(stream: InputStream, maxBytes: Int): ByteArray {
+        val buffer = ByteArrayOutputStream()
+        val chunk = ByteArray(8192)
+        var total = 0
+        while (true) {
+            val read = stream.read(chunk)
+            if (read < 0) break
+            total += read
+            if (total > maxBytes) throw IllegalStateException("Response is too large")
+            buffer.write(chunk, 0, read)
+        }
+        return buffer.toByteArray()
+    }
 }
+
+private data class FetchResult(
+    val success: Boolean,
+    val content: String,
+    val finalUrl: String,
+    val contentType: String,
+    val error: String
+)

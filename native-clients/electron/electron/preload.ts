@@ -41,6 +41,7 @@ const api = {
   exportFile: (request: unknown) => ipcRenderer.invoke('export-file', request),
   selectExportCoverImage: () => ipcRenderer.invoke('select-export-cover-image'),
   readImage: (url: string) => ipcRenderer.invoke('read-image', url),
+  fetchUrl: (url: string) => ipcRenderer.invoke('fetch-url', url),
   openLogFile: () => ipcRenderer.invoke('open-log-file'),
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
   downloadUpdate: () => ipcRenderer.invoke('download-update'),

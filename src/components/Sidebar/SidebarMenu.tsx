@@ -1,9 +1,10 @@
 import { FC, useState, useRef, useEffect } from 'react';
-import { MoreVertical, Plus, Search, Clock, FolderPlus, Mail, Settings } from 'lucide-react';
+import { MoreVertical, Plus, Search, Clock, FolderPlus, Mail, Settings, BookmarkPlus } from 'lucide-react';
 import { Editor } from '@tiptap/react';
 import { observer } from 'mobx-react-lite';
 import { useStore } from '../../stores/StoreProvider';
 import { useI18n } from '../../i18n/I18nContext';
+import { flags } from '../../utils/featureFlags';
 
 interface SidebarMenuProps {
   editor: Editor | null;
@@ -16,7 +17,7 @@ export const SidebarMenu: FC<SidebarMenuProps> = observer(({
   onOpenSearch,
   onOpenTimeline
 }) => {
-  const { notesStore, settingsStore } = useStore();
+  const { notesStore, settingsStore, readLaterStore } = useStore();
   const { t } = useI18n();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -58,6 +59,11 @@ export const SidebarMenu: FC<SidebarMenuProps> = observer(({
     setIsMenuOpen(false);
   };
 
+  const handleReadLater = () => {
+    readLaterStore.open();
+    setIsMenuOpen(false);
+  };
+
   const handleOpenSettings = () => {
     settingsStore.setSettingsOpen(true);
     setIsMenuOpen(false);
@@ -95,6 +101,16 @@ export const SidebarMenu: FC<SidebarMenuProps> = observer(({
               <Plus className="h-4 w-4" />
               {t.sidebar.newNote}
             </button>
+            {flags.readLater && (
+              <button
+                className="sidebar-dropdown-item"
+                onClick={handleReadLater}
+                role="menuitem"
+              >
+                <BookmarkPlus className="h-4 w-4" />
+                {t.sidebar.readLater}
+              </button>
+            )}
             <button
               className="sidebar-dropdown-item"
               onClick={() => {

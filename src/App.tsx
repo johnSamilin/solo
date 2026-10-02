@@ -24,6 +24,7 @@ import { Toast } from './components/Toast/Toast';
 import { themes } from './constants';
 import { TagModal } from './components/Modals/TagModal/TagModal';
 import { ImageInsertModal } from './components/Modals/ImageInsertModal';
+import { ReadLaterModal } from './components/Modals/ReadLaterModal';
 import { loadNoteCss } from './utils/electron';
 import { getNativeAPI, isNative } from './utils/nativeBridge';
 import { injectNoteStyles, removeNoteStyles } from './utils/cssUtils';
@@ -32,7 +33,7 @@ import { flags } from './utils/featureFlags';
 import { parseDeepLink, sanitizeNoteId, buildNoteUrl, buildBaseUrl } from './utils/deepLink';
 
 const App = observer(() => {
-  const { notesStore, settingsStore, tagsStore } = useStore();
+  const { notesStore, settingsStore, tagsStore, readLaterStore } = useStore();
   const [initialContent, setInitialContent] = useState('');
   const [autoZenDisabled, setAutoZenDisabled] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -283,7 +284,8 @@ const App = observer(() => {
         isSearchOpen ||
         isTimelineOpen ||
         isParagraphTagModalOpen ||
-        isImageInsertModalOpen;
+        isImageInsertModalOpen ||
+        readLaterStore.isOpen;
       if (!anyModalOpen && notesStore.selectedNote) {
         notesStore.setSelectedNote(null);
         editor?.commands.setContent('');
@@ -299,6 +301,7 @@ const App = observer(() => {
     isTimelineOpen,
     isParagraphTagModalOpen,
     isImageInsertModalOpen,
+    readLaterStore.isOpen,
     notesStore.selectedNote,
     editor,
   ]);
@@ -466,6 +469,8 @@ const App = observer(() => {
           onClose={() => settingsStore.setNewNotebookModalOpen(false)}
         />
       )}
+
+      <ReadLaterModal />
 
       <Toast />
 

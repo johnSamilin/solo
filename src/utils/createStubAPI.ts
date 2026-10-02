@@ -536,6 +536,9 @@ export function createStubAPI(): ElectronAPI {
     readImage: async () => {
       return { success: false, error: 'Not available in packaged build' };
     },
+    fetchUrl: async () => {
+      return { success: false, error: 'Not available in packaged build' };
+    },
   };
   return stub as unknown as ElectronAPI;
 }

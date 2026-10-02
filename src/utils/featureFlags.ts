@@ -37,6 +37,7 @@ export const flags = {
   deepLinking: __FF_DEEP_LINKING__,
   defaultTheme: __FF_DEFAULT_THEME__,
   exportNotes: __FF_EXPORT_NOTES__,
+  readLater: __FF_READ_LATER__,
 } as const;
 
 /**

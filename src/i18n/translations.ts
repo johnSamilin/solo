@@ -10,6 +10,7 @@ export interface Translations {
     newNote: string;
     search: string;
     askQuestion: string;
+    readLater: string;
   };
   editor: {
     untitled: string;
@@ -149,6 +150,14 @@ export interface Translations {
     yes: string;
     no: string;
   };
+  readLater: {
+    title: string;
+    urlPlaceholder: string;
+    saveStyles: string;
+    save: string;
+    saving: string;
+    cancel: string;
+  };
 }
 
 export const translations: Record<Locale, Translations> = {
@@ -162,6 +171,7 @@ export const translations: Record<Locale, Translations> = {
       newNote: 'New Note',
       search: 'Search',
       askQuestion: 'Ask a question',
+      readLater: 'Read later',
     },
     editor: {
       untitled: 'Untitled',
@@ -301,6 +311,14 @@ export const translations: Record<Locale, Translations> = {
       yes: 'Yes',
       no: 'No',
     },
+    readLater: {
+      title: 'Read later',
+      urlPlaceholder: 'https://example.com/article',
+      saveStyles: 'Save styles',
+      save: 'Save article',
+      saving: 'Saving...',
+      cancel: 'Cancel',
+    },
   },
   ru: {
     sidebar: {
@@ -312,6 +330,7 @@ export const translations: Record<Locale, Translations> = {
       newNote: 'Новая заметка',
       search: 'Поиск',
       askQuestion: 'Задать вопрос',
+      readLater: 'Read later',
     },
     editor: {
       untitled: 'Без названия',
@@ -450,6 +469,14 @@ export const translations: Record<Locale, Translations> = {
       confirm: 'Подтвердить',
       yes: 'Да',
       no: 'Нет',
+    },
+    readLater: {
+      title: 'Read later',
+      urlPlaceholder: 'https://example.com/article',
+      saveStyles: 'Сохранить стили',
+      save: 'Сохранить статью',
+      saving: 'Сохранение...',
+      cancel: 'Отмена',
     },
   },
 };

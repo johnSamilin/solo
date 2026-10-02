@@ -383,6 +383,54 @@ ipcMain.handle('read-image', async (_event, url: string) => {
   }
 });
 
+ipcMain.handle('fetch-url', async (_event, url: string) => {
+  try {
+    if (typeof url !== 'string' || url.length === 0) {
+      return { success: false, error: 'URL is missing' };
+    }
+
+    let parsed: URL;
+    try {
+      parsed = new URL(url);
+    } catch {
+      return { success: false, error: 'Invalid URL' };
+    }
+
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return { success: false, error: 'Only http(s) URLs are allowed' };
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
+
+    try {
+      const response = await net.fetch(parsed.toString(), {
+        method: 'GET',
+        redirect: 'follow',
+        signal: controller.signal,
+      });
+
+      const contentType = response.headers.get('content-type') ?? undefined;
+      const buffer = Buffer.from(await response.arrayBuffer());
+      if (buffer.length > 5 * 1024 * 1024) {
+        return { success: false, error: 'Response is too large' };
+      }
+
+      return {
+        success: response.ok,
+        content: buffer.toString('utf-8'),
+        finalUrl: response.url,
+        contentType,
+        error: response.ok ? undefined : `Request failed with status ${response.status}`,
+      };
+    } finally {
+      clearTimeout(timeout);
+    }
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
+});
+
 ipcMain.handle('export-file', async (_event, request: ExportFileRequest) => {
   try {
     if (!request || (request.format !== 'pdf' && request.format !== 'epub')) {
