@@ -25,7 +25,7 @@ const defaultProfile = (filter: SavedFilter): SavedSearchExportProfile => ({
 });
 
 export const ExportSettingsModal: FC<ExportSettingsModalProps> = ({ filter, notes, onClose }) => {
-  const { savedFiltersStore } = useStore();
+  const { savedFiltersStore, settingsStore } = useStore();
   const [profile, setProfile] = useState(() => {
     const defaults = defaultProfile(filter);
     if (!filter.exportProfile) return defaults;
@@ -54,7 +54,7 @@ export const ExportSettingsModal: FC<ExportSettingsModalProps> = ({ filter, note
     setError(undefined);
     const api = getNativeAPI();
     if (!api) { setError('Экспорт доступен только в desktop-версии Solo'); setIsExporting(false); return; }
-    const result = await api.exportFile(await createExportFileRequest(profile, filter, notes));
+    const result = await api.exportFile(await createExportFileRequest(profile, filter, notes, settingsStore.settings));
     setIsExporting(false);
     if (!result.success) { setError(result.error || 'Не удалось экспортировать заметки'); return; }
     savedFiltersStore.updateExportProfile(filter.id, { ...profile, outputPath: result.outputPath });

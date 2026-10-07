@@ -76,14 +76,16 @@ class FileSystemManager(
         if (!root.exists()) return "[]"
 
         val result = JSONArray()
-        root.listFiles()
-            ?.filter { !it.name.startsWith(".") }
-            ?.sortedWith(::compareFileOrder)
-            ?.forEach { child ->
-                val node = buildFileNode(child, "")
-                if (node != null) result.put(node)
-            }
+        buildChildNodes(root, "").forEach { result.put(it) }
         return result.toString()
+    }
+
+    private fun buildChildNodes(dir: File, parentRelativePath: String): List<JSONObject> {
+        return dir.listFiles()
+            ?.filter { !it.name.startsWith(".") }
+            ?.mapNotNull { buildFileNode(it, parentRelativePath) }
+            ?.sortedWith(::compareNodes)
+            .orEmpty()
     }
 
     private fun buildFileNode(file: File, parentRelativePath: String): JSONObject? {
@@ -98,14 +100,7 @@ class FileSystemManager(
             }
 
             val children = JSONArray()
-            file.listFiles()
-                ?.filter { !it.name.startsWith(".") }
-                ?.sortedWith(::compareFileOrder)
-                ?.forEach { child ->
-                    val childNode = buildFileNode(child, relativePath)
-                    if (childNode != null) children.put(childNode)
-                }
-
+            buildChildNodes(file, relativePath).forEach { children.put(it) }
             node.put("children", children)
             return node
         }
@@ -125,25 +120,13 @@ class FileSystemManager(
                 }
             }
 
-            val metadataFile = if (file.name.endsWith(".html")) {
-                File(file.absolutePath.replace(".html", ".json"))
-            } else {
-                File(file.absolutePath.replace(".pdf", ".json"))
+            val metadataFile = File(file.absolutePath.replace(Regex("\\.(html|pdf)$"), ".json"))
+            val metadata = readMetadata(file)
+            if (metadata != null) {
+                node.put("metadata", metadata)
             }
-            
-            if (metadataFile.exists()) {
-                try {
-                    val metadataContent = metadataFile.readText(Charsets.UTF_8)
-                    val metadata = JSONObject(metadataContent)
-                    node.put("metadata", metadata)
-                    
-                    // Add file type for both HTML and PDF files
-                    val fileType = if (file.name.endsWith(".pdf")) "pdf" else "html"
-                    node.put("fileType", fileType)
-                } catch (_: Exception) {
-                }
-            } else {
-                // Add file type for files without metadata
+
+            if (metadata != null || !metadataFile.exists()) {
                 val fileType = if (file.name.endsWith(".pdf")) "pdf" else "html"
                 node.put("fileType", fileType)
             }
@@ -154,21 +137,24 @@ class FileSystemManager(
         return null
     }
 
-    private fun compareFileOrder(left: File, right: File): Int {
-        if (left.isDirectory != right.isDirectory) {
-            return if (left.isDirectory) -1 else 1
-        }
-        if (left.isDirectory) return 0
-
+    private fun compareNodes(left: JSONObject, right: JSONObject): Int {
+        val leftIsFolder = left.optString("type") == "folder"
+        val rightIsFolder = right.optString("type") == "folder"
+        if (leftIsFolder != rightIsFolder) return if (leftIsFolder) -1 else 1
+        if (leftIsFolder) return 0
         return getCreatedAt(left).compareTo(getCreatedAt(right))
     }
 
-    private fun getCreatedAt(file: File): String {
+    private fun getCreatedAt(node: JSONObject): String {
+        return node.optJSONObject("metadata")?.optString("createdAt", "") ?: ""
+    }
+
+    private fun readMetadata(file: File): JSONObject? {
         val metadataFile = File(file.absolutePath.replace(Regex("\\.(html|pdf)$"), ".json"))
         return try {
-            JSONObject(metadataFile.readText(Charsets.UTF_8)).optString("createdAt", "")
+            JSONObject(metadataFile.readText(Charsets.UTF_8))
         } catch (_: Exception) {
-            ""
+            null
         }
     }
 

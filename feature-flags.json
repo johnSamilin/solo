@@ -3,16 +3,19 @@
     "extended-search": false,
     "deep-linking": true,
     "default-theme": "terminal",
-    "export-notes": false
+    "export-notes": false,
+    "read-later": false
   },
   "DESKTOP": {
     "extended-search": true,
     "deep-linking": false,
-    "export-notes": true
+    "export-notes": true,
+    "read-later": true
   },
   "MOBILE": {
     "extended-search": false,
     "deep-linking": false,
-    "export-notes": false
+    "export-notes": false,
+    "read-later": true
   }
 }

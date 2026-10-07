@@ -3,6 +3,7 @@ import { SettingsStore } from './SettingsStore';
 import { TagsStore } from './TagsStore';
 import { SavedFiltersStore } from './SavedFiltersStore';
 import { SeenStore } from './SeenStore';
+import { ReadLaterStore } from './ReadLaterStore';
 import { createExportFileRequest } from '../components/Search/export/exportNotes';
 import { Note, SavedFilter } from '../types';
 import { flags } from '../utils/featureFlags';
@@ -14,6 +15,7 @@ export class RootStore {
   tagsStore: TagsStore;
   savedFiltersStore: SavedFiltersStore;
   seenStore: SeenStore;
+  readLaterStore: ReadLaterStore;
   private autoExportQueue: Promise<void> = Promise.resolve();
 
   constructor() {
@@ -22,6 +24,7 @@ export class RootStore {
     this.tagsStore = new TagsStore();
     this.savedFiltersStore = new SavedFiltersStore();
     this.seenStore = new SeenStore();
+    this.readLaterStore = new ReadLaterStore(this.notesStore, this.settingsStore);
 
     // Provide NotesStore with reference to RootStore for accessing other stores
     this.notesStore.setRootStore(this);
@@ -105,7 +108,7 @@ export class RootStore {
         if (firstTitle && !secondTitle) return -1;
         if (!firstTitle && secondTitle) return 1;
       }
-      return second.createdAt.getTime() - first.createdAt.getTime();
+      return first.createdAt.getTime() - second.createdAt.getTime();
     });
   };
 }

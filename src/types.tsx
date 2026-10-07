@@ -64,6 +64,7 @@ export interface Note {
   fileType: NoteFileType;
   isLoaded: boolean;
   paragraphTags: string[];
+  sourceUrl?: string;
 }
 
 export interface Notebook {
@@ -113,6 +114,7 @@ export interface FileMetadata {
   updatedAt?: string;
   theme?: string;
   paragraphTags?: string[];
+  sourceUrl?: string;
 }
 
 export interface FileNode {
@@ -148,6 +150,8 @@ export interface ElectronAPI {
   getDigikamImagesByTag: (dbPath: string, tagId: number, limit?: number) => Promise<{ success: boolean; images?: DigikamImage[]; digikamTag: string; error?: string }>;
   exportFile: (request: ExportFileRequest) => Promise<ExportFileResult>;
   selectExportCoverImage: () => Promise<ExportCoverImageResult>;
+  readImage: (url: string) => Promise<ReadImageResult>;
+  fetchUrl: (url: string) => Promise<ReadLaterFetchResult>;
 }
 
 export interface ExportFileRequest {
@@ -171,6 +175,21 @@ export interface ExportCoverImageResult {
   success: boolean;
   data?: string;
   mediaType?: ExportCover['imageMediaType'];
+  error?: string;
+}
+
+export interface ReadImageResult {
+  success: boolean;
+  data?: string;
+  mediaType?: string;
+  error?: string;
+}
+
+export interface ReadLaterFetchResult {
+  success: boolean;
+  content?: string;
+  finalUrl?: string;
+  contentType?: string;
   error?: string;
 }
 
@@ -206,6 +225,7 @@ interface AndroidBridgeRaw {
   uploadImage(base64Data: string, fileName: string): string;
   playTypewriterSound(): void;
   toggleZenMode(enable: boolean): string;
+  fetchUrl(url: string): string;
 }
 
 declare global {
