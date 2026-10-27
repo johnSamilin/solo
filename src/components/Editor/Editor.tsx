@@ -16,6 +16,7 @@ import { useSpeechRecognition } from "./hooks/useSpeechRecognition";
 import { useVoiceMemo } from "./hooks/useVoiceMemo";
 import { useVideoMemo } from "./hooks/useVideoMemo";
 import { VideoRecordingOverlay } from "./VideoRecordingOverlay";
+import { AudioRecordingOverlay } from "./AudioRecordingOverlay";
 import { useZenMode } from "./hooks/useZenMode";
 import { PdfViewer } from "../PdfViewer/PdfViewer";
 
@@ -277,6 +278,13 @@ export const Editor: FC<EditorProps> = observer(({
           stream={videoPreviewStream}
           seconds={recordingVideoSeconds}
           onStop={toggleVideoRecording}
+        />
+      )}
+
+      {isRecording && (
+        <AudioRecordingOverlay
+          seconds={recordingSeconds}
+          onStop={toggleRecording}
         />
       )}
     </>

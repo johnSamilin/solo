@@ -67,20 +67,14 @@ export const useVideoMemo = (editor: Editor | null) => {
         audio: true,
       });
 
-      stream.getTracks().forEach(t => {
-        console.log('[video-memo] track:', t.kind, t.readyState, JSON.stringify(t.getSettings()));
-      });
-
       // Use the browser default codec (VP8+Opus on Chromium). Explicit codec
       // strings (VP9 / H.264) can silently produce empty or black output on some
       // platforms even when isTypeSupported() reports them as supported.
       const recorder = new MediaRecorder(stream);
       const mime = recorder.mimeType || 'video/webm';
-      console.log('[video-memo] recorder mime:', mime);
 
       const chunks: Blob[] = [];
       recorder.ondataavailable = (e) => {
-        console.log('[video-memo] dataavailable:', e.data.size, 'bytes');
         if (e.data.size > 0) chunks.push(e.data);
       };
       // Emit data periodically so a short/interrupted recording still has content.
@@ -92,7 +86,7 @@ export const useVideoMemo = (editor: Editor | null) => {
       setRecordingSeconds(0);
       timerRef.current = window.setInterval(() => setRecordingSeconds(s => s + 1), 1000);
     } catch (error) {
-      console.error('[video-memo] start failed:', error);
+      console.error(error);
       settingsStore.setToast('Failed to start recording', 'error');
     }
   };
@@ -123,7 +117,6 @@ export const useVideoMemo = (editor: Editor | null) => {
     rec.stream.getTracks().forEach(t => t.stop());
 
     const blob = new Blob(rec.chunks, { type: rec.mime });
-    console.log('[video-memo] final blob:', blob.size, 'bytes, chunks:', rec.chunks.length);
 
     if (blob.size === 0) {
       settingsStore.setToast('Nothing was recorded', 'error');
