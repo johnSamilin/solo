@@ -135,7 +135,7 @@ const normalizeContent = async (content: string): Promise<string> => {
 
     let transcript = '';
     const next = memo.nextElementSibling;
-    if (next && next.tagName === 'P' && next.getAttribute('data-voice-transcript') === fileName) {
+    if (next && next.tagName === 'BLOCKQUOTE' && next.getAttribute('data-voice-transcript') === fileName) {
       transcript = (next.textContent || '').trim();
       next.remove();
     } else if (fileName) {

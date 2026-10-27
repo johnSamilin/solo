@@ -67,8 +67,8 @@ export const VideoMemo = Node.create({
         renderHTML: attributes => (attributes.poster ? { 'data-poster': attributes.poster } : {}),
       },
       variant: {
-        default: 'compact',
-        parseHTML: element => element.getAttribute('data-variant') || 'compact',
+        default: 'quote',
+        parseHTML: element => element.getAttribute('data-variant') || 'quote',
         renderHTML: attributes => ({ 'data-variant': attributes.variant }),
       },
     };
@@ -88,7 +88,7 @@ export const VideoMemo = Node.create({
             duration: Number(element.getAttribute('data-duration') || 0),
             createdAt: element.getAttribute('data-created-at'),
             poster: element.getAttribute('data-poster') || '',
-            variant: element.getAttribute('data-variant') || 'compact',
+            variant: element.getAttribute('data-variant') || 'quote',
           };
         },
       },
@@ -126,7 +126,7 @@ export const VideoMemo = Node.create({
               duration: options.duration,
               createdAt: options.createdAt ?? null,
               poster: options.poster ?? '',
-              variant: options.variant ?? 'compact',
+              variant: options.variant ?? 'quote',
             },
           });
         },

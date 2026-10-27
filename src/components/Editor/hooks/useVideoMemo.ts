@@ -147,7 +147,7 @@ export const useVideoMemo = (editor: Editor | null) => {
         fileName: storedName,
         duration,
         createdAt: new Date().toISOString(),
-        variant: 'compact',
+        variant: 'quote',
       })
       .run();
   };

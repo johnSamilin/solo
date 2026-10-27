@@ -17,7 +17,6 @@ export const defaultSettings: TypographySettings = {
   sidebarPinned: true,
   typewriterSound: 'typewriter',
   autoZenMode: true,
-  voiceMemoStyle: 'compact'
 };
 
 export const themes: Record<string, { name: string; settings: TypographySettings }> = {

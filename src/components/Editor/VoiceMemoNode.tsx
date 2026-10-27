@@ -115,9 +115,9 @@ export const VoiceMemoNode: FC<VoiceMemoNodeProps> = ({ node, editor, getPos, de
         .chain()
         .focus()
         .insertContentAt(pos + node.nodeSize, {
-          type: 'paragraph',
+          type: 'blockquote',
           attrs: { voiceTranscript: fileName },
-          content: [{ type: 'text', text }],
+          content: [{ type: 'paragraph', content: [{ type: 'text', text }] }],
         })
         .run();
     } catch (e) {

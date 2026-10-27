@@ -209,7 +209,7 @@ export const useVoiceMemo = (editor: Editor | null) => {
           duration: result.duration ?? 0,
           createdAt: new Date().toISOString(),
           peaks: [],
-          variant: settingsStore.settings.voiceMemoStyle || 'compact',
+          variant: 'quote',
         })
         .run();
       return;
@@ -258,7 +258,7 @@ export const useVoiceMemo = (editor: Editor | null) => {
         duration,
         createdAt: new Date().toISOString(),
         peaks,
-        variant: settingsStore.settings.voiceMemoStyle || 'compact',
+        variant: 'quote',
       })
       .run();
   };

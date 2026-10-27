@@ -150,3 +150,10 @@
   border: 2px solid var(--color-border);
   box-shadow: 0 4px 10px -2px rgba(0, 0, 0, 0.15);
 }
+
+/* Quote variant (default): transparent block with a left accent border. */
+.video-memo.variant-quote {
+  padding: 0.25rem 0 0.25rem 0.75rem;
+  border-left: 3px solid var(--color-text-light);
+  border-radius: 0;
+}

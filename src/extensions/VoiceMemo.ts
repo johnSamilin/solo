@@ -85,8 +85,8 @@ export const VoiceMemo = Node.create({
         renderHTML: attributes => (attributes.lang ? { 'data-lang': attributes.lang } : {}),
       },
       variant: {
-        default: 'compact',
-        parseHTML: element => element.getAttribute('data-variant') || 'compact',
+        default: 'quote',
+        parseHTML: element => element.getAttribute('data-variant') || 'quote',
         renderHTML: attributes => ({ 'data-variant': attributes.variant }),
       },
     };
@@ -115,7 +115,7 @@ export const VoiceMemo = Node.create({
               }
             })(),
             lang: element.getAttribute('data-lang') || '',
-            variant: element.getAttribute('data-variant') || 'compact',
+            variant: element.getAttribute('data-variant') || 'quote',
           };
         },
       },
@@ -143,7 +143,7 @@ export const VoiceMemo = Node.create({
   addGlobalAttributes() {
     return [
       {
-        types: ['paragraph'],
+        types: ['paragraph', 'blockquote'],
         attributes: {
           voiceTranscript: {
             default: null,
@@ -176,7 +176,7 @@ export const VoiceMemo = Node.create({
               createdAt: options.createdAt ?? null,
               peaks: options.peaks ?? [],
               lang: options.lang ?? '',
-              variant: options.variant ?? 'compact',
+              variant: options.variant ?? 'quote',
             },
           });
         },

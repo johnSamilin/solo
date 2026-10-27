@@ -52,9 +52,9 @@ export const VideoMemoNode: FC<VideoMemoNodeProps> = ({ node, editor, getPos, de
         .chain()
         .focus()
         .insertContentAt(pos + node.nodeSize, {
-          type: 'paragraph',
+          type: 'blockquote',
           attrs: { voiceTranscript: fileName },
-          content: [{ type: 'text', text }],
+          content: [{ type: 'paragraph', content: [{ type: 'text', text }] }],
         })
         .run();
     } catch (e) {
@@ -84,6 +84,7 @@ export const VideoMemoNode: FC<VideoMemoNodeProps> = ({ node, editor, getPos, de
             playsInline
             onPlay={() => setIsPlaying(true)}
             onPause={() => setIsPlaying(false)}
+            onEnded={() => setIsPlaying(false)}
           />
           <button
             className={`video-memo-play ${isPlaying ? 'playing' : ''}`}

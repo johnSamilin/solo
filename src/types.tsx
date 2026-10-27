@@ -92,7 +92,6 @@ export interface TypographySettings {
   sidebarPinned: boolean;
   typewriterSound: string;
   autoZenMode: boolean;
-  voiceMemoStyle?: string;
 }
 
 

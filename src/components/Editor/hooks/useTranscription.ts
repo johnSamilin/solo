@@ -93,6 +93,16 @@ async function extractVideoAudioPcm(
     const finish = (error?: Error) => {
       if (settled) return;
       settled = true;
+
+      // Remove the hidden media element from the DOM.
+      try {
+        media.pause();
+        media.removeAttribute('src');
+        media.remove();
+      } catch {
+        // ignore
+      }
+
       if (error) {
         cleanup();
         reject(error);
@@ -107,28 +117,45 @@ async function extractVideoAudioPcm(
         offset += c.length;
       }
       const sampleRate = ctx?.sampleRate || 16000;
+
       cleanup();
       resolve({ samples, sampleRate });
     };
 
-    const audio = new Audio();
-    audio.preload = 'auto';
-    audio.src = src;
+    // Use a <video> element (not <audio>) — it reliably plays the audio track of
+    // a video/webm container served by the video:// protocol.
+    const media = document.createElement('video');
+    media.preload = 'auto';
+    media.crossOrigin = 'anonymous';
+    media.playsInline = true;
+    // Keep the element in the DOM (hidden) — a detached element can fail to
+    // route its audio through createMediaElementSource.
+    media.style.cssText = 'position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0;pointer-events:none;';
+    document.body.appendChild(media);
+    media.src = src;
 
-    audio.onerror = () => finish(new Error('Failed to load video audio'));
-    audio.oncanplay = () => {
-      ctx = new AudioContext({ sampleRate: 16000 });
-      source = ctx.createMediaElementSource(audio);
-      processor = ctx.createScriptProcessor(4096, 1, 1);
-      processor.onaudioprocess = (e) => {
-        chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
-        e.outputBuffer.getChannelData(0).fill(0);
-      };
-      source.connect(processor);
-      processor.connect(ctx.destination);
+    media.onerror = () => finish(new Error('Failed to load video audio'));
+    media.oncanplay = async () => {
+      try {
+        ctx = new AudioContext({ sampleRate: 16000 });
+        // The context may start suspended (user-gesture lost across the async
+        // canplay); resume it so audio actually flows to the processor.
+        await ctx.resume();
 
-      audio.onended = () => finish();
-      audio.play().catch((err) => finish(err as Error));
+        source = ctx.createMediaElementSource(media);
+        processor = ctx.createScriptProcessor(4096, 1, 1);
+        processor.onaudioprocess = (e) => {
+          chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+          e.outputBuffer.getChannelData(0).fill(0);
+        };
+        source.connect(processor);
+        processor.connect(ctx.destination);
+
+        media.onended = () => finish();
+        await media.play();
+      } catch (err) {
+        finish(err as Error);
+      }
     };
 
     setTimeout(() => finish(new Error('Timed out extracting video audio')), 60000);
