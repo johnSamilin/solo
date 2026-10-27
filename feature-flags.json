@@ -4,18 +4,24 @@
     "deep-linking": true,
     "default-theme": "terminal",
     "export-notes": false,
-    "read-later": false
+    "read-later": false,
+    "voice-memos": false,
+    "video-memos": false
   },
   "DESKTOP": {
     "extended-search": true,
     "deep-linking": false,
     "export-notes": true,
-    "read-later": true
+    "read-later": true,
+    "voice-memos": true,
+    "video-memos": true
   },
   "MOBILE": {
     "extended-search": false,
     "deep-linking": false,
     "export-notes": false,
-    "read-later": true
+    "read-later": true,
+    "voice-memos": true,
+    "video-memos": true
   }
 }

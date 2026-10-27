@@ -62,6 +62,10 @@ function wrapAndroidBridge(): ElectronAPI | null {
       Promise.resolve(parseJson(bridge.uploadImage(imageData, fileName))),
     uploadAudio: (base64Data: string, fileName: string) =>
       Promise.resolve(parseJson(bridge.uploadAudio(base64Data, fileName))),
+    uploadVideo: (base64Data: string, fileName: string) =>
+      Promise.resolve(parseJson(bridge.uploadVideo(base64Data, fileName))),
+    deleteAsset: (url: string) =>
+      Promise.resolve(parseJson(bridge.deleteAsset(url))),
     transcribeAudio: (fileName: string) =>
       Promise.resolve(parseJson(bridge.transcribeAudio(fileName))),
     startRecording: () =>

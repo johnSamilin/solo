@@ -13,6 +13,7 @@ import { FullWidthImage } from './extensions/FullWidthImage';
 import { CutIn } from './extensions/CutIn';
 import { Carousel } from './extensions/Carousel';
 import { VoiceMemo } from './extensions/VoiceMemo';
+import { VideoMemo } from './extensions/VideoMemo';
 import { useStore } from './stores/StoreProvider';
 import { SavedFilter } from './types';
 import { SettingsModal } from './components/Modals/SettingsModal/SettingsModal';
@@ -95,6 +96,7 @@ const App = observer(() => {
       CutIn,
       Carousel,
       VoiceMemo,
+      VideoMemo,
     ],
     content: '',
     editorProps: {

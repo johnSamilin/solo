@@ -1,5 +1,5 @@
 import { Editor } from "@tiptap/react";
-import { Undo2, Redo2, ImageIcon, LinkIcon, EyeOff, ListChecks, Minimize2, Maximize2, Leaf, Settings, Tag, Mic, AudioLines, SplitSquareVertical } from "lucide-react";
+import { Undo2, Redo2, ImageIcon, LinkIcon, EyeOff, ListChecks, Minimize2, Maximize2, Leaf, Settings, Tag, Mic, AudioLines, Video, SplitSquareVertical } from "lucide-react";
 import { FC, useRef } from "react";
 import { flags } from "../../utils/featureFlags";
 
@@ -20,6 +20,9 @@ type FABProps = {
   handleVoiceMemo: () => void;
   isRecording: boolean;
   recordingSeconds: number;
+  handleVideoMemo: () => void;
+  isRecordingVideo: boolean;
+  recordingVideoSeconds: number;
 };
 
 export const FAB: FC<FABProps> = ({
@@ -39,6 +42,9 @@ export const FAB: FC<FABProps> = ({
   handleVoiceMemo,
   isRecording,
   recordingSeconds,
+  handleVideoMemo,
+  isRecordingVideo,
+  recordingVideoSeconds,
 }) => {
 
   return (
@@ -105,6 +111,15 @@ export const FAB: FC<FABProps> = ({
               title={isRecording ? `Recording… ${recordingSeconds}s` : 'Record Voice Memo'}
             >
               <AudioLines className="h-4 w-4" />
+            </button>
+          )}
+          {flags.videoMemos && (
+            <button
+              onClick={handleVideoMemo}
+              className={`button-icon ${isRecordingVideo ? 'active recording' : ''}`}
+              title={isRecordingVideo ? `Recording… ${recordingVideoSeconds}s` : 'Record Video Memo'}
+            >
+              <Video className="h-4 w-4" />
             </button>
           )}
           <button

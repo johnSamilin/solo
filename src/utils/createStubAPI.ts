@@ -542,6 +542,12 @@ export function createStubAPI(): ElectronAPI {
     uploadAudio: async () => {
       return { success: false, error: 'Not available in packaged build' };
     },
+    uploadVideo: async () => {
+      return { success: false, error: 'Not available in packaged build' };
+    },
+    deleteAsset: async () => {
+      return { success: false, error: 'Not available in packaged build' };
+    },
     transcribeAudio: async () => {
       return { success: false, error: 'Not available in packaged build' };
     },

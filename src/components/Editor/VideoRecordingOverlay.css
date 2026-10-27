@@ -1,0 +1,47 @@
+.video-recording-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.85);
+}
+
+.video-recording-preview {
+  width: min(80vw, 80vh);
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: 1rem;
+  background: #000;
+  transform: scaleX(-1); /* mirror like a selfie camera */
+}
+
+.video-recording-controls {
+  position: absolute;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.video-recording-timer {
+  color: #fff;
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.video-recording-stop {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 9999px;
+  border: 3px solid #fff;
+  background: var(--color-danger);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

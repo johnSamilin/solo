@@ -154,6 +154,8 @@ export interface ElectronAPI {
   readImage: (url: string) => Promise<ReadImageResult>;
   fetchUrl: (url: string) => Promise<ReadLaterFetchResult>;
   uploadAudio: (base64Data: string, fileName: string) => Promise<UploadAudioResult>;
+  uploadVideo: (base64Data: string, fileName: string) => Promise<UploadVideoResult>;
+  deleteAsset: (url: string) => Promise<{ success: boolean; error?: string }>;
   transcribeAudio: (fileName: string) => Promise<TranscribeAudioResult>;
   startRecording: () => Promise<{ success: boolean; error?: string }>;
   stopRecording: () => Promise<{ success: boolean; url?: string; duration?: number; error?: string }>;
@@ -199,6 +201,12 @@ export interface ReadLaterFetchResult {
 }
 
 export interface UploadAudioResult {
+  success: boolean;
+  url?: string;
+  error?: string;
+}
+
+export interface UploadVideoResult {
   success: boolean;
   url?: string;
   error?: string;
@@ -254,6 +262,8 @@ interface AndroidBridgeRaw {
   renameNotebook(relativePath: string, newName: string): string;
   uploadImage(base64Data: string, fileName: string): string;
   uploadAudio(base64Data: string, fileName: string): string;
+  uploadVideo(base64Data: string, fileName: string): string;
+  deleteAsset(url: string): string;
   transcribeAudio(fileName: string): string;
   startRecording(): string;
   stopRecording(): string;

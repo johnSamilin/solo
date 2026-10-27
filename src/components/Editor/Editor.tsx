@@ -14,6 +14,8 @@ import { useTypewriterSound } from "./hooks/useTypewriterSound";
 import { useImageHandling } from "./hooks/useImageHandling";
 import { useSpeechRecognition } from "./hooks/useSpeechRecognition";
 import { useVoiceMemo } from "./hooks/useVoiceMemo";
+import { useVideoMemo } from "./hooks/useVideoMemo";
+import { VideoRecordingOverlay } from "./VideoRecordingOverlay";
 import { useZenMode } from "./hooks/useZenMode";
 import { PdfViewer } from "../PdfViewer/PdfViewer";
 
@@ -67,6 +69,13 @@ export const Editor: FC<EditorProps> = observer(({
     recordingSeconds,
     toggleRecording,
   } = useVoiceMemo(editor);
+
+  const {
+    isRecording: isRecordingVideo,
+    recordingSeconds: recordingVideoSeconds,
+    previewStream: videoPreviewStream,
+    toggleRecording: toggleVideoRecording,
+  } = useVideoMemo(editor);
 
   const handleMoveNote = (notebookId: string) => {
     if (notesStore.selectedNote) {
@@ -220,6 +229,9 @@ export const Editor: FC<EditorProps> = observer(({
           handleVoiceMemo={toggleRecording}
           isRecording={isRecording}
           recordingSeconds={recordingSeconds}
+          handleVideoMemo={toggleVideoRecording}
+          isRecordingVideo={isRecordingVideo}
+          recordingVideoSeconds={recordingVideoSeconds}
         />
 
         {contextMenu && (
@@ -259,6 +271,14 @@ export const Editor: FC<EditorProps> = observer(({
           />
         )}
       </div>
+
+      {isRecordingVideo && videoPreviewStream && (
+        <VideoRecordingOverlay
+          stream={videoPreviewStream}
+          seconds={recordingVideoSeconds}
+          onStop={toggleVideoRecording}
+        />
+      )}
     </>
   );
 });

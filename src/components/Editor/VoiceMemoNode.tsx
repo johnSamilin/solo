@@ -5,6 +5,7 @@ import { FC, useEffect, useRef, useState } from 'react';
 import { Play, Pause, Trash2, FileText, MoreVertical } from 'lucide-react';
 import { VoiceMemoAttributes } from '../../extensions/VoiceMemo';
 import { transcribeVoiceMemo } from './hooks/useTranscription';
+import { getNativeAPI } from '../../utils/nativeBridge';
 import './VoiceMemo.css';
 
 interface VoiceMemoNodeProps {
@@ -128,6 +129,8 @@ export const VoiceMemoNode: FC<VoiceMemoNodeProps> = ({ node, editor, getPos, de
   };
 
   const handleDelete = () => {
+    // Remove the file on disk as well (not just the node).
+    getNativeAPI()?.deleteAsset?.(`voice://${fileName}`).catch(() => {});
     deleteNode();
     setIsMenuOpen(false);
   };
