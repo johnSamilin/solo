@@ -11,6 +11,112 @@ let dataFolder: string | null = null;
 
 const SETTINGS_FILE = path.join(app.getPath('userData'), 'settings.json');
 
+// ── On-device transcription (Vosk via koffi FFI) ──
+const VOSK_MODEL_DIR = 'vosk-model-small-ru-0.22';
+const LIBVOSK_FILE =
+  process.platform === 'darwin' ? 'libvosk.dylib' :
+  process.platform === 'win32' ? 'vosk.dll' : 'libvosk.so';
+
+let voskBindings: any = null;
+let voskModelPtr: any = null;
+
+function findLibvoskPath(): string | null {
+  const candidates = [
+    // `electron .` (unpackaged): the shared library is placed in ./libvosk by
+    // the fetch script, next to the compiled main.js (electron/dist).
+    path.join(__dirname, '../../libvosk', LIBVOSK_FILE),
+    // Packaged app: forge extraResource copies ./libvosk into resources/libvosk.
+    path.join(process.resourcesPath, 'libvosk', LIBVOSK_FILE),
+  ];
+  return candidates.find((candidate) => existsSync(candidate)) || null;
+}
+
+function getVoskBindings(): any | null {
+  if (voskBindings) return voskBindings;
+  const libPath = findLibvoskPath();
+  if (!libPath) return null;
+  // koffi is a pure-JS FFI (N-API), so it works with Electron without a native
+  // rebuild — unlike the old `vosk` npm package (ffi-napi/ref-napi).
+  const koffi = require('koffi');
+  const lib = koffi.load(libPath);
+  voskBindings = {
+    setLogLevel: lib.func('vosk_set_log_level', 'void', ['int']),
+    modelNew: lib.func('vosk_model_new', 'void *', ['str']),
+    modelFree: lib.func('vosk_model_free', 'void', ['void *']),
+    recognizerNew: lib.func('vosk_recognizer_new', 'void *', ['void *', 'float']),
+    acceptWaveform: lib.func('vosk_recognizer_accept_waveform', 'int', ['void *', 'void *', 'int']),
+    finalResult: lib.func('vosk_recognizer_final_result', 'str', ['void *']),
+    recognizerFree: lib.func('vosk_recognizer_free', 'void', ['void *']),
+  };
+  voskBindings.setLogLevel(-1);
+  return voskBindings;
+}
+
+function findModelDir(): string | null {
+  const candidates = [
+    // `electron .` (unpackaged): the model is unpacked into ./models by the
+    // fetch script, next to the compiled main.js (electron/dist).
+    path.join(__dirname, '../../models', VOSK_MODEL_DIR),
+    // Packaged app: forge extraResource copies ./models into resources/models.
+    path.join(process.resourcesPath, 'models', VOSK_MODEL_DIR),
+  ];
+  return candidates.find((candidate) => existsSync(path.join(candidate, 'am'))) || null;
+}
+
+function getVoskModelPtr(): any | null {
+  if (voskModelPtr) return voskModelPtr;
+  const bindings = getVoskBindings();
+  if (!bindings) return null;
+  const modelDir = findModelDir();
+  if (!modelDir) return null;
+  voskModelPtr = bindings.modelNew(modelDir);
+  return voskModelPtr;
+}
+
+function parseWav(buffer: Buffer): { pcm: Buffer; sampleRate: number } {
+  if (buffer.length < 44) throw new Error('Invalid WAV file');
+  if (
+    buffer.toString('ascii', 0, 4) !== 'RIFF' ||
+    buffer.toString('ascii', 8, 12) !== 'WAVE'
+  ) {
+    throw new Error('Invalid WAV file');
+  }
+
+  let sampleRate = 0;
+  let dataOffset = -1;
+  let dataLength = 0;
+  let offset = 12;
+  while (offset + 8 <= buffer.length) {
+    const id = buffer.toString('ascii', offset, offset + 4);
+    const size = buffer.readUInt32LE(offset + 4);
+    const chunkData = offset + 8;
+    if (id === 'fmt ') {
+      sampleRate = buffer.readUInt32LE(chunkData + 4);
+    } else if (id === 'data') {
+      dataOffset = chunkData;
+      dataLength = size;
+    }
+    offset = chunkData + size + (size % 2);
+  }
+
+  if (dataOffset === -1 || sampleRate <= 0) {
+    throw new Error('WAV data chunk not found');
+  }
+
+  const pcm = buffer.subarray(dataOffset, dataOffset + dataLength);
+  return { pcm, sampleRate };
+}
+
+async function readWavPcm(
+  fileName: string,
+): Promise<{ pcm: Buffer; sampleRate: number } | null> {
+  if (!dataFolder) return null;
+  const wavPath = path.join(dataFolder, 'assets', 'voice', fileName);
+  if (!existsSync(wavPath)) return null;
+  const buffer = await fs.readFile(wavPath);
+  return parseWav(buffer);
+}
+
 /**
  * Validates that a path is safe to access, accounting for symlinks.
  * Returns true if the path is within dataFolder or is a symlink target that originates from within dataFolder.
@@ -70,6 +176,16 @@ protocol.registerSchemesAsPrivileged([
   },
   {
     scheme: 'audio',
+    privileges: {
+      secure: true,
+      supportFetchAPI: true,
+      bypassCSP: false,
+      corsEnabled: false,
+      standard: true,
+    }
+  },
+  {
+    scheme: 'voice',
     privileges: {
       secure: true,
       supportFetchAPI: true,
@@ -203,6 +319,45 @@ async function getFile(filePath: string) {
   return result;
 }
 
+async function getVoiceFile(filePath: string) {
+  const result = {
+    success: false,
+    response: new Response(),
+  };
+
+  if (!dataFolder) {
+    result.response = new Response('No data folder', { status: 404 });
+    return result;
+  }
+
+  const assetsPath = path.join(dataFolder, 'assets', 'voice', filePath);
+
+  if (!assetsPath.startsWith(path.join(dataFolder, 'assets', 'voice'))) {
+    result.response = new Response('Forbidden', { status: 403 });
+    return result;
+  }
+
+  if (!existsSync(assetsPath)) {
+    result.response = new Response('Not found', { status: 404 });
+    return result;
+  }
+
+  // Read the file directly rather than `net.fetch('file://…')`, which can return
+  // an empty body for audio (and mis-handles unencoded paths).
+  const buffer = await fs.readFile(assetsPath);
+  result.success = true;
+  result.response = new Response(buffer, {
+    status: 200,
+    headers: {
+      'Content-Type': 'audio/wav',
+      'Content-Length': String(buffer.length),
+      'Accept-Ranges': 'none',
+    },
+  });
+
+  return result;
+}
+
 app.whenReady().then(async () => {
   await logger.init();
 
@@ -273,6 +428,22 @@ app.whenReady().then(async () => {
     }
 
     return net.fetch('file://' + audioPath);
+  });
+
+  protocol.handle('voice', async (request) => {
+    const url = new URL(request.url);
+    const filePath = process.platform === 'darwin' ? url.hostname : url.pathname;
+    const hostnameFile = await getVoiceFile(url.hostname);
+    if (hostnameFile.success) {
+      return hostnameFile.response;
+    } else {
+      const pathnameFile = await getVoiceFile(url.pathname);
+      if (pathnameFile.success) {
+        return pathnameFile.response;
+      }
+    }
+
+    return Promise.reject();
   });
 
   createWindow();
@@ -1264,6 +1435,86 @@ ipcMain.handle('upload-image', async (_event, imageData: string, fileName: strin
       fileName: uniqueFileName,
       url: `image://${uniqueFileName}`,
     };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
+});
+
+ipcMain.handle('upload-audio', async (_event, audioData: string, fileName: string) => {
+  try {
+    if (!dataFolder) {
+      return { success: false, error: 'No data folder selected' };
+    }
+
+    const voiceDir = path.join(dataFolder, 'assets', 'voice');
+    if (!existsSync(voiceDir)) {
+      await fs.mkdir(voiceDir, { recursive: true });
+    }
+
+    const sanitizedFileName = (fileName || 'memo.wav').replace(/[^a-zA-Z0-9._-]/g, '_');
+    const ext = path.extname(sanitizedFileName);
+    const base = sanitizedFileName.slice(0, sanitizedFileName.length - ext.length);
+
+    let uniqueName = sanitizedFileName;
+    let counter = 1;
+    while (existsSync(path.join(voiceDir, uniqueName))) {
+      uniqueName = `${base}-${counter}${ext}`;
+      counter++;
+    }
+
+    const base64Data = audioData.replace(/^data:audio\/\w+;base64,/, '');
+    const buffer = Buffer.from(base64Data, 'base64');
+    await fs.writeFile(path.join(voiceDir, uniqueName), buffer);
+
+    return {
+      success: true,
+      fileName: uniqueName,
+      url: `voice://${uniqueName}`,
+    };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
+});
+
+ipcMain.handle('transcribe-audio', async (_event, fileName: string) => {
+  try {
+    if (typeof fileName !== 'string' || fileName.length === 0) {
+      return { success: false, error: 'File name is missing' };
+    }
+
+    const bindings = getVoskBindings();
+    if (!bindings) {
+      return { success: false, error: 'libvosk not found (run scripts/fetch-vosk-models.sh)' };
+    }
+
+    const modelPtr = getVoskModelPtr();
+    if (!modelPtr) {
+      return { success: false, error: 'Speech model not found (run scripts/fetch-vosk-models.sh)' };
+    }
+
+    const pcm = await readWavPcm(fileName);
+    if (!pcm) {
+      return { success: false, error: 'Voice memo not found' };
+    }
+
+    const recognizerPtr = bindings.recognizerNew(modelPtr, pcm.sampleRate);
+
+    const CHUNK = 32000;
+    let offset = 0;
+    while (offset < pcm.pcm.length) {
+      const end = Math.min(offset + CHUNK, pcm.pcm.length);
+      bindings.acceptWaveform(recognizerPtr, pcm.pcm.subarray(offset, end), end - offset);
+      offset = end;
+    }
+
+    const result = JSON.parse(bindings.finalResult(recognizerPtr));
+    bindings.recognizerFree(recognizerPtr);
+
+    const text = (result?.text || '').trim();
+    if (!text) {
+      return { success: false, error: 'Transcription returned no text' };
+    }
+    return { success: true, text };
   } catch (error) {
     return { success: false, error: (error as Error).message };
   }

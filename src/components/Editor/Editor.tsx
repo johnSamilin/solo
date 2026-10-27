@@ -13,6 +13,7 @@ import { TagsDisplay } from "./TagsDisplay";
 import { useTypewriterSound } from "./hooks/useTypewriterSound";
 import { useImageHandling } from "./hooks/useImageHandling";
 import { useSpeechRecognition } from "./hooks/useSpeechRecognition";
+import { useVoiceMemo } from "./hooks/useVoiceMemo";
 import { useZenMode } from "./hooks/useZenMode";
 import { PdfViewer } from "../PdfViewer/PdfViewer";
 
@@ -60,6 +61,12 @@ export const Editor: FC<EditorProps> = observer(({
     handleDictation,
     toggleDictationLanguage
   } = useSpeechRecognition(editor);
+
+  const {
+    isRecording,
+    recordingSeconds,
+    toggleRecording,
+  } = useVoiceMemo(editor);
 
   const handleMoveNote = (notebookId: string) => {
     if (notesStore.selectedNote) {
@@ -210,6 +217,9 @@ export const Editor: FC<EditorProps> = observer(({
           handleDictation={handleDictation}
           isDictating={isDictating}
           handleCutIn={handleCutIn}
+          handleVoiceMemo={toggleRecording}
+          isRecording={isRecording}
+          recordingSeconds={recordingSeconds}
         />
 
         {contextMenu && (

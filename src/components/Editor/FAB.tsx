@@ -1,6 +1,7 @@
 import { Editor } from "@tiptap/react";
-import { Undo2, Redo2, ImageIcon, LinkIcon, EyeOff, ListChecks, Minimize2, Maximize2, Leaf, Settings, Tag, Mic, SplitSquareVertical } from "lucide-react";
+import { Undo2, Redo2, ImageIcon, LinkIcon, EyeOff, ListChecks, Minimize2, Maximize2, Leaf, Settings, Tag, Mic, AudioLines, SplitSquareVertical } from "lucide-react";
 import { FC, useRef } from "react";
+import { flags } from "../../utils/featureFlags";
 
 type FABProps = {
   editor: Editor | null;
@@ -16,6 +17,9 @@ type FABProps = {
   handleDictation: () => void;
   isDictating: boolean;
   handleCutIn: () => void;
+  handleVoiceMemo: () => void;
+  isRecording: boolean;
+  recordingSeconds: number;
 };
 
 export const FAB: FC<FABProps> = ({
@@ -32,6 +36,9 @@ export const FAB: FC<FABProps> = ({
   handleDictation,
   isDictating,
   handleCutIn,
+  handleVoiceMemo,
+  isRecording,
+  recordingSeconds,
 }) => {
 
   return (
@@ -91,6 +98,15 @@ export const FAB: FC<FABProps> = ({
           >
             <Mic className="h-4 w-4" />
           </button>
+          {flags.voiceMemos && (
+            <button
+              onClick={handleVoiceMemo}
+              className={`button-icon ${isRecording ? 'active recording' : ''}`}
+              title={isRecording ? `Recording… ${recordingSeconds}s` : 'Record Voice Memo'}
+            >
+              <AudioLines className="h-4 w-4" />
+            </button>
+          )}
           <button
             onClick={handleCutIn}
             className="button-icon"

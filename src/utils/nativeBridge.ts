@@ -60,6 +60,14 @@ function wrapAndroidBridge(): ElectronAPI | null {
     readImage: () => Promise.resolve({ success: false, error: 'Not supported on Android' }),
     uploadImage: (imageData: string, fileName: string) =>
       Promise.resolve(parseJson(bridge.uploadImage(imageData, fileName))),
+    uploadAudio: (base64Data: string, fileName: string) =>
+      Promise.resolve(parseJson(bridge.uploadAudio(base64Data, fileName))),
+    transcribeAudio: (fileName: string) =>
+      Promise.resolve(parseJson(bridge.transcribeAudio(fileName))),
+    startRecording: () =>
+      Promise.resolve(parseJson(bridge.startRecording())),
+    stopRecording: () =>
+      Promise.resolve(parseJson(bridge.stopRecording())),
     openPdfFile: (relativePath: string) =>
       Promise.resolve(parseJson(bridge.openPdfFile(relativePath))),
     fetchUrl: (url: string) =>

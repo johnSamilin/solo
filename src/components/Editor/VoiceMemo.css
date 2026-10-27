@@ -1,0 +1,200 @@
+.voice-memo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 1rem 0;
+  padding: 0.5rem 0.625rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  background: var(--color-white);
+  font-family: 'Outfit', system-ui, sans-serif;
+}
+
+.voice-memo audio {
+  display: none;
+}
+
+.voice-memo-play {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  border: none;
+  background: var(--color-button);
+  color: var(--color-white);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.voice-memo-play:hover {
+  background: var(--color-button-hover);
+}
+
+.voice-memo-progress {
+  flex: 1;
+  height: 0.375rem;
+  border-radius: 9999px;
+  background: var(--color-bg);
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.voice-memo-progress-fill {
+  height: 100%;
+  background: var(--color-text);
+  border-radius: 9999px;
+}
+
+.voice-memo-time {
+  font-size: 0.75rem;
+  color: var(--color-text-light);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.voice-memo-waveform {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 2rem;
+  cursor: pointer;
+}
+
+.voice-memo-waveform .voice-memo-bar {
+  flex: 1;
+  min-width: 2px;
+  max-width: 5px;
+  border-radius: 2px;
+  background: var(--color-text-light);
+  opacity: 0.55;
+}
+
+.voice-memo-waveform .voice-memo-bar.played {
+  background: var(--color-text);
+  opacity: 1;
+}
+
+.voice-memo-card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.voice-memo-quote-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.voice-memo-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.75rem;
+  color: var(--color-text-light);
+}
+
+.voice-memo-menu-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.voice-memo-menu-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: none;
+  background: none;
+  color: var(--color-text-light);
+  border-radius: 0.375rem;
+  cursor: pointer;
+}
+
+.voice-memo-menu-btn:hover {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.voice-memo-menu {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  margin-top: 0.25rem;
+  min-width: 10rem;
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  z-index: 50;
+  padding: 0.25rem;
+}
+
+.voice-memo-menu button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  background: none;
+  text-align: left;
+  font-size: 0.875rem;
+  color: var(--color-text);
+  border-radius: 0.25rem;
+  cursor: pointer;
+  font-family: 'Outfit', system-ui, sans-serif;
+}
+
+.voice-memo-menu button:hover {
+  background: var(--color-bg);
+}
+
+.voice-memo-menu button.danger {
+  color: var(--color-danger);
+}
+
+.voice-memo-menu button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.voice-memo-error {
+  margin: -0.5rem 0 1rem;
+  font-size: 0.75rem;
+  color: var(--color-danger);
+  font-family: 'Outfit', system-ui, sans-serif;
+}
+
+/* Variant tweaks */
+
+.voice-memo.variant-chip {
+  display: inline-flex;
+  margin: 0 0.25rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 9999px;
+}
+
+.voice-memo.variant-quote {
+  border: none;
+  border-left: 3px solid var(--color-text-light);
+  border-radius: 0;
+  background: transparent;
+  padding: 0.25rem 0 0.25rem 0.75rem;
+}
+
+.voice-memo.variant-card {
+  padding: 0.75rem;
+}
+
+/* Transcript paragraph (inserted after the memo) */
+p[data-voice-transcript] {
+  margin-top: -0.5rem;
+}

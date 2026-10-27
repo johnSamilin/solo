@@ -19,6 +19,7 @@ declare const __FF_DEEP_LINKING__: boolean;
 declare const __FF_DEFAULT_THEME__: string;
 declare const __FF_EXPORT_NOTES__: boolean;
 declare const __FF_READ_LATER__: boolean;
+declare const __FF_VOICE_MEMOS__: boolean;
 
 // Minimal ambient typings for the URLPattern API (not yet in lib.dom for all TS versions).
 // Only the surface used by the deep-link parser is declared.

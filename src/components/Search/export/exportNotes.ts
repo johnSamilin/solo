@@ -5,6 +5,7 @@ import { defaultSettings, themes } from '../../../constants';
 import { loadNoteCss, loadNoteContent, loadPdfContent } from '../../../utils/electron';
 import { getNativeAPI } from '../../../utils/nativeBridge';
 import { getNoteDisplayContent } from '../noteDisplayContent';
+import { transcribeVoiceMemo } from '../../Editor/hooks/useTranscription';
 import gnuTypewriterUrl from '../../../assets/fonts/gtw.ttf?url';
 import cmTypewriterUrl from '../../../assets/fonts/CMTypewriter/cmunvt.ttf?url';
 import cmTypewriterItalicUrl from '../../../assets/fonts/CMTypewriter/cmunvi.ttf?url';
@@ -21,6 +22,13 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
 ).toString();
 
 const escapeHtml = (value: string) => value.replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]!));
+
+const formatDuration = (ms: number): string => {
+  const total = Math.max(0, Math.round(ms / 1000));
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+};
 
 type ExportChapter = { note: Note; content: string; css: string; className: string };
 type ExportFont = { family: string; fileName: string; format: 'truetype' | 'opentype'; style: string; weight: string; url: string; bytes: Uint8Array };
@@ -118,6 +126,40 @@ const normalizeContent = async (content: string): Promise<string> => {
     img.src = await resolveImageSrc(img.getAttribute('src') || '');
   }));
 
+  // Voice memos become a static "▶ 0:42" placeholder. Memos without a transcript
+  // yet are transcribed on-device so the exported document includes the text.
+  const memos = Array.from(doc.querySelectorAll<HTMLElement>('[data-type="voice-memo"]'));
+  await Promise.all(memos.map(async memo => {
+    const fileName = memo.getAttribute('data-file-name') || '';
+    const duration = Number(memo.getAttribute('data-duration') || 0);
+
+    let transcript = '';
+    const next = memo.nextElementSibling;
+    if (next && next.tagName === 'P' && next.getAttribute('data-voice-transcript') === fileName) {
+      transcript = (next.textContent || '').trim();
+      next.remove();
+    } else if (fileName) {
+      try {
+        transcript = await transcribeVoiceMemo(fileName);
+      } catch (e) {
+        console.error('Failed to transcribe voice memo for export:', e);
+      }
+    }
+
+    const block = doc.createElement('div');
+    block.className = 'export-voice-memo';
+    const p = doc.createElement('p');
+    p.textContent = `▶ ${formatDuration(duration)}`;
+    block.appendChild(p);
+    if (transcript) {
+      const tp = doc.createElement('p');
+      tp.className = 'export-voice-transcript';
+      tp.textContent = transcript;
+      block.appendChild(tp);
+    }
+    memo.replaceWith(block);
+  }));
+
   return doc.body.innerHTML;
 };
 
@@ -189,7 +231,7 @@ const buildHtml = (profile: SavedSearchExportProfile, chapters: ExportChapter[],
     : '';
   const coverImage = profile.cover.imageData && profile.cover.imageMediaType ? `<img src="data:${profile.cover.imageMediaType};base64,${profile.cover.imageData}" alt="" />` : '';
   const cover = profile.cover.enabled ? `<section class="cover">${coverImage}<h1>${escapeHtml(profile.cover.title || profile.title)}</h1><p>${escapeHtml(profile.cover.author || profile.author)}</p></section>` : '';
-  return `<!doctype html><html><head><meta charset="utf-8"><style>${fontCss(fonts, true)}@page{margin:20mm}@page:first{margin:0}body{font-family:serif;line-height:1.5;color:#111}.cover{position:relative;height:100vh;overflow:hidden;break-after:page;text-align:center;color:#fff;background:#111}.cover img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.cover h1,.cover p{position:relative;z-index:1;margin:0;text-shadow:0 2px 8px #000}.cover h1{padding:72vh 2rem 0;font-size:2.5rem}.cover p{padding:0.75rem 2rem}.toc{break-after:page}.chapter{margin:0 0 2rem}img,figure,.export-gallery,table{break-inside:avoid;page-break-inside:avoid;max-width:100%}.export-gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}.export-gallery img{width:100%;height:auto}.pdf-page{break-before:page;page-break-before:always}.pdf-page img{width:100%;height:auto}h1,h2,h3{break-after:avoid;page-break-after:avoid}.export-fragment{margin:1.5em 0;font-style:italic}${styles}</style></head><body>${cover}${toc}${chapterHtml}</body></html>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><style>${fontCss(fonts, true)}@page{margin:20mm}@page:first{margin:0}body{font-family:serif;line-height:1.5;color:#111}.cover{position:relative;height:100vh;overflow:hidden;break-after:page;text-align:center;color:#fff;background:#111}.cover img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.cover h1,.cover p{position:relative;z-index:1;margin:0;text-shadow:0 2px 8px #000}.cover h1{padding:72vh 2rem 0;font-size:2.5rem}.cover p{padding:0.75rem 2rem}.toc{break-after:page}.chapter{margin:0 0 2rem}img,figure,.export-gallery,table{break-inside:avoid;page-break-inside:avoid;max-width:100%}.export-gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}.export-gallery img{width:100%;height:auto}.pdf-page{break-before:page;page-break-before:always}.pdf-page img{width:100%;height:auto}h1,h2,h3{break-after:avoid;page-break-after:avoid}.export-fragment{margin:1.5em 0;font-style:italic}.export-voice-memo{margin:1em 0}.export-voice-memo p{margin:0 0 0.35em}.export-voice-transcript{font-style:italic;color:#555}${styles}</style></head><body>${cover}${toc}${chapterHtml}</body></html>`;
 };
 
 const toBase64 = (bytes: Uint8Array) => {

@@ -92,6 +92,7 @@ export interface TypographySettings {
   sidebarPinned: boolean;
   typewriterSound: string;
   autoZenMode: boolean;
+  voiceMemoStyle?: string;
 }
 
 
@@ -152,6 +153,10 @@ export interface ElectronAPI {
   selectExportCoverImage: () => Promise<ExportCoverImageResult>;
   readImage: (url: string) => Promise<ReadImageResult>;
   fetchUrl: (url: string) => Promise<ReadLaterFetchResult>;
+  uploadAudio: (base64Data: string, fileName: string) => Promise<UploadAudioResult>;
+  transcribeAudio: (fileName: string) => Promise<TranscribeAudioResult>;
+  startRecording: () => Promise<{ success: boolean; error?: string }>;
+  stopRecording: () => Promise<{ success: boolean; url?: string; duration?: number; error?: string }>;
 }
 
 export interface ExportFileRequest {
@@ -193,6 +198,18 @@ export interface ReadLaterFetchResult {
   error?: string;
 }
 
+export interface UploadAudioResult {
+  success: boolean;
+  url?: string;
+  error?: string;
+}
+
+export interface TranscribeAudioResult {
+  success: boolean;
+  text?: string;
+  error?: string;
+}
+
 export interface DigikamTag {
   id: number;
   parentId: number | null;
@@ -223,6 +240,10 @@ interface AndroidBridgeRaw {
   renameNote(relativePath: string, newName: string): string;
   renameNotebook(relativePath: string, newName: string): string;
   uploadImage(base64Data: string, fileName: string): string;
+  uploadAudio(base64Data: string, fileName: string): string;
+  transcribeAudio(fileName: string): string;
+  startRecording(): string;
+  stopRecording(): string;
   playTypewriterSound(): void;
   toggleZenMode(enable: boolean): string;
   fetchUrl(url: string): string;

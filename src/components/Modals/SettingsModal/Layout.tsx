@@ -1,6 +1,7 @@
 import { FC } from "react";
 import { TypographySettings } from "../../../types";
 import { useI18n } from "../../../i18n/I18nContext";
+import { flags } from "../../../utils/featureFlags";
 import type { Locale } from "../../../i18n/translations";
 
 type LayoutProps = {
@@ -47,6 +48,21 @@ export const Layout: FC<LayoutProps> = ({ settings, setSettings }) => {
 					<option value="90%">{t.settings.veryWide}</option>
 				</select>
 			</div>
+			{flags.voiceMemos && (
+				<div className="setting-item">
+					<label>{t.settings.voiceMemoStyle}</label>
+					<select
+						value={settings.voiceMemoStyle || 'quote'}
+						onChange={(e) => setSettings({ ...settings, voiceMemoStyle: e.target.value })}
+					>
+						<option value="compact">{t.settings.voiceMemoCompact}</option>
+						<option value="waveform">{t.settings.voiceMemoWaveform}</option>
+						<option value="card">{t.settings.voiceMemoCard}</option>
+						<option value="chip">{t.settings.voiceMemoChip}</option>
+						<option value="quote">{t.settings.voiceMemoQuote}</option>
+					</select>
+				</div>
+			)}
 			<div className="setting-item">
 				<label>{t.settings.paragraphSpacing}</label>
 				<select

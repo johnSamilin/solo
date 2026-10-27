@@ -89,6 +89,12 @@ export interface Translations {
     large: string;
     compact: string;
     spacious: string;
+    voiceMemoStyle: string;
+    voiceMemoCompact: string;
+    voiceMemoWaveform: string;
+    voiceMemoCard: string;
+    voiceMemoChip: string;
+    voiceMemoQuote: string;
   };
   statistics: {
     statistics: string;
@@ -250,6 +256,12 @@ export const translations: Record<Locale, Translations> = {
       large: 'Large',
       compact: 'Compact',
       spacious: 'Spacious',
+      voiceMemoStyle: 'Voice Memo Style',
+      voiceMemoCompact: 'Compact',
+      voiceMemoWaveform: 'Waveform',
+      voiceMemoCard: 'Card',
+      voiceMemoChip: 'Inline Chip',
+      voiceMemoQuote: 'Quote',
     },
     statistics: {
       statistics: 'Statistics',
@@ -409,6 +421,12 @@ export const translations: Record<Locale, Translations> = {
       large: 'Большой',
       compact: 'Компактная',
       spacious: 'Просторная',
+      voiceMemoStyle: 'Оформление голосовых заметок',
+      voiceMemoCompact: 'Компактный',
+      voiceMemoWaveform: 'Волна',
+      voiceMemoCard: 'Карточка',
+      voiceMemoChip: 'Чип',
+      voiceMemoQuote: 'Цитата',
     },
     statistics: {
       statistics: 'Статистика',

@@ -16,7 +16,8 @@ export const defaultSettings: TypographySettings = {
   maxEditorWidth: '90%',
   sidebarPinned: true,
   typewriterSound: 'typewriter',
-  autoZenMode: true
+  autoZenMode: true,
+  voiceMemoStyle: 'compact'
 };
 
 export const themes: Record<string, { name: string; settings: TypographySettings }> = {
