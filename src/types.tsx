@@ -204,9 +204,22 @@ export interface UploadAudioResult {
   error?: string;
 }
 
+export interface TranscribedWord {
+  word: string;
+  start: number; // seconds
+  end: number; // seconds
+}
+
+export interface WordProsody {
+  f0: number; // Hz, 0 = unvoiced
+  energy: number; // normalized RMS
+}
+
 export interface TranscribeAudioResult {
   success: boolean;
   text?: string;
+  words?: TranscribedWord[];
+  prosody?: WordProsody[];
   error?: string;
 }
 

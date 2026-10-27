@@ -64,22 +64,26 @@ if [ "${#CONTENT[@]}" -eq 1 ] && [ -d "${CONTENT[0]}" ]; then
 fi
 echo "  Desktop -> $DESKTOP_MODEL_DIR"
 
-# ── 2. libvosk shared library ──
-VOSK_VER="0.3.45"
+# ── 2. libvosk shared library (from the `vosk` npm package tarball) ──
+# The `vosk` npm package bundles libvosk for every platform, so we pull it from
+# the npm registry (reliable) rather than the GitHub releases, and extract only
+# the binary for the current OS.
+VOSK_NPM_VER="0.3.39"
 case "$(uname -s)" in
-  Darwin) LIBVOSK_ARCHIVE="vosk-osx-$VOSK_VER.zip"; LIBVOSK_FILE="libvosk.dylib" ;;
-  Linux)  LIBVOSK_ARCHIVE="vosk-linux-x86_64-$VOSK_VER.zip"; LIBVOSK_FILE="libvosk.so" ;;
+  Darwin) LIBVOSK_FILE="libvosk.dylib" ;;
+  Linux)  LIBVOSK_FILE="libvosk.so" ;;
   *) echo "Unsupported OS for libvosk download: $(uname -s)" >&2; exit 1 ;;
 esac
-LIBVOSK_URL="https://github.com/alphacep/vosk-api/releases/download/v$VOSK_VER/$LIBVOSK_ARCHIVE"
-LIBVOSK_ZIP="$TMP/$LIBVOSK_ARCHIVE"
-echo "==> Downloading libvosk ($LIBVOSK_ARCHIVE)"
-download "$LIBVOSK_ZIP" "$LIBVOSK_URL" || exit 1
+LIBVOSK_TGZ_URL="https://registry.npmjs.org/vosk/-/vosk-$VOSK_NPM_VER.tgz"
+LIBVOSK_TGZ="$TMP/vosk-$VOSK_NPM_VER.tgz"
+echo "==> Downloading vosk npm package (for $LIBVOSK_FILE)"
+download "$LIBVOSK_TGZ" "$LIBVOSK_TGZ_URL" || exit 1
 
 LIBVOSK_DIR="$PROJECT_ROOT/native-clients/electron/libvosk"
 mkdir -p "$LIBVOSK_DIR"
-unzip -q -o "$LIBVOSK_ZIP" -d "$TMP/libvosk-extract"
-find "$TMP/libvosk-extract" -name "$LIBVOSK_FILE" -exec cp {} "$LIBVOSK_DIR/$LIBVOSK_FILE" \;
+mkdir -p "$TMP/vosk-extract"
+tar xzf "$LIBVOSK_TGZ" -C "$TMP/vosk-extract"
+find "$TMP/vosk-extract" -name "$LIBVOSK_FILE" -exec cp {} "$LIBVOSK_DIR/$LIBVOSK_FILE" \;
 echo "  Desktop libvosk -> $LIBVOSK_DIR/$LIBVOSK_FILE"
 
 echo ""

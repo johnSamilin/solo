@@ -1,8 +1,10 @@
 import { getNativeAPI } from '../../../utils/nativeBridge';
+import { punctuate } from '../../../utils/transcription/punctuate';
 
 /**
- * Runs on-device transcription of an audio file stored in `assets/voice/`.
- * Returns the transcript text, or throws on failure.
+ * Runs on-device transcription of an audio file stored in `assets/voice/`,
+ * then restores punctuation & capitalization from word timings + prosody.
+ * Returns the final text, or throws on failure.
  *
  * Both platforms use the native bridge's `transcribeAudio`:
  * - Android: the Vosk AAR in the Kotlin bridge.
@@ -22,10 +24,10 @@ export async function transcribeVoiceMemo(fileName: string): Promise<string> {
     throw new Error(result.error || 'Transcription failed');
   }
 
-  const text = result.text?.trim();
-  if (!text) {
+  const raw = result.text?.trim();
+  if (!raw) {
     throw new Error('Transcription returned no text');
   }
 
-  return text;
+  return punctuate(raw, result.words, result.prosody);
 }
