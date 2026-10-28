@@ -12,6 +12,8 @@ import { ParagraphTags } from './extensions/ParagraphTags';
 import { FullWidthImage } from './extensions/FullWidthImage';
 import { CutIn } from './extensions/CutIn';
 import { Carousel } from './extensions/Carousel';
+import { VoiceMemo } from './extensions/VoiceMemo';
+import { VideoMemo } from './extensions/VideoMemo';
 import { useStore } from './stores/StoreProvider';
 import { SavedFilter } from './types';
 import { SettingsModal } from './components/Modals/SettingsModal/SettingsModal';
@@ -26,11 +28,22 @@ import { TagModal } from './components/Modals/TagModal/TagModal';
 import { ImageInsertModal } from './components/Modals/ImageInsertModal';
 import { ReadLaterModal } from './components/Modals/ReadLaterModal';
 import { loadNoteCss } from './utils/electron';
-import { getNativeAPI, isNative } from './utils/nativeBridge';
+import { getNativeAPI, isNative, isAndroid } from './utils/nativeBridge';
 import { injectNoteStyles, removeNoteStyles } from './utils/cssUtils';
 import { EmptyState } from './components/EmptyState/EmptyState';
 import { flags } from './utils/featureFlags';
 import { parseDeepLink, sanitizeNoteId, buildNoteUrl, buildBaseUrl } from './utils/deepLink';
+
+/**
+ * Уменьшает CSS-длину вдвое. На Android поля страницы делаются компактнее:
+ * например "2rem" -> "1rem", "2.5rem" -> "1.25rem".
+ */
+function halveCssLength(value: string): string {
+	const match = value.match(/^(-?\d*\.?\d+)(.*)$/);
+	if (!match) return value;
+	const half = parseFloat(match[1]) / 2;
+	return `${half}${match[2]}`;
+}
 
 const App = observer(() => {
   const { notesStore, settingsStore, tagsStore, readLaterStore } = useStore();
@@ -82,6 +95,8 @@ const App = observer(() => {
       ParagraphTags,
       CutIn,
       Carousel,
+      VoiceMemo,
+      VideoMemo,
     ],
     content: '',
     editorProps: {
@@ -325,7 +340,10 @@ const App = observer(() => {
     root.style.setProperty('--editor-line-height', currentSettings.editorLineHeight);
     root.style.setProperty('--title-font-family', currentSettings.titleFontFamily);
     root.style.setProperty('--title-font-size', currentSettings.titleFontSize);
-    root.style.setProperty('--page-margins', currentSettings.pageMargins);
+    root.style.setProperty(
+      '--page-margins',
+      isAndroid ? halveCssLength(currentSettings.pageMargins) : currentSettings.pageMargins,
+    );
     root.style.setProperty('--paragraph-spacing', currentSettings.paragraphSpacing);
     root.style.setProperty('--drop-cap-size', currentSettings.dropCapSize);
     root.style.setProperty('--drop-cap-line-height', currentSettings.dropCapLineHeight);

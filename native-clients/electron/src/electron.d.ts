@@ -32,6 +32,10 @@ interface ElectronAPI {
   search: (searchString?: string, tags?: string[]) => Promise<{ success: boolean; results?: SearchResult[]; error?: string }>;
   createNotebook: (parentPath: string, name: string) => Promise<{ success: boolean; path?: string; error?: string }>;
   createNote: (parentPath: string, name: string) => Promise<{ success: boolean; htmlPath?: string; jsonPath?: string; error?: string }>;
+  uploadAudio: (audioData: string, fileName: string) => Promise<{ success: boolean; url?: string; error?: string }>;
+  transcribeAudio: (fileName: string) => Promise<{ success: boolean; text?: string; error?: string }>;
+  startRecording: () => Promise<{ success: boolean; error?: string }>;
+  stopRecording: () => Promise<{ success: boolean; url?: string; duration?: number; error?: string }>;
   checkForUpdates: () => Promise<{ success: boolean; error?: string }>;
   downloadUpdate: () => Promise<{ success: boolean; error?: string }>;
   installUpdate: () => Promise<{ success: boolean; error?: string }>;

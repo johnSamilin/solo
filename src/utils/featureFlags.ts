@@ -38,6 +38,8 @@ export const flags = {
   defaultTheme: __FF_DEFAULT_THEME__,
   exportNotes: __FF_EXPORT_NOTES__,
   readLater: __FF_READ_LATER__,
+  voiceMemos: __FF_VOICE_MEMOS__,
+  videoMemos: __FF_VIDEO_MEMOS__,
 } as const;
 
 /**

@@ -12,7 +12,7 @@ android {
         minSdk = 24
         targetSdk = 34
         versionCode = 3
-        versionName = "3.8.0"
+        versionName = "3.9.0"
     }
 
     buildTypes {
@@ -52,4 +52,10 @@ dependencies {
     implementation(libs.androidx.activity.ktx)
     implementation(libs.androidx.webkit)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.vosk.android)
+    implementation(libs.camera.core)
+    implementation(libs.camera.camera2)
+    implementation(libs.camera.lifecycle)
+    implementation(libs.camera.video)
+    implementation(libs.camera.view)
 }

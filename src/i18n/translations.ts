@@ -22,6 +22,11 @@ export interface Translations {
     jumpToMonth: string;
     annotation: string;
     noteTitle: string;
+    recording: string;
+    stop: string;
+    pause: string;
+    resume: string;
+    paused: string;
   };
   notebooks: {
     newNotebook: string;
@@ -183,6 +188,11 @@ export const translations: Record<Locale, Translations> = {
       jumpToMonth: 'Jump to month',
       annotation: 'Annotation',
       noteTitle: 'Note Title',
+      recording: 'Recording…',
+      stop: 'Stop',
+      pause: 'Pause',
+      resume: 'Resume',
+      paused: 'Paused',
     },
     notebooks: {
       newNotebook: 'New Notebook',
@@ -342,6 +352,11 @@ export const translations: Record<Locale, Translations> = {
       jumpToMonth: 'Перейти к месяцу',
       annotation: 'Аннотация',
       noteTitle: 'Название заметки',
+      recording: 'Идет запись',
+      stop: 'Стоп',
+      pause: 'Пауза',
+      resume: 'Продолжить',
+      paused: 'Пауза',
     },
     notebooks: {
       newNotebook: 'Новый блокнот',

@@ -13,6 +13,8 @@ class WebViewBridge(
     private val activity: MainActivity,
     private val fileSystemManager: FileSystemManager,
     private val audioPlayer: AudioPlayer,
+    private val audioRecorder: AudioRecorder,
+    private val transcriptionManager: TranscriptionManager,
     private val searchEngine: SearchEngine
 ) {
     @JavascriptInterface
@@ -153,6 +155,176 @@ class WebViewBridge(
         } catch (e: Exception) {
             """{"success":false,"error":"${SecurityUtils.escapeJson(e.message ?: "Unknown error")}"}"""
         }
+    }
+
+    @JavascriptInterface
+    fun uploadAudio(base64Data: String, fileName: String): String {
+        return try {
+            val url = fileSystemManager.saveAudio(base64Data, fileName)
+            """{"success":true,"url":"${SecurityUtils.escapeJson(url)}"}"""
+        } catch (e: Exception) {
+            """{"success":false,"error":"${SecurityUtils.escapeJson(e.message ?: "Unknown error")}"}"""
+        }
+    }
+
+    @JavascriptInterface
+    fun deleteAsset(url: String): String {
+        return try {
+            val ok = fileSystemManager.deleteAsset(url)
+            """{"success":$ok}"""
+        } catch (e: Exception) {
+            """{"success":false,"error":"${SecurityUtils.escapeJson(e.message ?: "Unknown error")}"}"""
+        }
+    }
+
+    @JavascriptInterface
+    fun transcribeAudio(fileName: String): String {
+        return try {
+            val pcm = fileSystemManager.readVoicePcm(fileName)
+                ?: return """{"success":false,"error":"Voice memo not found"}"""
+            val result = transcriptionManager.transcribe(pcm.samples, pcm.sampleRate.toFloat())
+            if (result.text.isEmpty()) {
+                """{"success":false,"error":"Transcription returned no text"}"""
+            } else {
+                val wordsJson = result.words.joinToString(",") { w ->
+                    """{"word":"${SecurityUtils.escapeJson(w.word)}","start":${w.start},"end":${w.end}}"""
+                }
+                val prosodyJson = result.prosody.joinToString(",") { p ->
+                    """{"f0":${p.f0},"energy":${p.energy}}"""
+                }
+                """{"success":true,"text":"${SecurityUtils.escapeJson(result.text)}","words":[$wordsJson],"prosody":[$prosodyJson]}"""
+            }
+        } catch (e: Exception) {
+            """{"success":false,"error":"${SecurityUtils.escapeJson(e.message ?: "Transcription failed")}"}"""
+        }
+    }
+
+    @JavascriptInterface
+    fun startRecording(): String {
+        return try {
+            if (!activity.hasRecordAudioPermission()) {
+                """{"success":false,"error":"Microphone permission not granted"}"""
+            } else if (audioRecorder.start()) {
+                """{"success":true}"""
+            } else {
+                """{"success":false,"error":"Failed to start recording"}"""
+            }
+        } catch (e: Exception) {
+            """{"success":false,"error":"${SecurityUtils.escapeJson(e.message ?: "Unknown error")}"}"""
+        }
+    }
+
+    @JavascriptInterface
+    fun stopRecording(): String {
+        return try {
+            val pcm = audioRecorder.stop()
+            if (pcm == null || pcm.isEmpty()) {
+                """{"success":false,"error":"Nothing was recorded"}"""
+            } else {
+                val fileName = makeMemoFileName()
+                val url = fileSystemManager.saveRecording(pcm, AudioRecorder.SAMPLE_RATE, fileName)
+                val duration = (pcm.size / 2L) * 1000L / AudioRecorder.SAMPLE_RATE
+                """{"success":true,"url":"${SecurityUtils.escapeJson(url)}","duration":$duration}"""
+            }
+        } catch (e: Exception) {
+            """{"success":false,"error":"${SecurityUtils.escapeJson(e.message ?: "Unknown error")}"}"""
+        }
+    }
+
+    @JavascriptInterface
+    fun pauseRecording(): String {
+        return try {
+            if (audioRecorder.pause()) """{"success":true}"""
+            else """{"success":false,"error":"Not recording"}"""
+        } catch (e: Exception) {
+            """{"success":false,"error":"${SecurityUtils.escapeJson(e.message ?: "Unknown error")}"}"""
+        }
+    }
+
+    @JavascriptInterface
+    fun resumeRecording(): String {
+        return try {
+            if (audioRecorder.resume()) """{"success":true}"""
+            else """{"success":false,"error":"Not paused"}"""
+        } catch (e: Exception) {
+            """{"success":false,"error":"${SecurityUtils.escapeJson(e.message ?: "Unknown error")}"}"""
+        }
+    }
+
+    @JavascriptInterface
+    fun uploadVideo(base64Data: String, fileName: String): String {
+        return try {
+            val url = fileSystemManager.saveVideo(base64Data, fileName)
+            """{"success":true,"url":"${SecurityUtils.escapeJson(url)}"}"""
+        } catch (e: Exception) {
+            """{"success":false,"error":"${SecurityUtils.escapeJson(e.message ?: "Unknown error")}"}"""
+        }
+    }
+
+    @JavascriptInterface
+    fun startVideoRecording(): String {
+        return try {
+            activity.startVideoRecording()
+        } catch (e: Exception) {
+            """{"success":false,"error":"${SecurityUtils.escapeJson(e.message ?: "Unknown error")}"}"""
+        }
+    }
+
+    @JavascriptInterface
+    fun stopVideoRecording(): String {
+        return try {
+            activity.stopVideoRecording()
+        } catch (e: Exception) {
+            """{"success":false,"error":"${SecurityUtils.escapeJson(e.message ?: "Unknown error")}"}"""
+        }
+    }
+
+    @JavascriptInterface
+    fun pauseVideoRecording(): String {
+        return try {
+            activity.pauseVideoRecording()
+        } catch (e: Exception) {
+            """{"success":false,"error":"${SecurityUtils.escapeJson(e.message ?: "Unknown error")}"}"""
+        }
+    }
+
+    @JavascriptInterface
+    fun resumeVideoRecording(): String {
+        return try {
+            activity.resumeVideoRecording()
+        } catch (e: Exception) {
+            """{"success":false,"error":"${SecurityUtils.escapeJson(e.message ?: "Unknown error")}"}"""
+        }
+    }
+
+    @JavascriptInterface
+    fun transcribeVideo(fileName: String): String {
+        return try {
+            val file = fileSystemManager.getVideoFile(fileName)
+                ?: return """{"success":false,"error":"Video memo not found"}"""
+            val pcm = AudioExtractor.extractPcm16k(file)
+                ?: return """{"success":false,"error":"Video has no audio track"}"""
+            val result = transcriptionManager.transcribe(pcm.samples, 16000f)
+            if (result.text.isEmpty()) {
+                """{"success":false,"error":"Transcription returned no text"}"""
+            } else {
+                val wordsJson = result.words.joinToString(",") { w ->
+                    """{"word":"${SecurityUtils.escapeJson(w.word)}","start":${w.start},"end":${w.end}}"""
+                }
+                val prosodyJson = result.prosody.joinToString(",") { p ->
+                    """{"f0":${p.f0},"energy":${p.energy}}"""
+                }
+                """{"success":true,"text":"${SecurityUtils.escapeJson(result.text)}","words":[$wordsJson],"prosody":[$prosodyJson]}"""
+            }
+        } catch (e: Exception) {
+            """{"success":false,"error":"${SecurityUtils.escapeJson(e.message ?: "Transcription failed")}"}"""
+        }
+    }
+
+    private fun makeMemoFileName(): String {
+        val now = java.util.Date()
+        val format = { pattern: String -> java.text.SimpleDateFormat(pattern, java.util.Locale.US).format(now) }
+        return "memo-${format("yyyy")}-${format("MM")}-${format("dd")}-${format("HHmmss")}.wav"
     }
 
     @JavascriptInterface
