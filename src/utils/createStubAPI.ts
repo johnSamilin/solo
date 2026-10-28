@@ -557,6 +557,12 @@ export function createStubAPI(): ElectronAPI {
     stopRecording: async () => {
       return { success: false, error: 'Not available in packaged build' };
     },
+    pauseRecording: async () => {
+      return { success: false, error: 'Not available in packaged build' };
+    },
+    resumeRecording: async () => {
+      return { success: false, error: 'Not available in packaged build' };
+    },
   };
   return stub as unknown as ElectronAPI;
 }

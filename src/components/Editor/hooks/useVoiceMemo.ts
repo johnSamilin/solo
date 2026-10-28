@@ -87,9 +87,11 @@ interface ActiveRecording {
 export const useVoiceMemo = (editor: Editor | null) => {
   const { settingsStore } = useStore();
   const [isRecording, setIsRecording] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const recordingRef = useRef<ActiveRecording | null>(null);
   const timerRef = useRef<number | null>(null);
+  const pausedRef = useRef(false);
 
   useEffect(() => {
     return () => {
@@ -114,6 +116,8 @@ export const useVoiceMemo = (editor: Editor | null) => {
         return;
       }
       setIsRecording(true);
+      setIsPaused(false);
+      pausedRef.current = false;
       setRecordingSeconds(0);
       timerRef.current = window.setInterval(() => setRecordingSeconds(s => s + 1), 1000);
       return;
@@ -136,6 +140,8 @@ export const useVoiceMemo = (editor: Editor | null) => {
       const chunks: Float32Array[] = [];
 
       processor.onaudioprocess = (e) => {
+        // Skip frames while paused so the gap is not recorded.
+        if (pausedRef.current) return;
         chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
       };
 
@@ -172,6 +178,8 @@ export const useVoiceMemo = (editor: Editor | null) => {
       };
 
       setIsRecording(true);
+      setIsPaused(false);
+      pausedRef.current = false;
       setRecordingSeconds(0);
       timerRef.current = window.setInterval(() => setRecordingSeconds(s => s + 1), 1000);
     } catch {
@@ -184,6 +192,8 @@ export const useVoiceMemo = (editor: Editor | null) => {
       window.clearInterval(timerRef.current);
       timerRef.current = null;
     }
+    pausedRef.current = false;
+    setIsPaused(false);
 
     // Android: stop the native recorder, which already writes the WAV file.
     if (isAndroid) {
@@ -263,6 +273,39 @@ export const useVoiceMemo = (editor: Editor | null) => {
       .run();
   };
 
+  const pauseRecording = () => {
+    if (!isRecording || isPaused) return;
+    // Desktop skips frames in the processor (see onaudioprocess) so the pause gap
+    // is not recorded. Android pauses the native capture thread via the bridge.
+    pausedRef.current = true;
+    setIsPaused(true);
+    if (timerRef.current) {
+      window.clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    if (isAndroid) {
+      getNativeAPI()?.pauseRecording?.().catch(() => {});
+    }
+  };
+
+  const resumeRecording = () => {
+    if (!isRecording || !isPaused) return;
+    pausedRef.current = false;
+    setIsPaused(false);
+    timerRef.current = window.setInterval(() => setRecordingSeconds(s => s + 1), 1000);
+    if (isAndroid) {
+      getNativeAPI()?.resumeRecording?.().catch(() => {});
+    }
+  };
+
+  const togglePause = () => {
+    if (isPaused) {
+      resumeRecording();
+    } else {
+      pauseRecording();
+    }
+  };
+
   const toggleRecording = () => {
     if (isRecording) {
       stopRecording();
@@ -271,5 +314,5 @@ export const useVoiceMemo = (editor: Editor | null) => {
     }
   };
 
-  return { isRecording, recordingSeconds, toggleRecording };
+  return { isRecording, isPaused, recordingSeconds, toggleRecording, togglePause };
 };

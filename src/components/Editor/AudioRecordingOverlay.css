@@ -27,6 +27,11 @@
   animation: audio-recording-pulse 1s ease-in-out infinite;
 }
 
+.audio-recording-dot.paused {
+  background: var(--color-text-light);
+  animation: none;
+}
+
 .audio-recording-text {
   font-size: 1.125rem;
   color: var(--color-text);
@@ -38,6 +43,29 @@
   color: var(--color-text-light);
   font-variant-numeric: tabular-nums;
   font-family: 'Outfit', system-ui, sans-serif;
+}
+
+.audio-recording-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.audio-recording-pause {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 9999px;
+  border: none;
+  background: var(--color-button);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.audio-recording-pause:hover {
+  background: var(--color-button-hover);
 }
 
 .audio-recording-stop {

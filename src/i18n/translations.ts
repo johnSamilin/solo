@@ -24,6 +24,9 @@ export interface Translations {
     noteTitle: string;
     recording: string;
     stop: string;
+    pause: string;
+    resume: string;
+    paused: string;
   };
   notebooks: {
     newNotebook: string;
@@ -187,6 +190,9 @@ export const translations: Record<Locale, Translations> = {
       noteTitle: 'Note Title',
       recording: 'Recording…',
       stop: 'Stop',
+      pause: 'Pause',
+      resume: 'Resume',
+      paused: 'Paused',
     },
     notebooks: {
       newNotebook: 'New Notebook',
@@ -348,6 +354,9 @@ export const translations: Record<Locale, Translations> = {
       noteTitle: 'Название заметки',
       recording: 'Идет запись',
       stop: 'Стоп',
+      pause: 'Пауза',
+      resume: 'Продолжить',
+      paused: 'Пауза',
     },
     notebooks: {
       newNotebook: 'Новый блокнот',

@@ -67,15 +67,19 @@ export const Editor: FC<EditorProps> = observer(({
 
   const {
     isRecording,
+    isPaused,
     recordingSeconds,
     toggleRecording,
+    togglePause,
   } = useVoiceMemo(editor);
 
   const {
     isRecording: isRecordingVideo,
+    isPaused: isVideoPaused,
     recordingSeconds: recordingVideoSeconds,
     previewStream: videoPreviewStream,
     toggleRecording: toggleVideoRecording,
+    togglePause: toggleVideoPause,
   } = useVideoMemo(editor);
 
   const handleMoveNote = (notebookId: string) => {
@@ -277,6 +281,8 @@ export const Editor: FC<EditorProps> = observer(({
         <VideoRecordingOverlay
           stream={videoPreviewStream}
           seconds={recordingVideoSeconds}
+          paused={isVideoPaused}
+          onTogglePause={toggleVideoPause}
           onStop={toggleVideoRecording}
         />
       )}
@@ -284,6 +290,8 @@ export const Editor: FC<EditorProps> = observer(({
       {isRecording && (
         <AudioRecordingOverlay
           seconds={recordingSeconds}
+          paused={isPaused}
+          onTogglePause={togglePause}
           onStop={toggleRecording}
         />
       )}

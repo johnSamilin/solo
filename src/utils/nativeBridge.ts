@@ -72,6 +72,10 @@ function wrapAndroidBridge(): ElectronAPI | null {
       Promise.resolve(parseJson(bridge.startRecording())),
     stopRecording: () =>
       Promise.resolve(parseJson(bridge.stopRecording())),
+    pauseRecording: () =>
+      Promise.resolve(parseJson(bridge.pauseRecording())),
+    resumeRecording: () =>
+      Promise.resolve(parseJson(bridge.resumeRecording())),
     openPdfFile: (relativePath: string) =>
       Promise.resolve(parseJson(bridge.openPdfFile(relativePath))),
     fetchUrl: (url: string) =>

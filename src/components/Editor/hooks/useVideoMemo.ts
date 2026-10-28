@@ -35,6 +35,7 @@ interface ActiveRecording {
 export const useVideoMemo = (editor: Editor | null) => {
   const { settingsStore } = useStore();
   const [isRecording, setIsRecording] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [previewStream, setPreviewStream] = useState<MediaStream | null>(null);
   const recordingRef = useRef<ActiveRecording | null>(null);
@@ -83,6 +84,7 @@ export const useVideoMemo = (editor: Editor | null) => {
       recordingRef.current = { stream, recorder, chunks, mime };
       setPreviewStream(stream);
       setIsRecording(true);
+      setIsPaused(false);
       setRecordingSeconds(0);
       timerRef.current = window.setInterval(() => setRecordingSeconds(s => s + 1), 1000);
     } catch (error) {
@@ -100,6 +102,7 @@ export const useVideoMemo = (editor: Editor | null) => {
     const rec = recordingRef.current;
     recordingRef.current = null;
     setIsRecording(false);
+    setIsPaused(false);
     setPreviewStream(null);
     const duration = recordingSeconds * 1000;
     setRecordingSeconds(0);
@@ -152,6 +155,33 @@ export const useVideoMemo = (editor: Editor | null) => {
       .run();
   };
 
+  const pauseRecording = () => {
+    if (!isRecording || isPaused) return;
+    // MediaRecorder.pause() stops emitting data but keeps the stream alive; the
+    // pause gap is not written into the final container.
+    recordingRef.current?.recorder.pause();
+    setIsPaused(true);
+    if (timerRef.current) {
+      window.clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  const resumeRecording = () => {
+    if (!isRecording || !isPaused) return;
+    recordingRef.current?.recorder.resume();
+    setIsPaused(false);
+    timerRef.current = window.setInterval(() => setRecordingSeconds(s => s + 1), 1000);
+  };
+
+  const togglePause = () => {
+    if (isPaused) {
+      resumeRecording();
+    } else {
+      pauseRecording();
+    }
+  };
+
   const toggleRecording = () => {
     if (isRecording) {
       stopRecording();
@@ -160,5 +190,5 @@ export const useVideoMemo = (editor: Editor | null) => {
     }
   };
 
-  return { isRecording, recordingSeconds, previewStream, toggleRecording };
+  return { isRecording, isPaused, recordingSeconds, previewStream, toggleRecording, togglePause };
 };

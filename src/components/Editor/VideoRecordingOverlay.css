@@ -33,6 +33,36 @@
   font-variant-numeric: tabular-nums;
 }
 
+.video-recording-paused {
+  position: absolute;
+  top: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.375rem 1rem;
+  border-radius: 9999px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 0.875rem;
+  letter-spacing: 0.05em;
+}
+
+.video-recording-pause {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 9999px;
+  border: 3px solid #fff;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.video-recording-pause:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
 .video-recording-stop {
   width: 3.5rem;
   height: 3.5rem;

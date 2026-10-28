@@ -158,6 +158,8 @@ export interface ElectronAPI {
   transcribeAudio: (fileName: string) => Promise<TranscribeAudioResult>;
   startRecording: () => Promise<{ success: boolean; error?: string }>;
   stopRecording: () => Promise<{ success: boolean; url?: string; duration?: number; error?: string }>;
+  pauseRecording: () => Promise<{ success: boolean; error?: string }>;
+  resumeRecording: () => Promise<{ success: boolean; error?: string }>;
 }
 
 export interface ExportFileRequest {
@@ -266,6 +268,8 @@ interface AndroidBridgeRaw {
   transcribeAudio(fileName: string): string;
   startRecording(): string;
   stopRecording(): string;
+  pauseRecording(): string;
+  resumeRecording(): string;
   playTypewriterSound(): void;
   toggleZenMode(enable: boolean): string;
   fetchUrl(url: string): string;

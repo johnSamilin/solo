@@ -1,10 +1,12 @@
 import { FC } from 'react';
-import { Square } from 'lucide-react';
+import { Square, Pause, Play } from 'lucide-react';
 import { useI18n } from '../../i18n/I18nContext';
 import './AudioRecordingOverlay.css';
 
 interface AudioRecordingOverlayProps {
   seconds: number;
+  paused: boolean;
+  onTogglePause: () => void;
   onStop: () => void;
 }
 
@@ -16,20 +18,34 @@ const formatTime = (seconds: number): string => {
 
 /**
  * A minimal overlay shown while recording a voice memo: a "recording" label, a
- * timer and a stop button.
+ * timer, and pause/resume + stop controls.
  */
-export const AudioRecordingOverlay: FC<AudioRecordingOverlayProps> = ({ seconds, onStop }) => {
+export const AudioRecordingOverlay: FC<AudioRecordingOverlayProps> = ({
+  seconds,
+  paused,
+  onTogglePause,
+  onStop,
+}) => {
   const { t } = useI18n();
 
   return (
     <div className="audio-recording-overlay">
       <div className="audio-recording-card">
-        <span className="audio-recording-dot" />
-        <div className="audio-recording-text">{t.editor.recording}</div>
+        <span className={`audio-recording-dot ${paused ? 'paused' : ''}`} />
+        <div className="audio-recording-text">{paused ? t.editor.paused : t.editor.recording}</div>
         <div className="audio-recording-timer">{formatTime(seconds)}</div>
-        <button className="audio-recording-stop" onClick={onStop} title={t.editor.stop}>
-          <Square className="h-5 w-5" />
-        </button>
+        <div className="audio-recording-actions">
+          <button
+            className="audio-recording-pause"
+            onClick={onTogglePause}
+            title={paused ? t.editor.resume : t.editor.pause}
+          >
+            {paused ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
+          </button>
+          <button className="audio-recording-stop" onClick={onStop} title={t.editor.stop}>
+            <Square className="h-5 w-5" />
+          </button>
+        </div>
       </div>
     </div>
   );
