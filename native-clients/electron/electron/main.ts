@@ -44,6 +44,7 @@ function getVoskBindings(): any | null {
     modelNew: lib.func('vosk_model_new', 'void *', ['str']),
     modelFree: lib.func('vosk_model_free', 'void', ['void *']),
     recognizerNew: lib.func('vosk_recognizer_new', 'void *', ['void *', 'float']),
+    setWords: lib.func('vosk_recognizer_set_words', 'void', ['void *', 'bool']),
     acceptWaveform: lib.func('vosk_recognizer_accept_waveform', 'int', ['void *', 'void *', 'int']),
     finalResult: lib.func('vosk_recognizer_final_result', 'str', ['void *']),
     recognizerFree: lib.func('vosk_recognizer_free', 'void', ['void *']),
@@ -115,6 +116,81 @@ async function readWavPcm(
   if (!existsSync(wavPath)) return null;
   const buffer = await fs.readFile(wavPath);
   return parseWav(buffer);
+}
+
+// ── Prosody (pitch + energy) for punctuation restoration ──
+
+/** RMS energy of a float sample window, normalized to ~0..1. */
+function computeRms(samples: Float64Array): number {
+  if (samples.length === 0) return 0;
+  let sum = 0;
+  for (const s of samples) sum += s * s;
+  return Math.sqrt(sum / samples.length);
+}
+
+/** Autocorrelation pitch estimate in Hz; 0 if unvoiced/too short. */
+function estimateF0(samples: Float64Array, sampleRate: number): number {
+  const minF0 = 60;
+  const maxF0 = 400;
+  const minLag = Math.max(1, Math.floor(sampleRate / maxF0));
+  const maxLag = Math.min(samples.length - 1, Math.floor(sampleRate / minF0));
+  if (samples.length < maxLag * 2) return 0;
+
+  let mean = 0;
+  for (const s of samples) mean += s;
+  mean /= samples.length;
+
+  let energy = 0;
+  for (const s of samples) {
+    const x = s - mean;
+    energy += x * x;
+  }
+  if (energy === 0) return 0;
+
+  let bestLag = 0;
+  let bestNorm = 0;
+  for (let lag = minLag; lag <= maxLag; lag++) {
+    let corr = 0;
+    for (let i = lag; i < samples.length; i++) {
+      corr += (samples[i] - mean) * (samples[i - lag] - mean);
+    }
+    const norm = corr / energy;
+    if (norm > bestNorm) {
+      bestNorm = norm;
+      bestLag = lag;
+    }
+  }
+
+  if (bestNorm < 0.3) return 0;
+  return sampleRate / bestLag;
+}
+
+/**
+ * Computes per-word pitch + energy from 16-bit PCM and word timings. Each word
+ * uses its last ~40 ms of audio.
+ */
+function computeProsody(
+  pcm: Buffer,
+  sampleRate: number,
+  words: Array<{ start: number; end: number }>,
+): Array<{ f0: number; energy: number }> {
+  const result: Array<{ f0: number; energy: number }> = [];
+  const windowLen = Math.floor(sampleRate * 0.04);
+
+  for (const w of words) {
+    const endSample = Math.min(Math.floor(w.end * sampleRate), Math.floor(pcm.length / 2));
+    const startSample = Math.max(0, endSample - windowLen);
+    const n = endSample - startSample;
+
+    const samples = new Float64Array(n);
+    for (let i = 0; i < n; i++) {
+      samples[i] = pcm.readInt16LE((startSample + i) * 2) / 32768.0;
+    }
+
+    result.push({ f0: estimateF0(samples, sampleRate), energy: computeRms(samples) });
+  }
+
+  return result;
 }
 
 /**
@@ -191,6 +267,16 @@ protocol.registerSchemesAsPrivileged([
       supportFetchAPI: true,
       bypassCSP: false,
       corsEnabled: false,
+      standard: true,
+    }
+  },
+  {
+    scheme: 'video',
+    privileges: {
+      secure: true,
+      supportFetchAPI: true,
+      bypassCSP: false,
+      corsEnabled: true,
       standard: true,
     }
   }
@@ -358,6 +444,70 @@ async function getVoiceFile(filePath: string) {
   return result;
 }
 
+async function getVideoFile(filePath: string, rangeHeader: string | null) {
+  const result = {
+    success: false,
+    response: new Response(),
+  };
+
+  if (!dataFolder) {
+    result.response = new Response('No data folder', { status: 404 });
+    return result;
+  }
+
+  const assetsPath = path.join(dataFolder, 'assets', 'video', filePath);
+
+  if (!assetsPath.startsWith(path.join(dataFolder, 'assets', 'video'))) {
+    result.response = new Response('Forbidden', { status: 403 });
+    return result;
+  }
+
+  if (!existsSync(assetsPath)) {
+    result.response = new Response('Not found', { status: 404 });
+    return result;
+  }
+
+  const buffer = await fs.readFile(assetsPath);
+  const mime = filePath.endsWith('.webm') ? 'video/webm' : 'video/mp4';
+
+  // WebM stores its seek index (Cues) at the END of the file; the <video>
+  // element must be able to issue Range requests to read it, otherwise playback
+  // stalls / doesn't finish. Serve partial content for Range requests.
+  if (rangeHeader) {
+    const match = /bytes=(\d*)-(\d*)/.exec(rangeHeader);
+    if (match) {
+      const start = match[1] ? parseInt(match[1], 10) : 0;
+      const end = match[2] ? Math.min(parseInt(match[2], 10), buffer.length - 1) : buffer.length - 1;
+      const chunk = buffer.subarray(start, end + 1);
+      result.success = true;
+      result.response = new Response(chunk, {
+        status: 206,
+        headers: {
+          'Content-Type': mime,
+          'Content-Length': String(chunk.length),
+          'Content-Range': `bytes ${start}-${end}/${buffer.length}`,
+          'Accept-Ranges': 'bytes',
+          'Access-Control-Allow-Origin': '*',
+        },
+      });
+      return result;
+    }
+  }
+
+  result.success = true;
+  result.response = new Response(buffer, {
+    status: 200,
+    headers: {
+      'Content-Type': mime,
+      'Content-Length': String(buffer.length),
+      'Accept-Ranges': 'bytes',
+      'Access-Control-Allow-Origin': '*',
+    },
+  });
+
+  return result;
+}
+
 app.whenReady().then(async () => {
   await logger.init();
 
@@ -438,6 +588,22 @@ app.whenReady().then(async () => {
       return hostnameFile.response;
     } else {
       const pathnameFile = await getVoiceFile(url.pathname);
+      if (pathnameFile.success) {
+        return pathnameFile.response;
+      }
+    }
+
+    return Promise.reject();
+  });
+
+  protocol.handle('video', async (request) => {
+    const url = new URL(request.url);
+    const rangeHeader = request.headers.get('range');
+    const hostnameFile = await getVideoFile(url.hostname, rangeHeader);
+    if (hostnameFile.success) {
+      return hostnameFile.response;
+    } else {
+      const pathnameFile = await getVideoFile(url.pathname, rangeHeader);
       if (pathnameFile.success) {
         return pathnameFile.response;
       }
@@ -1476,6 +1642,72 @@ ipcMain.handle('upload-audio', async (_event, audioData: string, fileName: strin
   }
 });
 
+ipcMain.handle('upload-video', async (_event, videoData: string, fileName: string) => {
+  try {
+    if (!dataFolder) {
+      return { success: false, error: 'No data folder selected' };
+    }
+
+    const videoDir = path.join(dataFolder, 'assets', 'video');
+    if (!existsSync(videoDir)) {
+      await fs.mkdir(videoDir, { recursive: true });
+    }
+
+    const sanitizedFileName = (fileName || 'video.mp4').replace(/[^a-zA-Z0-9._-]/g, '_');
+    const ext = path.extname(sanitizedFileName);
+    const base = sanitizedFileName.slice(0, sanitizedFileName.length - ext.length);
+
+    let uniqueName = sanitizedFileName;
+    let counter = 1;
+    while (existsSync(path.join(videoDir, uniqueName))) {
+      uniqueName = `${base}-${counter}${ext}`;
+      counter++;
+    }
+
+    const base64Data = videoData.replace(/^data:video\/\w+;base64,/, '');
+    const buffer = Buffer.from(base64Data, 'base64');
+    await fs.writeFile(path.join(videoDir, uniqueName), buffer);
+
+    return {
+      success: true,
+      fileName: uniqueName,
+      url: `video://${uniqueName}`,
+    };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
+});
+
+ipcMain.handle('delete-asset', async (_event, url: string) => {
+  try {
+    if (!dataFolder) {
+      return { success: false, error: 'No data folder selected' };
+    }
+
+    let filePath: string | null = null;
+    if (typeof url === 'string' && url.startsWith('voice://')) {
+      const name = url.slice('voice://'.length).replace(/^\/+/, '');
+      const candidate = path.join(dataFolder, 'assets', 'voice', name);
+      if (candidate.startsWith(path.join(dataFolder, 'assets', 'voice'))) filePath = candidate;
+    } else if (typeof url === 'string' && url.startsWith('video://')) {
+      const name = url.slice('video://'.length).replace(/^\/+/, '');
+      const candidate = path.join(dataFolder, 'assets', 'video', name);
+      if (candidate.startsWith(path.join(dataFolder, 'assets', 'video'))) filePath = candidate;
+    }
+
+    if (!filePath) {
+      return { success: false, error: 'Unsupported asset URL' };
+    }
+    if (!existsSync(filePath)) {
+      return { success: true }; // already gone
+    }
+    await fs.unlink(filePath);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
+});
+
 ipcMain.handle('transcribe-audio', async (_event, fileName: string) => {
   try {
     if (typeof fileName !== 'string' || fileName.length === 0) {
@@ -1498,6 +1730,7 @@ ipcMain.handle('transcribe-audio', async (_event, fileName: string) => {
     }
 
     const recognizerPtr = bindings.recognizerNew(modelPtr, pcm.sampleRate);
+    bindings.setWords(recognizerPtr, true);
 
     const CHUNK = 32000;
     let offset = 0;
@@ -1514,7 +1747,14 @@ ipcMain.handle('transcribe-audio', async (_event, fileName: string) => {
     if (!text) {
       return { success: false, error: 'Transcription returned no text' };
     }
-    return { success: true, text };
+
+    // Word timings + prosody for punctuation restoration.
+    const words = (result?.result || [])
+      .map((w: any) => ({ word: w?.word || '', start: Number(w?.start) || 0, end: Number(w?.end) || 0 }))
+      .filter((w: any) => w.word);
+    const prosody = computeProsody(pcm.pcm, pcm.sampleRate, words);
+
+    return { success: true, text, words, prosody };
   } catch (error) {
     return { success: false, error: (error as Error).message };
   }

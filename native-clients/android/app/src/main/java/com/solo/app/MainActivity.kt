@@ -5,10 +5,14 @@ import android.Manifest
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.view.View
 import android.view.WindowManager
@@ -18,7 +22,13 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.Button
+import android.widget.FrameLayout
+import android.widget.TextView
+import androidx.camera.view.PreviewView
 import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.io.File
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -27,6 +37,7 @@ import com.solo.app.bridge.AudioRecorder
 import com.solo.app.bridge.FileSystemManager
 import com.solo.app.bridge.SearchEngine
 import com.solo.app.bridge.TranscriptionManager
+import com.solo.app.bridge.VideoRecorder
 import com.solo.app.bridge.WebViewBridge
 import com.solo.app.utils.SecurityUtils
 
@@ -41,6 +52,25 @@ class MainActivity : AppCompatActivity() {
     private lateinit var searchEngine: SearchEngine
     private lateinit var bridge: WebViewBridge
 
+    private lateinit var videoRecorder: VideoRecorder
+    private lateinit var videoOverlay: FrameLayout
+    private lateinit var videoPreview: PreviewView
+    private lateinit var videoTimer: TextView
+    private lateinit var videoPause: Button
+    private lateinit var videoStop: Button
+    private var videoOutputFile: File? = null
+    private var videoSeconds = 0
+    private val videoTimerHandler = Handler(Looper.getMainLooper())
+    private val videoTimerRunnable = object : Runnable {
+        override fun run() {
+            videoSeconds++
+            val m = videoSeconds / 60
+            val s = videoSeconds % 60
+            videoTimer.text = "$m:${s.toString().padStart(2, '0')}"
+            videoTimerHandler.postDelayed(this, 1000)
+        }
+    }
+
     private val folderPickerLauncher = registerForActivityResult(
         ActivityResultContracts.OpenDocumentTree()
     ) { uri: Uri? ->
@@ -48,6 +78,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private val recordAudioPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { _ ->
+        // Nothing to do here; the next record attempt will succeed if granted.
+    }
+
+    private val cameraPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { _ ->
         // Nothing to do here; the next record attempt will succeed if granted.
@@ -83,6 +119,7 @@ class MainActivity : AppCompatActivity() {
         searchEngine = SearchEngine(fileSystemManager)
 
         requestRecordAudioPermission()
+        requestCameraPermission()
 
         val savedFolder = prefs.getString("root_folder", null)
         if (savedFolder != null) {
@@ -90,6 +127,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         setupWebView()
+        setupVideoOverlay()
         setupBackNavigation()
     }
 
@@ -143,6 +181,9 @@ class MainActivity : AppCompatActivity() {
                 if (url.scheme == "voice") {
                     return handleVoiceRequest(url)
                 }
+                if (url.scheme == "video") {
+                    return handleVideoRequest(url)
+                }
                 return super.shouldInterceptRequest(view, request)
             }
         }
@@ -156,6 +197,230 @@ class MainActivity : AppCompatActivity() {
         }
 
         webView.loadUrl("file:///android_asset/solo/index.html")
+    }
+
+    private fun setupVideoOverlay() {
+        videoOverlay = findViewById(R.id.videoOverlay)
+        videoPreview = findViewById(R.id.videoPreview)
+        videoTimer = findViewById(R.id.videoTimer)
+        videoPause = findViewById(R.id.videoPause)
+        videoStop = findViewById(R.id.videoStop)
+
+        videoRecorder = VideoRecorder(this, this, videoPreview)
+
+        videoPause.setOnClickListener {
+            if (videoRecorder.isPaused()) {
+                if (videoRecorder.resume()) {
+                    videoPause.text = "Pause"
+                    startVideoTimer()
+                }
+            } else {
+                if (videoRecorder.pause()) {
+                    videoPause.text = "Resume"
+                    stopVideoTimer()
+                }
+            }
+        }
+
+        videoStop.setOnClickListener {
+            stopVideoRecording()
+        }
+    }
+
+    // ── Video memo recording (native CameraX) ──
+
+    fun startVideoRecording(): String {
+        if (!hasCameraPermission()) {
+            return """{"success":false,"error":"Camera permission not granted"}"""
+        }
+        if (!hasRecordAudioPermission()) {
+            return """{"success":false,"error":"Microphone permission not granted"}"""
+        }
+        if (videoRecorder.isRecording()) {
+            return """{"success":false,"error":"Already recording"}"""
+        }
+
+        val tempFile = File(cacheDir, "video-memo-${System.currentTimeMillis()}.mp4")
+        videoOutputFile = tempFile
+
+        val started = videoRecorder.start(tempFile) { file ->
+            onVideoRecordingFinished(file)
+        }
+        if (!started) {
+            videoOutputFile = null
+            return """{"success":false,"error":"Failed to start recording"}"""
+        }
+
+        runOnUiThread {
+            videoOverlay.visibility = View.VISIBLE
+            videoSeconds = 0
+            videoTimer.text = "0:00"
+            videoPause.text = "Pause"
+            startVideoTimer()
+        }
+        return """{"success":true}"""
+    }
+
+    fun stopVideoRecording(): String {
+        if (!videoRecorder.isRecording()) {
+            return """{"success":false,"error":"Not recording"}"""
+        }
+        // The finalize callback (onVideoRecordingFinished) delivers the result.
+        videoRecorder.stop()
+        return """{"success":true}"""
+    }
+
+    fun pauseVideoRecording(): String {
+        return if (videoRecorder.pause()) {
+            runOnUiThread { videoPause.text = "Resume" }
+            stopVideoTimer()
+            """{"success":true}"""
+        } else {
+            """{"success":false,"error":"Not recording"}"""
+        }
+    }
+
+    fun resumeVideoRecording(): String {
+        return if (videoRecorder.resume()) {
+            runOnUiThread { videoPause.text = "Pause" }
+            startVideoTimer()
+            """{"success":true}"""
+        } else {
+            """{"success":false,"error":"Not paused"}"""
+        }
+    }
+
+    private fun onVideoRecordingFinished(file: File?) {
+        stopVideoTimer()
+        runOnUiThread { videoOverlay.visibility = View.GONE }
+        videoOutputFile = null
+
+        if (file == null || !file.exists() || file.length() == 0L) {
+            notifyVideoRecordingResult(false, null, 0, null, "Nothing was recorded")
+            return
+        }
+
+        Thread {
+            try {
+                val duration = getVideoDuration(file)
+                // Capture the first frame before the video is moved (saveVideoFile
+                // deletes the temp source).
+                val posterBytes = capturePosterBytes(file)
+                val fileName = makeVideoFileName()
+                val url = fileSystemManager.saveVideoFile(file, fileName)
+                val posterUrl = if (posterBytes != null) {
+                    val posterName = url.removePrefix("video://").replace(".mp4", ".jpg")
+                    fileSystemManager.saveVideoBytes(posterBytes, posterName)
+                } else {
+                    null
+                }
+                notifyVideoRecordingResult(true, url, duration, posterUrl, null)
+            } catch (e: Exception) {
+                notifyVideoRecordingResult(false, null, 0, null, e.message ?: "Failed to save video memo")
+            }
+        }.start()
+    }
+
+    /** Captures the first frame of a recorded video as a JPEG byte array. */
+    private fun capturePosterBytes(file: File): ByteArray? {
+        return try {
+            val mmr = MediaMetadataRetriever()
+            mmr.setDataSource(file.absolutePath)
+            val frame = mmr.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+            mmr.release()
+            if (frame == null) return null
+            val baos = ByteArrayOutputStream()
+            frame.compress(Bitmap.CompressFormat.JPEG, 85, baos)
+            frame.recycle()
+            baos.toByteArray()
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun getVideoDuration(file: File): Long {
+        return try {
+            val mmr = MediaMetadataRetriever()
+            mmr.setDataSource(file.absolutePath)
+            val duration = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLong() ?: 0L
+            mmr.release()
+            duration
+        } catch (e: Exception) {
+            0L
+        }
+    }
+
+    private fun makeVideoFileName(): String {
+        val now = java.util.Date()
+        val format = { pattern: String -> java.text.SimpleDateFormat(pattern, java.util.Locale.US).format(now) }
+        return "video-${format("yyyy")}-${format("MM")}-${format("dd")}-${format("HHmmss")}.mp4"
+    }
+
+    private fun notifyVideoRecordingResult(
+        success: Boolean,
+        url: String?,
+        duration: Long,
+        posterUrl: String?,
+        error: String?,
+    ) {
+        val json = if (success) {
+            val poster = if (posterUrl != null) ""","poster":"${SecurityUtils.escapeJson(posterUrl)}"""" else ""
+            """{"success":true,"url":"${SecurityUtils.escapeJson(url ?: "")}","duration":$duration$poster}"""
+        } else {
+            """{"success":false,"error":"${SecurityUtils.escapeJson(error ?: "Unknown error")}"}"""
+        }
+        runOnUiThread {
+            webView.evaluateJavascript(
+                "if(window.__soloVideoRecordingResult){window.__soloVideoRecordingResult('${SecurityUtils.escapeJsString(json)}');}",
+                null
+            )
+        }
+    }
+
+    private fun startVideoTimer() {
+        videoTimerHandler.removeCallbacks(videoTimerRunnable)
+        videoTimerHandler.postDelayed(videoTimerRunnable, 1000)
+    }
+
+    private fun stopVideoTimer() {
+        videoTimerHandler.removeCallbacks(videoTimerRunnable)
+    }
+
+    /**
+     * Serves video memos referenced with the custom `video://<fileName>` protocol
+     * used inside notes. Mirrors {@link #handleVoiceRequest(android.net.Uri)} but
+     * resolves against the `<rootFolder>/assets/video` directory.
+     */
+    private fun handleVideoRequest(uri: Uri): WebResourceResponse? {
+        val raw = uri.toString()
+        val fileName = raw
+            .removePrefix("video://")
+            .substringBefore('?')
+            .substringBefore('#')
+            .trimStart('/')
+            .takeIf { it.isNotEmpty() }
+            ?: return null
+
+        val bytes = fileSystemManager.readVideoAsset(fileName) ?: return WebResourceResponse(
+            "text/plain",
+            "utf-8",
+            404,
+            "Not Found",
+            emptyMap(),
+            ByteArrayInputStream(ByteArray(0))
+        )
+
+        val mimeType = fileSystemManager.guessMimeType(fileName)
+        val headers = mapOf("Access-Control-Allow-Origin" to "*")
+
+        return WebResourceResponse(
+            mimeType,
+            null,
+            200,
+            "OK",
+            headers,
+            ByteArrayInputStream(bytes)
+        )
     }
 
     /**
@@ -314,6 +579,11 @@ class MainActivity : AppCompatActivity() {
             checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
     }
 
+    private fun hasCameraPermission(): Boolean {
+        return Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
+            checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+    }
+
     private fun requestRecordAudioPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
             checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED
@@ -322,9 +592,18 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun requestCameraPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+            checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED
+        ) {
+            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+    }
+
     override fun onDestroy() {
         audioPlayer.release()
         audioRecorder.stop()
+        videoRecorder.release()
         webView.destroy()
         super.onDestroy()
     }

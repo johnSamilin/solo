@@ -356,6 +356,66 @@ class FileSystemManager(
         return "voice://$uniqueName"
     }
 
+    fun saveVideo(base64Data: String, fileName: String): String {
+        val root = rootFolder ?: throw IllegalStateException("Root folder not set")
+
+        val actualData = if (base64Data.contains(",")) {
+            base64Data.substringAfter(",")
+        } else {
+            base64Data
+        }
+
+        val bytes = Base64.decode(actualData, Base64.DEFAULT)
+        return saveVideoBytes(bytes, fileName)
+    }
+
+    fun saveVideoBytes(bytes: ByteArray, fileName: String): String {
+        val root = rootFolder ?: throw IllegalStateException("Root folder not set")
+        val sanitizedName = SecurityUtils.sanitizeFileName(fileName)
+        val videoDir = File(root, "assets/video")
+        videoDir.mkdirs()
+
+        val uniqueName = buildUniqueAssetName(videoDir, sanitizedName)
+        File(videoDir, uniqueName).writeBytes(bytes)
+
+        return "video://$uniqueName"
+    }
+
+    /**
+     * Moves a recorded video (from a temp location) into `assets/video/` and
+     * returns its `video://<fileName>` URL.
+     */
+    fun saveVideoFile(source: File, fileName: String): String {
+        val root = rootFolder ?: throw IllegalStateException("Root folder not set")
+        val sanitizedName = SecurityUtils.sanitizeFileName(fileName)
+        val videoDir = File(root, "assets/video")
+        videoDir.mkdirs()
+
+        val uniqueName = buildUniqueAssetName(videoDir, sanitizedName)
+        val target = File(videoDir, uniqueName)
+        source.copyTo(target, overwrite = false)
+        source.delete()
+
+        return "video://$uniqueName"
+    }
+
+    /**
+     * Deletes an asset referenced by a `voice://` or `video://` URL. Returns true
+     * if the file no longer exists afterwards.
+     */
+    fun deleteAsset(url: String): Boolean {
+        val root = rootFolder ?: return false
+        val (subdir, protocol) = when {
+            url.startsWith("voice://") -> "assets/voice" to "voice://"
+            url.startsWith("video://") -> "assets/video" to "video://"
+            else -> return false
+        }
+        val name = url.removePrefix(protocol).trimStart('/')
+        if (name.isEmpty()) return false
+        val file = File(root, "$subdir/$name")
+        return !file.exists() || file.delete()
+    }
+
     /**
      * Wraps raw 16-bit mono PCM (from {@link AudioRecorder}) into a WAV file and
      * stores it in `assets/voice/`. Returns the `voice://<fileName>` URL.
@@ -487,6 +547,36 @@ class FileSystemManager(
         return parseWav(wav)
     }
 
+    /**
+     * Resolves and validates a video memo under `assets/video/` (or null).
+     */
+    fun getVideoFile(fileName: String): File? {
+        val root = rootFolder ?: return null
+        val videoDir = File(root, "assets/video")
+
+        val decodedName = try {
+            java.net.URLDecoder.decode(fileName, "UTF-8")
+        } catch (_: Exception) {
+            fileName
+        }
+
+        val assetFile = File(videoDir, decodedName)
+
+        val canonicalVideo = videoDir.canonicalPath
+        val canonicalFile = assetFile.canonicalPath
+        if (!canonicalFile.startsWith(canonicalVideo)) return null
+
+        if (!assetFile.exists() || !assetFile.isFile) return null
+        return assetFile
+    }
+
+    /**
+     * Reads a video memo stored under `assets/video/` for the `video://` protocol.
+     */
+    fun readVideoAsset(fileName: String): ByteArray? {
+        return getVideoFile(fileName)?.readBytes()
+    }
+
     private fun parseWav(wav: ByteArray): PcmAudio? {
         if (wav.size < 44) return null
 
@@ -530,6 +620,9 @@ class FileSystemManager(
             lower.endsWith(".avif") -> "image/avif"
             lower.endsWith(".wav") -> "audio/wav"
             lower.endsWith(".mp3") -> "audio/mpeg"
+            lower.endsWith(".mp4") -> "video/mp4"
+            lower.endsWith(".webm") -> "video/webm"
+            lower.endsWith(".3gp") -> "video/3gpp"
             else -> "application/octet-stream"
         }
     }

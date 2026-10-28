@@ -7,6 +7,15 @@ import org.vosk.Recognizer
 import java.io.File
 import java.io.FileOutputStream
 import java.util.zip.ZipInputStream
+import kotlin.math.sqrt
+
+data class WordTiming(val word: String, val start: Double, val end: Double)
+data class WordProsody(val f0: Double, val energy: Double)
+data class TranscriptionResult(
+    val text: String,
+    val words: List<WordTiming>,
+    val prosody: List<WordProsody>,
+)
 
 /**
  * On-device Russian speech recognition backed by the Vosk AAR.
@@ -46,14 +55,17 @@ class TranscriptionManager(private val context: Context) {
     }
 
     /**
-     * Transcribes 16-bit mono PCM and returns the recognized text.
+     * Transcribes 16-bit mono PCM and returns the recognized text plus word
+     * timings and per-word prosody (pitch + energy) for punctuation restoration.
      * Throws if the model is not ready or recognition fails.
      */
-    fun transcribe(pcmBytes: ByteArray, sampleRate: Float): String {
+    fun transcribe(pcmBytes: ByteArray, sampleRate: Float): TranscriptionResult {
         val m = model ?: throw IllegalStateException(loadError ?: "Speech model is still loading")
 
         val recognizer = Recognizer(m, sampleRate)
         return try {
+            recognizer.setWords(true)
+
             var offset = 0
             while (offset < pcmBytes.size) {
                 val end = minOf(offset + CHUNK_BYTES, pcmBytes.size)
@@ -61,13 +73,95 @@ class TranscriptionManager(private val context: Context) {
                 recognizer.acceptWaveForm(chunk, chunk.size)
                 offset = end
             }
-            val text = JSONObject(recognizer.finalResult).optString("text", "").trim()
+
+            val json = JSONObject(recognizer.finalResult)
+            val text = json.optString("text", "").trim()
             recognizer.close()
-            text
+
+            val words = mutableListOf<WordTiming>()
+            val resultArr = json.optJSONArray("result")
+            if (resultArr != null) {
+                for (i in 0 until resultArr.length()) {
+                    val obj = resultArr.optJSONObject(i) ?: continue
+                    val word = obj.optString("word", "").trim()
+                    if (word.isEmpty()) continue
+                    words.add(WordTiming(word, obj.optDouble("start", 0.0), obj.optDouble("end", 0.0)))
+                }
+            }
+
+            val prosody = computeProsody(pcmBytes, sampleRate.toInt(), words)
+            TranscriptionResult(text, words, prosody)
         } catch (e: Exception) {
             recognizer.close()
             throw e
         }
+    }
+
+    // ── Prosody (pitch + energy) for punctuation restoration ──
+
+    private fun computeRms(samples: DoubleArray): Double {
+        if (samples.isEmpty()) return 0.0
+        var sum = 0.0
+        for (s in samples) sum += s * s
+        return sqrt(sum / samples.size)
+    }
+
+    /** Autocorrelation pitch estimate in Hz; 0.0 if unvoiced/too short. */
+    private fun estimateF0(samples: DoubleArray, sampleRate: Int): Double {
+        val minF0 = 60.0
+        val maxF0 = 400.0
+        val minLag = maxOf(1, (sampleRate / maxF0).toInt())
+        val maxLag = minOf(samples.size - 1, (sampleRate / minF0).toInt())
+        if (samples.size < maxLag * 2) return 0.0
+
+        val mean = samples.average()
+        var energy = 0.0
+        for (s in samples) {
+            val x = s - mean
+            energy += x * x
+        }
+        if (energy == 0.0) return 0.0
+
+        var bestLag = 0
+        var bestNorm = 0.0
+        for (lag in minLag..maxLag) {
+            var corr = 0.0
+            for (i in lag until samples.size) {
+                corr += (samples[i] - mean) * (samples[i - lag] - mean)
+            }
+            val norm = corr / energy
+            if (norm > bestNorm) {
+                bestNorm = norm
+                bestLag = lag
+            }
+        }
+
+        if (bestNorm < 0.3) return 0.0
+        return sampleRate.toDouble() / bestLag
+    }
+
+    /** Per-word pitch + energy from 16-bit PCM, using each word's last ~40 ms. */
+    private fun computeProsody(pcmBytes: ByteArray, sampleRate: Int, words: List<WordTiming>): List<WordProsody> {
+        val windowLen = (sampleRate * 0.04).toInt()
+        val sampleCount = pcmBytes.size / 2
+        val result = mutableListOf<WordProsody>()
+
+        for (w in words) {
+            val endSample = minOf((w.end * sampleRate).toInt(), sampleCount)
+            val startSample = maxOf(0, endSample - windowLen)
+            val n = endSample - startSample
+
+            val samples = DoubleArray(n)
+            for (i in 0 until n) {
+                val byteIdx = (startSample + i) * 2
+                val low = pcmBytes[byteIdx].toInt() and 0xFF
+                val high = pcmBytes[byteIdx + 1].toInt() and 0xFF
+                samples[i] = ((high shl 8) or low).toShort().toDouble() / 32768.0
+            }
+
+            result.add(WordProsody(estimateF0(samples, sampleRate), computeRms(samples)))
+        }
+        return result
     }
 
     /** Returns an already-unpacked model dir, or unpacks the asset if needed. */

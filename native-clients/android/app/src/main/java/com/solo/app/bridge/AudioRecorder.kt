@@ -23,7 +23,12 @@ class AudioRecorder {
     @Volatile
     private var recording = false
 
+    @Volatile
+    private var paused = false
+
     fun isRecording(): Boolean = recording
+
+    fun isPaused(): Boolean = paused
 
     fun start(): Boolean {
         if (recording) return false
@@ -50,11 +55,22 @@ class AudioRecorder {
         audioRecord = record
         output = ByteArrayOutputStream()
         recording = true
+        paused = false
         record.startRecording()
 
         recordingThread = Thread {
             val buffer = ByteArray(minBuffer)
             while (recording) {
+                // While paused, keep the AudioRecord alive but skip writing frames
+                // so the pause gap is not recorded. Sleep briefly to avoid a busy loop.
+                if (paused) {
+                    try {
+                        Thread.sleep(20)
+                    } catch (_: InterruptedException) {
+                        break
+                    }
+                    continue
+                }
                 val read = record.read(buffer, 0, buffer.size)
                 if (read > 0) output?.write(buffer, 0, read)
             }
@@ -63,10 +79,23 @@ class AudioRecorder {
         return true
     }
 
+    fun pause(): Boolean {
+        if (!recording || paused) return false
+        paused = true
+        return true
+    }
+
+    fun resume(): Boolean {
+        if (!recording || !paused) return false
+        paused = false
+        return true
+    }
+
     fun stop(): ByteArray? {
         if (!recording) return null
 
         recording = false
+        paused = false
         try {
             recordingThread?.join(1000)
         } catch (_: InterruptedException) {
