@@ -54,9 +54,17 @@ export default {
       './models',
       './libvosk'
     ],
+    // `libvosk` and `models` are copied via `extraResource` (outside the asar).
+    // They must NOT also be packed into the asar, otherwise `findLibvoskPath`
+    // resolves to `app.asar/libvosk/...` and `dlopen` can't load a dylib from
+    // inside the asar.
+    ignore: [
+      /^\/libvosk(\/|$)/,
+      /^\/models(\/|$)/,
+      ...(EXCLUDE_INSTRUMENTS ? instrumentIgnorePatterns() : []),
+    ],
     osxSign: {},
     osxNotarize: undefined,
-    ...(EXCLUDE_INSTRUMENTS ? { ignore: instrumentIgnorePatterns() } : {}),
   },
   hooks: {
     ...(EXCLUDE_INSTRUMENTS

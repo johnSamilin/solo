@@ -22,11 +22,13 @@ let voskModelPtr: any = null;
 
 function findLibvoskPath(): string | null {
   const candidates = [
+    // Packaged app: forge extraResource copies ./libvosk into resources/libvosk.
+    // This must be checked first — the asar-internal path (candidate below)
+    // would also "exist" but `dlopen` cannot load a dylib from inside app.asar.
+    path.join(process.resourcesPath, 'libvosk', LIBVOSK_FILE),
     // `electron .` (unpackaged): the shared library is placed in ./libvosk by
     // the fetch script, next to the compiled main.js (electron/dist).
     path.join(__dirname, '../../libvosk', LIBVOSK_FILE),
-    // Packaged app: forge extraResource copies ./libvosk into resources/libvosk.
-    path.join(process.resourcesPath, 'libvosk', LIBVOSK_FILE),
   ];
   return candidates.find((candidate) => existsSync(candidate)) || null;
 }
@@ -55,11 +57,11 @@ function getVoskBindings(): any | null {
 
 function findModelDir(): string | null {
   const candidates = [
+    // Packaged app: forge extraResource copies ./models into resources/models.
+    path.join(process.resourcesPath, 'models', VOSK_MODEL_DIR),
     // `electron .` (unpackaged): the model is unpacked into ./models by the
     // fetch script, next to the compiled main.js (electron/dist).
     path.join(__dirname, '../../models', VOSK_MODEL_DIR),
-    // Packaged app: forge extraResource copies ./models into resources/models.
-    path.join(process.resourcesPath, 'models', VOSK_MODEL_DIR),
   ];
   return candidates.find((candidate) => existsSync(path.join(candidate, 'am'))) || null;
 }
