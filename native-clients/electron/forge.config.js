@@ -50,7 +50,9 @@ export default {
     icon: '../../assets/icons/png/512x512.png',
     asar: true,
     extraResource: [
-      './electron/dist'
+      './electron/dist',
+      './models',
+      './libvosk'
     ],
     osxSign: {},
     osxNotarize: undefined,

@@ -152,6 +152,19 @@ export interface ElectronAPI {
   selectExportCoverImage: () => Promise<ExportCoverImageResult>;
   readImage: (url: string) => Promise<ReadImageResult>;
   fetchUrl: (url: string) => Promise<ReadLaterFetchResult>;
+  uploadAudio: (base64Data: string, fileName: string) => Promise<UploadAudioResult>;
+  uploadVideo: (base64Data: string, fileName: string) => Promise<UploadVideoResult>;
+  deleteAsset: (url: string) => Promise<{ success: boolean; error?: string }>;
+  transcribeAudio: (fileName: string) => Promise<TranscribeAudioResult>;
+  transcribeVideo: (fileName: string) => Promise<TranscribeAudioResult>;
+  startRecording: () => Promise<{ success: boolean; error?: string }>;
+  stopRecording: () => Promise<{ success: boolean; url?: string; duration?: number; error?: string }>;
+  pauseRecording: () => Promise<{ success: boolean; error?: string }>;
+  resumeRecording: () => Promise<{ success: boolean; error?: string }>;
+  startVideoRecording: () => Promise<{ success: boolean; error?: string }>;
+  stopVideoRecording: () => Promise<{ success: boolean; error?: string }>;
+  pauseVideoRecording: () => Promise<{ success: boolean; error?: string }>;
+  resumeVideoRecording: () => Promise<{ success: boolean; error?: string }>;
 }
 
 export interface ExportFileRequest {
@@ -193,6 +206,37 @@ export interface ReadLaterFetchResult {
   error?: string;
 }
 
+export interface UploadAudioResult {
+  success: boolean;
+  url?: string;
+  error?: string;
+}
+
+export interface UploadVideoResult {
+  success: boolean;
+  url?: string;
+  error?: string;
+}
+
+export interface TranscribedWord {
+  word: string;
+  start: number; // seconds
+  end: number; // seconds
+}
+
+export interface WordProsody {
+  f0: number; // Hz, 0 = unvoiced
+  energy: number; // normalized RMS
+}
+
+export interface TranscribeAudioResult {
+  success: boolean;
+  text?: string;
+  words?: TranscribedWord[];
+  prosody?: WordProsody[];
+  error?: string;
+}
+
 export interface DigikamTag {
   id: number;
   parentId: number | null;
@@ -223,6 +267,19 @@ interface AndroidBridgeRaw {
   renameNote(relativePath: string, newName: string): string;
   renameNotebook(relativePath: string, newName: string): string;
   uploadImage(base64Data: string, fileName: string): string;
+  uploadAudio(base64Data: string, fileName: string): string;
+  uploadVideo(base64Data: string, fileName: string): string;
+  deleteAsset(url: string): string;
+  transcribeAudio(fileName: string): string;
+  transcribeVideo(fileName: string): string;
+  startRecording(): string;
+  stopRecording(): string;
+  pauseRecording(): string;
+  resumeRecording(): string;
+  startVideoRecording(): string;
+  stopVideoRecording(): string;
+  pauseVideoRecording(): string;
+  resumeVideoRecording(): string;
   playTypewriterSound(): void;
   toggleZenMode(enable: boolean): string;
   fetchUrl(url: string): string;
@@ -234,5 +291,6 @@ declare global {
     electronAPI: ElectronAPI;
     SoloBridge?: AndroidBridgeRaw;
     __soloSelectFolderCallback?: (resultJson: string) => void;
+    __soloVideoRecordingResult?: (resultJson: string) => void;
   }
 }

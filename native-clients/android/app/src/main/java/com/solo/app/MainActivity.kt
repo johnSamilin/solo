@@ -1,8 +1,10 @@
 package com.solo.app
 
 import android.annotation.SuppressLint
+import android.Manifest
 import android.content.Intent
 import android.content.SharedPreferences
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -21,8 +23,10 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import com.solo.app.bridge.AudioPlayer
+import com.solo.app.bridge.AudioRecorder
 import com.solo.app.bridge.FileSystemManager
 import com.solo.app.bridge.SearchEngine
+import com.solo.app.bridge.TranscriptionManager
 import com.solo.app.bridge.WebViewBridge
 import com.solo.app.utils.SecurityUtils
 
@@ -32,6 +36,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var prefs: SharedPreferences
     private lateinit var fileSystemManager: FileSystemManager
     private lateinit var audioPlayer: AudioPlayer
+    private lateinit var audioRecorder: AudioRecorder
+    private lateinit var transcriptionManager: TranscriptionManager
     private lateinit var searchEngine: SearchEngine
     private lateinit var bridge: WebViewBridge
 
@@ -39,6 +45,12 @@ class MainActivity : AppCompatActivity() {
         ActivityResultContracts.OpenDocumentTree()
     ) { uri: Uri? ->
         handleFolderPickerResult(uri)
+    }
+
+    private val recordAudioPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { _ ->
+        // Nothing to do here; the next record attempt will succeed if granted.
     }
 
     private val manageStorageLauncher = registerForActivityResult(
@@ -65,7 +77,12 @@ class MainActivity : AppCompatActivity() {
 
         fileSystemManager = FileSystemManager(this, prefs)
         audioPlayer = AudioPlayer(this)
+        audioRecorder = AudioRecorder()
+        transcriptionManager = TranscriptionManager(this)
+        transcriptionManager.init()
         searchEngine = SearchEngine(fileSystemManager)
+
+        requestRecordAudioPermission()
 
         val savedFolder = prefs.getString("root_folder", null)
         if (savedFolder != null) {
@@ -80,7 +97,7 @@ class MainActivity : AppCompatActivity() {
     private fun setupWebView() {
         webView = findViewById(R.id.webView)
 
-        bridge = WebViewBridge(this, fileSystemManager, audioPlayer, searchEngine)
+        bridge = WebViewBridge(this, fileSystemManager, audioPlayer, audioRecorder, transcriptionManager, searchEngine)
 
         @Suppress("DEPRECATION")
         webView.settings.apply {
@@ -123,11 +140,20 @@ class MainActivity : AppCompatActivity() {
                 if (url.scheme == "image") {
                     return handleImageRequest(url)
                 }
+                if (url.scheme == "voice") {
+                    return handleVoiceRequest(url)
+                }
                 return super.shouldInterceptRequest(view, request)
             }
         }
 
-        webView.webChromeClient = WebChromeClient()
+        webView.webChromeClient = object : WebChromeClient() {
+            override fun onPermissionRequest(request: android.webkit.PermissionRequest?) {
+                // Grant audio capture so voice memos can record from the
+                // microphone inside the WebView.
+                request?.grant(request.resources)
+            }
+        }
 
         webView.loadUrl("file:///android_asset/solo/index.html")
     }
@@ -151,6 +177,43 @@ class MainActivity : AppCompatActivity() {
             ?: return null
 
         val bytes = fileSystemManager.readAsset(fileName) ?: return WebResourceResponse(
+            "text/plain",
+            "utf-8",
+            404,
+            "Not Found",
+            emptyMap(),
+            ByteArrayInputStream(ByteArray(0))
+        )
+
+        val mimeType = fileSystemManager.guessMimeType(fileName)
+        val headers = mapOf("Access-Control-Allow-Origin" to "*")
+
+        return WebResourceResponse(
+            mimeType,
+            null,
+            200,
+            "OK",
+            headers,
+            ByteArrayInputStream(bytes)
+        )
+    }
+
+    /**
+     * Serves voice memos referenced with the custom `voice://<fileName>` protocol
+     * used inside notes. Mirrors {@link #handleImageRequest(android.net.Uri)} but
+     * resolves against the `<rootFolder>/assets/voice` directory.
+     */
+    private fun handleVoiceRequest(uri: Uri): WebResourceResponse? {
+        val raw = uri.toString()
+        val fileName = raw
+            .removePrefix("voice://")
+            .substringBefore('?')
+            .substringBefore('#')
+            .trimStart('/')
+            .takeIf { it.isNotEmpty() }
+            ?: return null
+
+        val bytes = fileSystemManager.readVoiceAsset(fileName) ?: return WebResourceResponse(
             "text/plain",
             "utf-8",
             404,
@@ -246,8 +309,22 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    fun hasRecordAudioPermission(): Boolean {
+        return Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
+            checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun requestRecordAudioPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+            checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED
+        ) {
+            recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        }
+    }
+
     override fun onDestroy() {
         audioPlayer.release()
+        audioRecorder.stop()
         webView.destroy()
         super.onDestroy()
     }

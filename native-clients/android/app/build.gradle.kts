@@ -52,4 +52,5 @@ dependencies {
     implementation(libs.androidx.activity.ktx)
     implementation(libs.androidx.webkit)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.vosk.android)
 }

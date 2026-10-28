@@ -539,6 +539,45 @@ export function createStubAPI(): ElectronAPI {
     fetchUrl: async () => {
       return { success: false, error: 'Not available in packaged build' };
     },
+    uploadAudio: async () => {
+      return { success: false, error: 'Not available in packaged build' };
+    },
+    uploadVideo: async () => {
+      return { success: false, error: 'Not available in packaged build' };
+    },
+    deleteAsset: async () => {
+      return { success: false, error: 'Not available in packaged build' };
+    },
+    transcribeAudio: async () => {
+      return { success: false, error: 'Not available in packaged build' };
+    },
+    transcribeVideo: async () => {
+      return { success: false, error: 'Not available in packaged build' };
+    },
+    startRecording: async () => {
+      return { success: false, error: 'Not available in packaged build' };
+    },
+    stopRecording: async () => {
+      return { success: false, error: 'Not available in packaged build' };
+    },
+    pauseRecording: async () => {
+      return { success: false, error: 'Not available in packaged build' };
+    },
+    resumeRecording: async () => {
+      return { success: false, error: 'Not available in packaged build' };
+    },
+    startVideoRecording: async () => {
+      return { success: false, error: 'Not available in packaged build' };
+    },
+    stopVideoRecording: async () => {
+      return { success: false, error: 'Not available in packaged build' };
+    },
+    pauseVideoRecording: async () => {
+      return { success: false, error: 'Not available in packaged build' };
+    },
+    resumeVideoRecording: async () => {
+      return { success: false, error: 'Not available in packaged build' };
+    },
   };
   return stub as unknown as ElectronAPI;
 }

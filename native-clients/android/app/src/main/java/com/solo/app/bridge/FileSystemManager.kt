@@ -13,6 +13,11 @@ data class CreateNoteResult(
     val htmlPath: String
 )
 
+data class PcmAudio(
+    val samples: ByteArray,
+    val sampleRate: Int
+)
+
 class FileSystemManager(
     private val context: Context,
     private val prefs: SharedPreferences
@@ -328,6 +333,79 @@ class FileSystemManager(
         return "image://$uniqueName"
     }
 
+    fun saveAudio(base64Data: String, fileName: String): String {
+        val root = rootFolder ?: throw IllegalStateException("Root folder not set")
+
+        val actualData = if (base64Data.contains(",")) {
+            base64Data.substringAfter(",")
+        } else {
+            base64Data
+        }
+
+        val bytes = Base64.decode(actualData, Base64.DEFAULT)
+
+        val sanitizedName = SecurityUtils.sanitizeFileName(fileName)
+        val voiceDir = File(root, "assets/voice")
+        voiceDir.mkdirs()
+
+        val uniqueName = buildUniqueAssetName(voiceDir, sanitizedName)
+        val voiceFile = File(voiceDir, uniqueName)
+        voiceFile.writeBytes(bytes)
+
+        // Same convention as images: a custom protocol served by the WebView.
+        return "voice://$uniqueName"
+    }
+
+    /**
+     * Wraps raw 16-bit mono PCM (from {@link AudioRecorder}) into a WAV file and
+     * stores it in `assets/voice/`. Returns the `voice://<fileName>` URL.
+     */
+    fun saveRecording(pcmBytes: ByteArray, sampleRate: Int, fileName: String): String {
+        val root = rootFolder ?: throw IllegalStateException("Root folder not set")
+
+        val wavBytes = pcmToWav(pcmBytes, sampleRate)
+
+        val sanitizedName = SecurityUtils.sanitizeFileName(fileName)
+        val voiceDir = File(root, "assets/voice")
+        voiceDir.mkdirs()
+
+        val uniqueName = buildUniqueAssetName(voiceDir, sanitizedName)
+        File(voiceDir, uniqueName).writeBytes(wavBytes)
+
+        return "voice://$uniqueName"
+    }
+
+    private fun pcmToWav(pcm: ByteArray, sampleRate: Int): ByteArray {
+        val channels = 1
+        val bitsPerSample = 16
+        val byteRate = sampleRate * channels * bitsPerSample / 8
+        val blockAlign = channels * bitsPerSample / 8
+        val dataSize = pcm.size
+
+        val out = java.io.ByteArrayOutputStream()
+        val writeLe = { value: Int, bytes: Int ->
+            for (i in 0 until bytes) out.write((value shr (8 * i)) and 0xFF)
+        }
+        val writeAscii = { s: String -> for (c in s) out.write(c.code) }
+
+        writeAscii("RIFF")
+        writeLe(36 + dataSize, 4)
+        writeAscii("WAVE")
+        writeAscii("fmt ")
+        writeLe(16, 4)
+        writeLe(1, 2) // PCM format
+        writeLe(channels, 2)
+        writeLe(sampleRate, 4)
+        writeLe(byteRate, 4)
+        writeLe(blockAlign, 2)
+        writeLe(bitsPerSample, 2)
+        writeAscii("data")
+        writeLe(dataSize, 4)
+        out.write(pcm)
+
+        return out.toByteArray()
+    }
+
     private fun buildUniqueAssetName(dir: File, fileName: String): String {
         var candidate = File(dir, fileName)
         if (!candidate.exists()) return fileName
@@ -373,6 +451,72 @@ class FileSystemManager(
         return assetFile.readBytes()
     }
 
+    /**
+     * Reads a voice memo stored under the "assets/voice" folder of the selected
+     * root folder. Used to serve the custom `voice://` protocol inside the WebView,
+     * mirroring the `image://` handling in {@link #readAsset(String)}.
+     */
+    fun readVoiceAsset(fileName: String): ByteArray? {
+        val root = rootFolder ?: return null
+        val voiceDir = File(root, "assets/voice")
+
+        val decodedName = try {
+            java.net.URLDecoder.decode(fileName, "UTF-8")
+        } catch (_: Exception) {
+            fileName
+        }
+
+        val assetFile = File(voiceDir, decodedName)
+
+        // Prevent path traversal outside of the voice directory.
+        val canonicalVoice = voiceDir.canonicalPath
+        val canonicalFile = assetFile.canonicalPath
+        if (!canonicalFile.startsWith(canonicalVoice)) return null
+
+        if (!assetFile.exists() || !assetFile.isFile) return null
+
+        return assetFile.readBytes()
+    }
+
+    /**
+     * Reads a voice memo and extracts its raw 16-bit mono PCM + sample rate for
+     * on-device transcription.
+     */
+    fun readVoicePcm(fileName: String): PcmAudio? {
+        val wav = readVoiceAsset(fileName) ?: return null
+        return parseWav(wav)
+    }
+
+    private fun parseWav(wav: ByteArray): PcmAudio? {
+        if (wav.size < 44) return null
+
+        var sampleRate = 0
+        var data: ByteArray? = null
+        var offset = 12
+        while (offset + 8 <= wav.size) {
+            val id = String(wav, offset, 4, Charsets.US_ASCII)
+            val size = readIntLE(wav, offset + 4)
+            val chunkData = offset + 8
+
+            when (id) {
+                "fmt " -> sampleRate = readIntLE(wav, chunkData + 4)
+                "data" -> data = wav.copyOfRange(chunkData, chunkData + size)
+            }
+
+            offset = chunkData + size + (size % 2)
+        }
+
+        if (data == null || sampleRate <= 0) return null
+        return PcmAudio(data, sampleRate)
+    }
+
+    private fun readIntLE(bytes: ByteArray, offset: Int): Int {
+        return (bytes[offset].toInt() and 0xFF) or
+            ((bytes[offset + 1].toInt() and 0xFF) shl 8) or
+            ((bytes[offset + 2].toInt() and 0xFF) shl 16) or
+            ((bytes[offset + 3].toInt() and 0xFF) shl 24)
+    }
+
     fun guessMimeType(fileName: String): String {
         val lower = fileName.lowercase()
         return when {
@@ -384,6 +528,8 @@ class FileSystemManager(
             lower.endsWith(".bmp") -> "image/bmp"
             lower.endsWith(".ico") -> "image/x-icon"
             lower.endsWith(".avif") -> "image/avif"
+            lower.endsWith(".wav") -> "audio/wav"
+            lower.endsWith(".mp3") -> "audio/mpeg"
             else -> "application/octet-stream"
         }
     }
