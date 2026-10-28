@@ -551,6 +551,9 @@ export function createStubAPI(): ElectronAPI {
     transcribeAudio: async () => {
       return { success: false, error: 'Not available in packaged build' };
     },
+    transcribeVideo: async () => {
+      return { success: false, error: 'Not available in packaged build' };
+    },
     startRecording: async () => {
       return { success: false, error: 'Not available in packaged build' };
     },
@@ -561,6 +564,18 @@ export function createStubAPI(): ElectronAPI {
       return { success: false, error: 'Not available in packaged build' };
     },
     resumeRecording: async () => {
+      return { success: false, error: 'Not available in packaged build' };
+    },
+    startVideoRecording: async () => {
+      return { success: false, error: 'Not available in packaged build' };
+    },
+    stopVideoRecording: async () => {
+      return { success: false, error: 'Not available in packaged build' };
+    },
+    pauseVideoRecording: async () => {
+      return { success: false, error: 'Not available in packaged build' };
+    },
+    resumeVideoRecording: async () => {
       return { success: false, error: 'Not available in packaged build' };
     },
   };

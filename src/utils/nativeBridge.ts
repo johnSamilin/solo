@@ -68,6 +68,8 @@ function wrapAndroidBridge(): ElectronAPI | null {
       Promise.resolve(parseJson(bridge.deleteAsset(url))),
     transcribeAudio: (fileName: string) =>
       Promise.resolve(parseJson(bridge.transcribeAudio(fileName))),
+    transcribeVideo: (fileName: string) =>
+      Promise.resolve(parseJson(bridge.transcribeVideo(fileName))),
     startRecording: () =>
       Promise.resolve(parseJson(bridge.startRecording())),
     stopRecording: () =>
@@ -76,6 +78,14 @@ function wrapAndroidBridge(): ElectronAPI | null {
       Promise.resolve(parseJson(bridge.pauseRecording())),
     resumeRecording: () =>
       Promise.resolve(parseJson(bridge.resumeRecording())),
+    startVideoRecording: () =>
+      Promise.resolve(parseJson(bridge.startVideoRecording())),
+    stopVideoRecording: () =>
+      Promise.resolve(parseJson(bridge.stopVideoRecording())),
+    pauseVideoRecording: () =>
+      Promise.resolve(parseJson(bridge.pauseVideoRecording())),
+    resumeVideoRecording: () =>
+      Promise.resolve(parseJson(bridge.resumeVideoRecording())),
     openPdfFile: (relativePath: string) =>
       Promise.resolve(parseJson(bridge.openPdfFile(relativePath))),
     fetchUrl: (url: string) =>

@@ -32,6 +32,14 @@ interface ActiveRecording {
   mime: string;
 }
 
+interface VideoRecordingResult {
+  success?: boolean;
+  url?: string;
+  duration?: number;
+  poster?: string;
+  error?: string;
+}
+
 export const useVideoMemo = (editor: Editor | null) => {
   const { settingsStore } = useStore();
   const [isRecording, setIsRecording] = useState(false);
@@ -40,6 +48,8 @@ export const useVideoMemo = (editor: Editor | null) => {
   const [previewStream, setPreviewStream] = useState<MediaStream | null>(null);
   const recordingRef = useRef<ActiveRecording | null>(null);
   const timerRef = useRef<number | null>(null);
+  const editorRef = useRef(editor);
+  editorRef.current = editor;
 
   useEffect(() => {
     return () => {
@@ -48,12 +58,72 @@ export const useVideoMemo = (editor: Editor | null) => {
     };
   }, []);
 
+  /**
+   * Handles the async native (Android) recording result delivered through the
+   * global `__soloVideoRecordingResult` callback.
+   */
+  const handleVideoRecordingResult = (json: string) => {
+    setIsRecording(false);
+    setIsPaused(false);
+    setPreviewStream(null);
+    setRecordingSeconds(0);
+    if (timerRef.current) {
+      window.clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+
+    let parsed: VideoRecordingResult = {};
+    try {
+      parsed = JSON.parse(json);
+    } catch {
+      parsed = { success: false, error: 'Failed to parse recording result' };
+    }
+
+    if (!parsed.success || !parsed.url) {
+      settingsStore.setToast(parsed.error || 'Failed to save video memo', 'error');
+      return;
+    }
+
+    const storedName = parsed.url.replace(/^video:\/\//, '');
+    editorRef.current
+      ?.chain()
+      .focus()
+      .setVideoMemo({
+        src: parsed.url,
+        fileName: storedName,
+        duration: parsed.duration ?? 0,
+        poster: parsed.poster || '',
+        createdAt: new Date().toISOString(),
+        variant: 'quote',
+      })
+      .run();
+  };
+
+  const resultHandlerRef = useRef(handleVideoRecordingResult);
+  resultHandlerRef.current = handleVideoRecordingResult;
+
   const startRecording = async () => {
     if (!editor) return;
 
-    // Native CameraX recording on Android is not wired up yet.
+    // Android: native CameraX recording with a native preview overlay. The final
+    // result (url + duration) arrives asynchronously via the global callback.
     if (isAndroid) {
-      settingsStore.setToast('Video memos are not available on Android yet', 'error');
+      const api = getNativeAPI();
+      if (!api?.startVideoRecording) {
+        settingsStore.setToast('Video memos are not available on this platform', 'error');
+        return;
+      }
+      window.__soloVideoRecordingResult = (json) => resultHandlerRef.current(json);
+      const result = await api.startVideoRecording();
+      if (!result.success) {
+        delete window.__soloVideoRecordingResult;
+        settingsStore.setToast(result.error || 'Failed to start recording', 'error');
+        return;
+      }
+      setIsRecording(true);
+      setIsPaused(false);
+      setRecordingSeconds(0);
+      timerRef.current = window.setInterval(() => setRecordingSeconds(s => s + 1), 1000);
       return;
     }
 
@@ -97,6 +167,13 @@ export const useVideoMemo = (editor: Editor | null) => {
     if (timerRef.current) {
       window.clearInterval(timerRef.current);
       timerRef.current = null;
+    }
+
+    // Android: the native overlay (or this call) finalizes recording; the result
+    // is delivered through the __soloVideoRecordingResult callback.
+    if (isAndroid) {
+      getNativeAPI()?.stopVideoRecording?.();
+      return;
     }
 
     const rec = recordingRef.current;
@@ -157,21 +234,27 @@ export const useVideoMemo = (editor: Editor | null) => {
 
   const pauseRecording = () => {
     if (!isRecording || isPaused) return;
-    // MediaRecorder.pause() stops emitting data but keeps the stream alive; the
-    // pause gap is not written into the final container.
-    recordingRef.current?.recorder.pause();
     setIsPaused(true);
     if (timerRef.current) {
       window.clearInterval(timerRef.current);
       timerRef.current = null;
     }
+    if (isAndroid) {
+      getNativeAPI()?.pauseVideoRecording?.();
+    } else {
+      recordingRef.current?.recorder.pause();
+    }
   };
 
   const resumeRecording = () => {
     if (!isRecording || !isPaused) return;
-    recordingRef.current?.recorder.resume();
     setIsPaused(false);
     timerRef.current = window.setInterval(() => setRecordingSeconds(s => s + 1), 1000);
+    if (isAndroid) {
+      getNativeAPI()?.resumeVideoRecording?.();
+    } else {
+      recordingRef.current?.recorder.resume();
+    }
   };
 
   const togglePause = () => {

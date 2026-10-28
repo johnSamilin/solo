@@ -156,10 +156,15 @@ export interface ElectronAPI {
   uploadVideo: (base64Data: string, fileName: string) => Promise<UploadVideoResult>;
   deleteAsset: (url: string) => Promise<{ success: boolean; error?: string }>;
   transcribeAudio: (fileName: string) => Promise<TranscribeAudioResult>;
+  transcribeVideo: (fileName: string) => Promise<TranscribeAudioResult>;
   startRecording: () => Promise<{ success: boolean; error?: string }>;
   stopRecording: () => Promise<{ success: boolean; url?: string; duration?: number; error?: string }>;
   pauseRecording: () => Promise<{ success: boolean; error?: string }>;
   resumeRecording: () => Promise<{ success: boolean; error?: string }>;
+  startVideoRecording: () => Promise<{ success: boolean; error?: string }>;
+  stopVideoRecording: () => Promise<{ success: boolean; error?: string }>;
+  pauseVideoRecording: () => Promise<{ success: boolean; error?: string }>;
+  resumeVideoRecording: () => Promise<{ success: boolean; error?: string }>;
 }
 
 export interface ExportFileRequest {
@@ -266,10 +271,15 @@ interface AndroidBridgeRaw {
   uploadVideo(base64Data: string, fileName: string): string;
   deleteAsset(url: string): string;
   transcribeAudio(fileName: string): string;
+  transcribeVideo(fileName: string): string;
   startRecording(): string;
   stopRecording(): string;
   pauseRecording(): string;
   resumeRecording(): string;
+  startVideoRecording(): string;
+  stopVideoRecording(): string;
+  pauseVideoRecording(): string;
+  resumeVideoRecording(): string;
   playTypewriterSound(): void;
   toggleZenMode(enable: boolean): string;
   fetchUrl(url: string): string;
@@ -281,5 +291,6 @@ declare global {
     electronAPI: ElectronAPI;
     SoloBridge?: AndroidBridgeRaw;
     __soloSelectFolderCallback?: (resultJson: string) => void;
+    __soloVideoRecordingResult?: (resultJson: string) => void;
   }
 }

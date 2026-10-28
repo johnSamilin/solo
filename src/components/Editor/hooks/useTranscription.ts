@@ -1,4 +1,4 @@
-import { getNativeAPI } from '../../../utils/nativeBridge';
+import { getNativeAPI, isAndroid } from '../../../utils/nativeBridge';
 import { punctuate } from '../../../utils/transcription/punctuate';
 
 /**
@@ -32,6 +32,25 @@ export async function transcribeVoiceMemo(fileName: string): Promise<string> {
  */
 export async function transcribeVideoMemo(fileName: string): Promise<string> {
   const api = getNativeAPI();
+
+  // Android: extract the audio track and transcribe natively (MediaExtractor /
+  // MediaCodec + Vosk) — Web Audio extraction is unreliable in a WebView.
+  if (isAndroid) {
+    if (!api?.transcribeVideo) {
+      throw new Error('Transcription is not available on this platform');
+    }
+    const result = await api.transcribeVideo(fileName);
+    if (!result.success) {
+      throw new Error(result.error || 'Transcription failed');
+    }
+    const raw = result.text?.trim();
+    if (!raw) {
+      throw new Error('Transcription returned no text');
+    }
+    return punctuate(raw, result.words, result.prosody);
+  }
+
+  // Desktop: extract audio in the renderer (option B).
   if (!api?.transcribeAudio || !api?.uploadAudio) {
     throw new Error('Transcription is not available on this platform');
   }
