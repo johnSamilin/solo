@@ -1,4 +1,5 @@
 import { FC, useState, useEffect } from 'react';
+import { ExternalLink } from 'lucide-react';
 import { observer } from 'mobx-react-lite';
 import { useStore } from '../../stores/StoreProvider';
 import { useI18n } from '../../i18n/I18nContext';
@@ -20,6 +21,8 @@ export const NoteHeader: FC<NoteHeaderProps> = observer(({ onDateClick }) => {
 
   if (!notesStore.selectedNote) return null;
 
+  const sourceUrl = notesStore.selectedNote.sourceUrl;
+
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setLocalTitle(e.target.value);
   };
@@ -40,6 +43,35 @@ export const NoteHeader: FC<NoteHeaderProps> = observer(({ onDateClick }) => {
 
   return (
     <>
+      {sourceUrl && (
+        <a
+          href={sourceUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="note-source-link"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.375rem',
+            maxWidth: '100%',
+            fontSize: '0.8125rem',
+            color: 'var(--color-text-light)',
+            textDecoration: 'none',
+            marginBottom: '0.5rem',
+          }}
+        >
+          <ExternalLink size={14} style={{ flexShrink: 0 }} />
+          <span
+            style={{
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {sourceUrl}
+          </span>
+        </a>
+      )}
       <input
         type="text"
         value={localTitle}

@@ -1,7 +1,7 @@
 {
   "name": "solo",
   "private": false,
-  "version": "3.5.0",
+  "version": "3.9.0",
   "main": "electron/dist/main.js",
   "author": "Alexander Saltykov",
   "description": "Solo",
@@ -19,6 +19,10 @@
     "package": "npm run build && electron-forge package",
     "make": "npm run build && electron-forge make",
     "make:extended-search": "npm run build && npm run copy:instruments && electron-forge make",
+    "make:linux": "npm run build && electron-forge make --platform=linux",
+    "make:linux:light": "npm run build && cross-env SOLO_EXCLUDE_INSTRUMENTS=true electron-forge make --platform=linux",
+    "make:mac": "npm run build && electron-forge make --platform=darwin",
+    "make:win": "npm run build && electron-forge make --platform=win32",
     "publish": "npm run build && electron-forge publish",
     "lint": "eslint .",
     "preview": "vite preview",
@@ -28,6 +32,7 @@
     "@supabase/supabase-js": "^2.57.4",
     "better-sqlite3": "^12.5.0",
     "electron-updater": "^6.7.3",
+    "koffi": "^3.3.4",
     "lucide-react": "^0.344.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

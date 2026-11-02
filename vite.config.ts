@@ -1,12 +1,15 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { resolveBuildMode, buildFeatureDefines } from './feature-flags.build';
+import { contentPlugin } from './vite-plugin-content';
 
 const mode = resolveBuildMode();
 
 export default defineConfig({
   plugins: [
     react(),
+    // The virtual module is always resolvable; note scanning happens only for packaged builds.
+    contentPlugin({ enabled: mode === 'PACKAGED' }),
   ],
   optimizeDeps: {
     exclude: ['lucide-react'],

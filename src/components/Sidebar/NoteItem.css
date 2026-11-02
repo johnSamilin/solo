@@ -71,3 +71,19 @@
 .note-item--pdf .note-item-title {
     opacity: 0.85;
 }
+
+/* ── Badge «непросмотрено» ── */
+.note-item-badge {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: #22c55e;
+    flex-shrink: 0;
+    animation: note-item-badge-pulse 2s ease-in-out infinite;
+}
+
+@keyframes note-item-badge-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}

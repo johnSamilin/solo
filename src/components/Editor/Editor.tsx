@@ -9,11 +9,15 @@ import { DateEditDialog } from "./DateEditDialog";
 import { ImageContextMenu } from "./ImageContextMenu";
 import { AnnotatedLayout } from "./AnnotatedLayout";
 import { StandardLayout } from "./StandardLayout";
+import { TagsDisplay } from "./TagsDisplay";
 import { useTypewriterSound } from "./hooks/useTypewriterSound";
 import { useImageHandling } from "./hooks/useImageHandling";
 import { useSpeechRecognition } from "./hooks/useSpeechRecognition";
+import { useVoiceMemo } from "./hooks/useVoiceMemo";
+import { useVideoMemo } from "./hooks/useVideoMemo";
+import { VideoRecordingOverlay } from "./VideoRecordingOverlay";
+import { AudioRecordingOverlay } from "./AudioRecordingOverlay";
 import { useZenMode } from "./hooks/useZenMode";
-import { themes } from "../../constants";
 import { PdfViewer } from "../PdfViewer/PdfViewer";
 
 import './Editor.css';
@@ -60,6 +64,23 @@ export const Editor: FC<EditorProps> = observer(({
     handleDictation,
     toggleDictationLanguage
   } = useSpeechRecognition(editor);
+
+  const {
+    isRecording,
+    isPaused,
+    recordingSeconds,
+    toggleRecording,
+    togglePause,
+  } = useVoiceMemo(editor);
+
+  const {
+    isRecording: isRecordingVideo,
+    isPaused: isVideoPaused,
+    recordingSeconds: recordingVideoSeconds,
+    previewStream: videoPreviewStream,
+    toggleRecording: toggleVideoRecording,
+    togglePause: toggleVideoPause,
+  } = useVideoMemo(editor);
 
   const handleMoveNote = (notebookId: string) => {
     if (notesStore.selectedNote) {
@@ -136,6 +157,7 @@ export const Editor: FC<EditorProps> = observer(({
     return (
       <div className="editor" ref={editorContentRef}>
         <PdfViewer base64Data={notesStore.selectedNote.content} />
+        <TagsDisplay />
 
         {settingsStore.isNoteSettingsOpen && (
           <NoteSettingsModal
@@ -209,6 +231,12 @@ export const Editor: FC<EditorProps> = observer(({
           handleDictation={handleDictation}
           isDictating={isDictating}
           handleCutIn={handleCutIn}
+          handleVoiceMemo={toggleRecording}
+          isRecording={isRecording}
+          recordingSeconds={recordingSeconds}
+          handleVideoMemo={toggleVideoRecording}
+          isRecordingVideo={isRecordingVideo}
+          recordingVideoSeconds={recordingVideoSeconds}
         />
 
         {contextMenu && (
@@ -248,6 +276,25 @@ export const Editor: FC<EditorProps> = observer(({
           />
         )}
       </div>
+
+      {isRecordingVideo && videoPreviewStream && (
+        <VideoRecordingOverlay
+          stream={videoPreviewStream}
+          seconds={recordingVideoSeconds}
+          paused={isVideoPaused}
+          onTogglePause={toggleVideoPause}
+          onStop={toggleVideoRecording}
+        />
+      )}
+
+      {isRecording && (
+        <AudioRecordingOverlay
+          seconds={recordingSeconds}
+          paused={isPaused}
+          onTogglePause={togglePause}
+          onStop={toggleRecording}
+        />
+      )}
     </>
   );
 });

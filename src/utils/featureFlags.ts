@@ -34,6 +34,12 @@ export const featureFlags: FeatureFlagSet = __ACTIVE_FEATURE_FLAGS__;
  */
 export const flags = {
   extendedSearch: __FF_EXTENDED_SEARCH__,
+  deepLinking: __FF_DEEP_LINKING__,
+  defaultTheme: __FF_DEFAULT_THEME__,
+  exportNotes: __FF_EXPORT_NOTES__,
+  readLater: __FF_READ_LATER__,
+  voiceMemos: __FF_VOICE_MEMOS__,
+  videoMemos: __FF_VIDEO_MEMOS__,
 } as const;
 
 /**

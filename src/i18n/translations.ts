@@ -10,6 +10,7 @@ export interface Translations {
     newNote: string;
     search: string;
     askQuestion: string;
+    readLater: string;
   };
   editor: {
     untitled: string;
@@ -21,6 +22,11 @@ export interface Translations {
     jumpToMonth: string;
     annotation: string;
     noteTitle: string;
+    recording: string;
+    stop: string;
+    pause: string;
+    resume: string;
+    paused: string;
   };
   notebooks: {
     newNotebook: string;
@@ -125,10 +131,6 @@ export interface Translations {
     wordCount: string;
     close: string;
   };
-  readingMode: {
-    readingMode: string;
-    exitReading: string;
-  };
   imageModal: {
     insertImage: string;
     imageUrl: string;
@@ -156,6 +158,14 @@ export interface Translations {
     yes: string;
     no: string;
   };
+  readLater: {
+    title: string;
+    urlPlaceholder: string;
+    saveStyles: string;
+    save: string;
+    saving: string;
+    cancel: string;
+  };
 }
 
 export const translations: Record<Locale, Translations> = {
@@ -169,6 +179,7 @@ export const translations: Record<Locale, Translations> = {
       newNote: 'New Note',
       search: 'Search',
       askQuestion: 'Ask a question',
+      readLater: 'Read later',
     },
     editor: {
       untitled: 'Untitled',
@@ -180,6 +191,11 @@ export const translations: Record<Locale, Translations> = {
       jumpToMonth: 'Jump to month',
       annotation: 'Annotation',
       noteTitle: 'Note Title',
+      recording: 'Recording…',
+      stop: 'Stop',
+      pause: 'Pause',
+      resume: 'Resume',
+      paused: 'Paused',
     },
     notebooks: {
       newNotebook: 'New Notebook',
@@ -284,10 +300,6 @@ export const translations: Record<Locale, Translations> = {
       wordCount: 'Word Count',
       close: 'Close',
     },
-    readingMode: {
-      readingMode: 'Reading Mode',
-      exitReading: 'Exit Reading Mode',
-    },
     imageModal: {
       insertImage: 'Insert Image',
       imageUrl: 'Image URL',
@@ -315,6 +327,14 @@ export const translations: Record<Locale, Translations> = {
       yes: 'Yes',
       no: 'No',
     },
+    readLater: {
+      title: 'Read later',
+      urlPlaceholder: 'https://example.com/article',
+      saveStyles: 'Save styles',
+      save: 'Save article',
+      saving: 'Saving...',
+      cancel: 'Cancel',
+    },
   },
   ru: {
     sidebar: {
@@ -326,6 +346,7 @@ export const translations: Record<Locale, Translations> = {
       newNote: 'Новая заметка',
       search: 'Поиск',
       askQuestion: 'Задать вопрос',
+      readLater: 'Read later',
     },
     editor: {
       untitled: 'Без названия',
@@ -337,6 +358,11 @@ export const translations: Record<Locale, Translations> = {
       jumpToMonth: 'Перейти к месяцу',
       annotation: 'Аннотация',
       noteTitle: 'Название заметки',
+      recording: 'Идет запись',
+      stop: 'Стоп',
+      pause: 'Пауза',
+      resume: 'Продолжить',
+      paused: 'Пауза',
     },
     notebooks: {
       newNotebook: 'Новый блокнот',
@@ -441,10 +467,6 @@ export const translations: Record<Locale, Translations> = {
       wordCount: 'Количество слов',
       close: 'Закрыть',
     },
-    readingMode: {
-      readingMode: 'Режим чтения',
-      exitReading: 'Выйти из режима чтения',
-    },
     imageModal: {
       insertImage: 'Вставить изображение',
       imageUrl: 'URL изображения',
@@ -471,6 +493,14 @@ export const translations: Record<Locale, Translations> = {
       confirm: 'Подтвердить',
       yes: 'Да',
       no: 'Нет',
+    },
+    readLater: {
+      title: 'Read later',
+      urlPlaceholder: 'https://example.com/article',
+      saveStyles: 'Сохранить стили',
+      save: 'Сохранить статью',
+      saving: 'Сохранение...',
+      cancel: 'Отмена',
     },
   },
 };

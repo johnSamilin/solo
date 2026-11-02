@@ -2,7 +2,7 @@ import featureFlags from './feature-flags.json';
 
 export type BuildMode = 'PACKAGED' | 'DESKTOP' | 'MOBILE';
 
-type FlagSets = Record<BuildMode, Record<string, boolean>>;
+type FlagSets = Record<BuildMode, Record<string, boolean | string>>;
 
 export function resolveBuildMode(env: Record<string, string | undefined> = process.env): BuildMode {
   if (env.IS_PACKAGED === 'true' || env.PLATFORM === 'packaged') return 'PACKAGED';
@@ -16,7 +16,7 @@ export function flagConstName(flag: string): string {
 
 export function buildFeatureDefines(mode: BuildMode): Record<string, string | boolean> {
   const sets = featureFlags as FlagSets;
-  const activeFlags: Record<string, boolean> = sets[mode] ?? {};
+  const activeFlags: Record<string, boolean | string> = sets[mode] ?? {};
 
   const allFlagNames = new Set<string>();
   for (const set of Object.values(sets)) {
@@ -32,7 +32,7 @@ export function buildFeatureDefines(mode: BuildMode): Record<string, string | bo
   };
 
   for (const name of allFlagNames) {
-    defines[flagConstName(name)] = JSON.stringify(activeFlags[name] === true);
+    defines[flagConstName(name)] = JSON.stringify(activeFlags[name]);
   }
 
   return defines;

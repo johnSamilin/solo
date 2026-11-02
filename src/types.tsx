@@ -11,12 +11,42 @@ export interface TagNode {
 
 export type NoteFileType = 'html' | 'pdf';
 
+export type ExportFormat = 'pdf' | 'epub';
+
+export interface ExportHeaderFooter {
+  enabled: boolean;
+  header: string;
+  footer: string;
+  pageNumberPosition: 'top-left' | 'top-center' | 'top-right' | 'bottom-left' | 'bottom-center' | 'bottom-right';
+}
+
+export interface ExportCover {
+  enabled: boolean;
+  title: string;
+  author: string;
+  imageData?: string;
+  imageMediaType?: 'image/jpeg' | 'image/png' | 'image/webp';
+}
+
+export interface SavedSearchExportProfile {
+  format: ExportFormat;
+  autoExport: boolean;
+  outputPath?: string;
+  title: string;
+  author: string;
+  includeTableOfContents: boolean;
+  cover: ExportCover;
+  headerFooter: ExportHeaderFooter;
+  pageSize: 'A4' | 'Letter';
+}
+
 export interface SavedFilter {
   id: string;
   label: string;
   searchQuery: string;
   tagFilters: { path: string; operator: 'AND' | 'OR' | 'NOT' }[];
   showOnlyEmptyNotes: boolean;
+  exportProfile?: SavedSearchExportProfile;
 }
 
 export interface Note {
@@ -24,6 +54,7 @@ export interface Note {
   title: string;
   content: string;
   createdAt: Date;
+  updatedAt?: string;
   tags: string[];
   notebookId: string | null;
   theme?: string;
@@ -33,6 +64,7 @@ export interface Note {
   fileType: NoteFileType;
   isLoaded: boolean;
   paragraphTags: string[];
+  sourceUrl?: string;
 }
 
 export interface Notebook {
@@ -79,8 +111,10 @@ export interface FileMetadata {
   id: string;
   tags: string[];
   createdAt: string;
+  updatedAt?: string;
   theme?: string;
   paragraphTags?: string[];
+  sourceUrl?: string;
 }
 
 export interface FileNode {
@@ -104,7 +138,7 @@ export interface ElectronAPI {
   toggleZenMode: (enable: boolean) => Promise<{ success: boolean; isZenMode?: boolean; error?: string }>;
   getZenMode: () => Promise<{ success: boolean; isZenMode?: boolean; error?: string }>;
   search: (searchString?: string, tags?: string[]) => Promise<{ success: boolean; results?: any[]; error?: string }>;
-  searchSemantic: (queryText?: string, tagsExpr?: string) => Promise<{ success: boolean; result?: SemanticSearchResponse; error?: string }>;
+  searchSemantic?: (queryText?: string, tagsExpr?: string) => Promise<{ success: boolean; result?: SemanticSearchResponse; error?: string }>;
   createNotebook: (parentPath: string, name: string) => Promise<{ success: boolean; path?: string; error?: string }>;
   createNote: (parentPath: string, name: string) => Promise<{ success: boolean; htmlPath?: string; jsonPath?: string; error?: string, id: string }>;
   deleteNote: (relativePath: string) => Promise<{ success: boolean; error?: string }>;
@@ -119,6 +153,23 @@ export interface ElectronAPI {
   reindexAll?: () => Promise<{ success: boolean; result?: ReindexResult; error?: string }>;
   reindexNote?: (relativePath: string) => Promise<{ success: boolean; result?: ReindexResult; error?: string }>;
   onReindexProgress?: (callback: (data: ReindexProgress) => void) => () => void;
+  exportFile: (request: ExportFileRequest) => Promise<ExportFileResult>;
+  selectExportCoverImage: () => Promise<ExportCoverImageResult>;
+  readImage: (url: string) => Promise<ReadImageResult>;
+  fetchUrl: (url: string) => Promise<ReadLaterFetchResult>;
+  uploadAudio: (base64Data: string, fileName: string) => Promise<UploadAudioResult>;
+  uploadVideo: (base64Data: string, fileName: string) => Promise<UploadVideoResult>;
+  deleteAsset: (url: string) => Promise<{ success: boolean; error?: string }>;
+  transcribeAudio: (fileName: string) => Promise<TranscribeAudioResult>;
+  transcribeVideo: (fileName: string) => Promise<TranscribeAudioResult>;
+  startRecording: () => Promise<{ success: boolean; error?: string }>;
+  stopRecording: () => Promise<{ success: boolean; url?: string; duration?: number; error?: string }>;
+  pauseRecording: () => Promise<{ success: boolean; error?: string }>;
+  resumeRecording: () => Promise<{ success: boolean; error?: string }>;
+  startVideoRecording: () => Promise<{ success: boolean; error?: string }>;
+  stopVideoRecording: () => Promise<{ success: boolean; error?: string }>;
+  pauseVideoRecording: () => Promise<{ success: boolean; error?: string }>;
+  resumeVideoRecording: () => Promise<{ success: boolean; error?: string }>;
 }
 
 export interface ReindexProgress {
@@ -132,6 +183,76 @@ export interface ReindexResult {
   FilesSkipped?: number;
   FilesRemoved?: number;
   ParagraphsNew?: number;
+}
+
+export interface ExportFileRequest {
+  format: ExportFormat;
+  suggestedFileName: string;
+  outputPath?: string;
+  html?: string;
+  epubBase64?: string;
+  pageSize: SavedSearchExportProfile['pageSize'];
+  pageNumberPosition: ExportHeaderFooter['pageNumberPosition'];
+  showPageNumbers: boolean;
+}
+
+export interface ExportFileResult {
+  success: boolean;
+  outputPath?: string;
+  error?: string;
+}
+
+export interface ExportCoverImageResult {
+  success: boolean;
+  data?: string;
+  mediaType?: ExportCover['imageMediaType'];
+  error?: string;
+}
+
+export interface ReadImageResult {
+  success: boolean;
+  data?: string;
+  mediaType?: string;
+  error?: string;
+}
+
+export interface ReadLaterFetchResult {
+  success: boolean;
+  content?: string;
+  finalUrl?: string;
+  contentType?: string;
+  error?: string;
+}
+
+export interface UploadAudioResult {
+  success: boolean;
+  url?: string;
+  error?: string;
+}
+
+export interface UploadVideoResult {
+  success: boolean;
+  url?: string;
+  error?: string;
+}
+
+export interface TranscribedWord {
+  word: string;
+  start: number; // seconds
+  end: number; // seconds
+}
+
+export interface WordProsody {
+  f0: number; // Hz, 0 = unvoiced
+  energy: number; // normalized RMS
+}
+
+export interface TranscribeAudioResult {
+  success: boolean;
+  text?: string;
+  words?: TranscribedWord[];
+  prosody?: WordProsody[];
+  error?: string;
 }
 
 export interface DigikamTag {
@@ -164,8 +285,22 @@ interface AndroidBridgeRaw {
   renameNote(relativePath: string, newName: string): string;
   renameNotebook(relativePath: string, newName: string): string;
   uploadImage(base64Data: string, fileName: string): string;
+  uploadAudio(base64Data: string, fileName: string): string;
+  uploadVideo(base64Data: string, fileName: string): string;
+  deleteAsset(url: string): string;
+  transcribeAudio(fileName: string): string;
+  transcribeVideo(fileName: string): string;
+  startRecording(): string;
+  stopRecording(): string;
+  pauseRecording(): string;
+  resumeRecording(): string;
+  startVideoRecording(): string;
+  stopVideoRecording(): string;
+  pauseVideoRecording(): string;
+  resumeVideoRecording(): string;
   playTypewriterSound(): void;
   toggleZenMode(enable: boolean): string;
+  fetchUrl(url: string): string;
 }
 
 declare global {
@@ -174,9 +309,9 @@ declare global {
     electronAPI: ElectronAPI;
     SoloBridge?: AndroidBridgeRaw;
     __soloSelectFolderCallback?: (resultJson: string) => void;
+    __soloVideoRecordingResult?: (resultJson: string) => void;
   }
 }
-
 export interface SemanticSearchResult {
   filePath: string;
   paragraphIndex: number;

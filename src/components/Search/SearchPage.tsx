@@ -1,6 +1,6 @@
 import { FC, useState, useMemo, useEffect } from 'react';
 import { observer } from 'mobx-react-lite';
-import { ArrowLeft, Save, RefreshCw, Tag as TagIcon, X } from 'lucide-react';
+import { ArrowLeft, BookOpen, Save, RefreshCw, Tag as TagIcon, X } from 'lucide-react';
 import { useStore } from '../../stores/StoreProvider';
 import { Note, SavedFilter, TagNode } from '../../types';
 import { SearchInput } from './SearchInput';
@@ -10,6 +10,7 @@ import { SaveFilterModal } from '../Modals/SaveFilterModal';
 import { flags } from '../../utils/featureFlags';
 import { getNativeAPI } from '../../utils/nativeBridge';
 import { performSemanticSearchWithNotes, buildTagExpression, TagFilter, filterNotes, fuzzyMatch, getTextMatchingParagraphs, getMatchingParagraphs } from '../../utils/search';
+import { ExportSettingsModal } from './export/ExportSettingsModal';
 import './SearchPage.css';
 import { useI18n } from '../../i18n/I18nContext';
 
@@ -40,6 +41,7 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
   const [relevanceThreshold, setRelevanceThreshold] = useState<number>(0.1);
   const [semanticResults, setSemanticResults] = useState<Note[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [isExportSettingsOpen, setIsExportSettingsOpen] = useState(false);
 
   // Apply initialFilters when provided
   useEffect(() => {
@@ -192,26 +194,19 @@ useEffect(() => {
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
         />
+        {flags.exportNotes && initialFilters && (
+          <button
+            onClick={() => setIsExportSettingsOpen(true)}
+            className="search-save-filter-button search-export-button"
+          >
+            <BookOpen size={16} />
+            Экспорт
+          </button>
+        )}
         {hasActiveFilters && (
           <button
             onClick={() => setIsSaveDialogOpen(true)}
-            className="search-save-filter-button"
-            style={{
-              marginLeft: 'auto',
-              padding: '0.5rem 1rem',
-              borderRadius: '0.5rem',
-              border: '1px solid var(--color-border)',
-              background: 'var(--color-white)',
-              color: 'var(--color-text)',
-              cursor: 'pointer',
-              fontSize: '0.875rem',
-              fontWeight: 500,
-              fontFamily: "'Outfit', system-ui, sans-serif",
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              transition: 'all 0.2s ease',
-            }}
+            className={`search-save-filter-button ${flags.exportNotes && initialFilters ? 'search-save-filter-button--adjacent' : 'search-save-filter-button--push'}`}
           >
             <Save size={16} />
             Сохранить поиск
@@ -354,6 +349,13 @@ useEffect(() => {
         }}
         onCancel={() => setIsSaveDialogOpen(false)}
       />
+      {flags.exportNotes && initialFilters && isExportSettingsOpen && (
+        <ExportSettingsModal
+          filter={initialFilters}
+          notes={filteredNotes}
+          onClose={() => setIsExportSettingsOpen(false)}
+        />
+      )}
     </div>
   );
 });

@@ -33,7 +33,7 @@ function wrapAndroidBridge(): ElectronAPI | null {
     updateFile: (relativePath: string, content: string) =>
       Promise.resolve(parseJson(bridge.updateFile(relativePath, content))),
     updateMetadata: (relativePath: string, metadata: FileMetadata) =>
-      Promise.resolve(parseJson(bridge.updateMetadata(relativePath, JSON.stringify(metadata)))),
+      Promise.resolve(parseJson(bridge.updateMetadata(relativePath, JSON.stringify(metadata, null, 2)))),
     readStructure: () => Promise.resolve(parseJson(bridge.readStructure())),
     scanAllTags: () => Promise.resolve(parseJson(bridge.scanAllTags())),
     toggleZenMode: (enable: boolean) => Promise.resolve(parseJson(bridge.toggleZenMode(enable))),
@@ -55,10 +55,41 @@ function wrapAndroidBridge(): ElectronAPI | null {
     selectFile: () => Promise.resolve({ success: false, error: 'Not supported on Android' }),
     getDigikamTags: () => Promise.resolve({ success: false, error: 'Not supported on Android' }),
     getDigikamImagesByTag: () => Promise.resolve({ success: false, error: 'Not supported on Android', digikamTag: '' }),
+    exportFile: () => Promise.resolve({ success: false, error: 'Export is not supported on Android' }),
+    selectExportCoverImage: () => Promise.resolve({ success: false, error: 'Export is not supported on Android' }),
+    readImage: () => Promise.resolve({ success: false, error: 'Not supported on Android' }),
     uploadImage: (imageData: string, fileName: string) =>
       Promise.resolve(parseJson(bridge.uploadImage(imageData, fileName))),
+    uploadAudio: (base64Data: string, fileName: string) =>
+      Promise.resolve(parseJson(bridge.uploadAudio(base64Data, fileName))),
+    uploadVideo: (base64Data: string, fileName: string) =>
+      Promise.resolve(parseJson(bridge.uploadVideo(base64Data, fileName))),
+    deleteAsset: (url: string) =>
+      Promise.resolve(parseJson(bridge.deleteAsset(url))),
+    transcribeAudio: (fileName: string) =>
+      Promise.resolve(parseJson(bridge.transcribeAudio(fileName))),
+    transcribeVideo: (fileName: string) =>
+      Promise.resolve(parseJson(bridge.transcribeVideo(fileName))),
+    startRecording: () =>
+      Promise.resolve(parseJson(bridge.startRecording())),
+    stopRecording: () =>
+      Promise.resolve(parseJson(bridge.stopRecording())),
+    pauseRecording: () =>
+      Promise.resolve(parseJson(bridge.pauseRecording())),
+    resumeRecording: () =>
+      Promise.resolve(parseJson(bridge.resumeRecording())),
+    startVideoRecording: () =>
+      Promise.resolve(parseJson(bridge.startVideoRecording())),
+    stopVideoRecording: () =>
+      Promise.resolve(parseJson(bridge.stopVideoRecording())),
+    pauseVideoRecording: () =>
+      Promise.resolve(parseJson(bridge.pauseVideoRecording())),
+    resumeVideoRecording: () =>
+      Promise.resolve(parseJson(bridge.resumeVideoRecording())),
     openPdfFile: (relativePath: string) =>
       Promise.resolve(parseJson(bridge.openPdfFile(relativePath))),
+    fetchUrl: (url: string) =>
+      Promise.resolve(parseJson(bridge.fetchUrl(url))),
   } as ElectronAPI;
 }
 

@@ -16,7 +16,7 @@ type SidebarProps = {
 };
 
 export const Sidebar: FC<SidebarProps> = observer(({ editor, onOpenSearch, onOpenTimeline }) => {
-  const { notesStore, settingsStore } = useStore();
+  const { notesStore, settingsStore, seenStore } = useStore();
   const [isSidebarVisible, setIsSidebarVisible] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const toggleButtonRef = useRef<HTMLButtonElement>(null);
@@ -85,6 +85,7 @@ export const Sidebar: FC<SidebarProps> = observer(({ editor, onOpenSearch, onOpe
               <div className="note-item-header">
                 {note.fileType === 'pdf' && <FileText size={14} className="note-item-pdf-icon" />}
                 <h3 className="note-item-title">{note.title}</h3>
+                {__IS_PACKAGED__ && seenStore.isUnseen(note) && <span className="note-item-badge" />}
               </div>
             </div>
           ))}
