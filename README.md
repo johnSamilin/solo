@@ -86,10 +86,36 @@ environment variable (each platform gets its own bundle):
 
 | Command | PLATFORM | Constants |
 | --- | --- | --- |
-| `npm run build:desktop` | `desktop` | `__IS_DESKTOP__ = true` |
+| `npm run build:desktop` | `desktop` | two Electron packages: light and extended search |
+| `npm run build:desktop:web` | `desktop` | web bundle for Electron (used internally) |
 | `npm run build:android` | `android` | `__IS_ANDROID__ = true` |
 | `npm run build:packaged` | `packaged` | `__IS_PACKAGED__ = true` |
-| `npm run build` | — | builds desktop + android |
+| `npm run build` | — | builds both desktop packages + android |
+
+To build both desktop variants on the current host, install dependencies in the
+root and `native-clients/electron`, then run:
+
+```sh
+npm run build:desktop
+```
+
+Requires Go 1.23+, a C compiler, `curl` and `tar`. It reuses existing
+`model.onnx` and `tokenizer.json` in `extended-search-assets/models/` and the
+host-compatible ONNX shared library in `extended-search-assets/onnx-runtime/lib/`;
+any missing files are downloaded there and cached for the next build. The model
+profile `model.json` comes from `instruments/semantic-search/models/`. If the
+Vosk resources for voice memos are not already in
+`native-clients/electron/{models,libvosk}/`, fetch them separately with
+`bash scripts/fetch-vosk-models.sh`. The command builds the Go search binary and produces
+`native-clients/electron/out/light/` (without the search
+instrument or its model/runtime) and `native-clients/electron/out/extended/`
+(with all three under `resources/dist/instruments/semantic-search/`). Set
+`SOLO_EXTENDED_SEARCH_ASSETS=/absolute/path` to use a different assets folder.
+Desktop packaging of ONNX Runtime currently supports macOS (arm64/x64) and
+Linux (x64/arm64); it fails explicitly on other hosts.
+
+`SOLO_EXTENDED_SEARCH=true|false` overrides only the desktop web build's
+compile-time flag. The two-package command sets it for each variant automatically.
 
 Each flag is expanded into a compile-time boolean constant `__FF_<NAME>__`
 (e.g. `extended-search` → `__FF_EXTENDED_SEARCH__`), so unused branches are
@@ -119,12 +145,13 @@ if (isFeatureEnabled('extended-search')) { /* ... */ }
 ```bash
 # Install dependencies
 npm install
+npm --prefix native-clients/electron install
 
 # Development
-npm run electron:dev     # Desktop version
+npm --prefix native-clients/electron run electron:start
 
-# Production builds
-npm run electron:build  # Desktop version
+# Both desktop packages
+npm run build:desktop
 ```
 
 ## License

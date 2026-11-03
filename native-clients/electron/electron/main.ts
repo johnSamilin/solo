@@ -233,6 +233,14 @@ const resolveModelDir = (): string | null => {
   return existsSync(candidate) ? candidate : null;
 };
 
+/** The Go CLI loads ONNX dynamically; use the packaged library on every OS. */
+const searchRuntimeEnv = (): NodeJS.ProcessEnv => {
+  const library = process.platform === 'darwin' ? 'libonnxruntime.dylib'
+    : process.platform === 'win32' ? 'onnxruntime.dll' : 'libonnxruntime.so';
+  const candidate = path.join(process.resourcesPath, 'dist/instruments/semantic-search/onnx-runtime/lib', library);
+  return existsSync(candidate) ? { ...process.env, SOLO_SEARCH_ONNXRUNTIME_LIB: candidate } : process.env;
+};
+
 /**
  * Validates that a path is safe to access, accounting for symlinks.
  * Returns true if the path is within dataFolder or is a symlink target that originates from within dataFolder.
@@ -1915,7 +1923,7 @@ const runReindex = (extraArgs: string[]): Promise<{ success: boolean; result?: R
 
     let child;
     try {
-      child = spawn(bin, args, { windowsHide: true });
+      child = spawn(bin, args, { windowsHide: true, env: searchRuntimeEnv() });
     } catch (error) {
       resolve({ success: false, error: (error as Error).message });
       return;
@@ -2031,7 +2039,6 @@ const runSemanticSearch = async (queryText?: string, tagsExpr?: string): Promise
   const bin = resolveSearchBinary();
   const modelDir = resolveModelDir();
   
-  const runtime = path.join(process.resourcesPath, 'dist/instruments/semantic-search/onnx-runtime/lib/libonnxruntime.so');
   // Build arguments for solo-search query
   const args = ['query', '--root', dataFolder];
   if (modelDir) {
@@ -2047,14 +2054,10 @@ const runSemanticSearch = async (queryText?: string, tagsExpr?: string): Promise
   // Set a reasonable limit for results
   // args.push('--limit', '100');
 
-  console.log(`SOLO_SEARCH_ONNXRUNTIME_LIB=${runtime} ${bin}`)
-  console.log(args)
-
   return new Promise((resolve) => {
     let child;
-    const env = { ...process.env, SOLO_SEARCH_ONNXRUNTIME_LIB: runtime };
     try {
-      child = spawn(bin, args, { windowsHide: true, env });
+      child = spawn(bin, args, { windowsHide: true, env: searchRuntimeEnv() });
     } catch (error) {
       resolve({ success: false, error: (error as Error).message });
       return;

@@ -11,7 +11,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "rm -rf electron/dist && npm run build:electron && cd ../../ && npm run build && cd native-clients/electron",
+    "build": "npm run build:electron && npm --prefix ../.. run build:desktop:web",
     "copy:instruments": "mkdir ./electron/dist/instruments && cp -R ../../instruments/semantic-search/dist ./electron/dist/instruments/semantic-search",
     "build:electron": "tsc -p tsconfig.electron.json",
     "electron:dev": "concurrently \"cross-env NODE_ENV=development npm run build:electron -- --watch\" \"wait-on http://localhost:5173 && cross-env NODE_ENV=development electron .\"",

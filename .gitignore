@@ -38,3 +38,4 @@ native-clients/android/.gradle
 native-clients/android/local.properties
 
 instruments/**/onnx-runtime
+extended-search-assets/

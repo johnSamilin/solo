@@ -14,9 +14,15 @@ export function flagConstName(flag: string): string {
   return `__FF_${flag.toUpperCase().replace(/[^A-Z0-9]+/g, '_')}__`;
 }
 
-export function buildFeatureDefines(mode: BuildMode): Record<string, string | boolean> {
+export function buildFeatureDefines(mode: BuildMode, env: Record<string, string | undefined> = process.env): Record<string, string | boolean> {
   const sets = featureFlags as FlagSets;
-  const activeFlags: Record<string, boolean | string> = sets[mode] ?? {};
+  const activeFlags: Record<string, boolean | string> = { ...(sets[mode] ?? {}) };
+  if (mode === 'DESKTOP' && env.SOLO_EXTENDED_SEARCH !== undefined) {
+    if (!['true', 'false'].includes(env.SOLO_EXTENDED_SEARCH)) {
+      throw new Error('SOLO_EXTENDED_SEARCH must be true or false');
+    }
+    activeFlags['extended-search'] = env.SOLO_EXTENDED_SEARCH === 'true';
+  }
 
   const allFlagNames = new Set<string>();
   for (const set of Object.values(sets)) {
@@ -27,7 +33,7 @@ export function buildFeatureDefines(mode: BuildMode): Record<string, string | bo
     __IS_PACKAGED__: mode === 'PACKAGED',
     __IS_DESKTOP__: mode === 'DESKTOP',
     __IS_ANDROID__: mode === 'MOBILE',
-    __FEATURE_FLAGS__: JSON.stringify(featureFlags),
+    __FEATURE_FLAGS__: JSON.stringify({ ...sets, [mode]: activeFlags }),
     __ACTIVE_FEATURE_FLAGS__: JSON.stringify(activeFlags),
   };
 
