@@ -6,7 +6,7 @@ declare const __IS_ANDROID__: boolean;
 
 type FeatureFlagMode = 'PACKAGED' | 'DESKTOP' | 'MOBILE';
 
-type FeatureFlagSet = Record<string, boolean>;
+type FeatureFlagSet = Record<string, boolean | string>;
 
 declare const __FEATURE_FLAGS__: Record<FeatureFlagMode, FeatureFlagSet>;
 

@@ -61,7 +61,7 @@ export class SettingsStore {
 
   private loadFromStorage = async () => {
     try {
-      
+
       const stored = localStorage.getItem(STORAGE_KEY);
 
       if (stored) {

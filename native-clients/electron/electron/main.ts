@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, dialog, protocol, net, shell, Menu, ipcRen
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import { existsSync } from 'fs';
+import { spawn } from 'child_process';
 import Database from 'better-sqlite3';
 import { logger } from './logger';
 import { updateManager } from './autoUpdater';
@@ -196,6 +197,51 @@ function computeProsody(
 }
 
 /**
+ * Resolve the path to the bundled `solo-search` binary.
+ * Order of preference:
+ *  1. SOLO_SEARCH_BIN env override (absolute path, useful in dev);
+ *  2. an `instruments`-style binary shipped next to the app resources;
+ *  3. plain `solo-search` looked up on PATH.
+ */
+const resolveSearchBinary = (): string => {
+  if (process.env.SOLO_SEARCH_BIN && existsSync(process.env.SOLO_SEARCH_BIN)) {
+    return process.env.SOLO_SEARCH_BIN;
+  }
+  const exeName = process.platform === 'win32' ? 'solo-search.exe' : 'solo-search';
+  const candidates = [
+    path.join(process.resourcesPath, 'dist/instruments/semantic-search', exeName),
+  ];
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+  }
+  // Fall back to PATH lookup.
+  return exeName;
+};
+
+/**
+ * Resolve the directory containing the embedding model files. When unset the
+ * binary falls back to its own default (./models next to the executable), so
+ * returning null simply means "don't pass --model-dir".
+ */
+const resolveModelDir = (): string | null => {
+  if (process.env.SOLO_SEARCH_MODEL_DIR && existsSync(process.env.SOLO_SEARCH_MODEL_DIR)) {
+    return process.env.SOLO_SEARCH_MODEL_DIR;
+  }
+  const candidate = path.join(process.resourcesPath, 'dist/instruments/semantic-search/models');
+  return existsSync(candidate) ? candidate : null;
+};
+
+/** The Go CLI loads ONNX dynamically; use the packaged library on every OS. */
+const searchRuntimeEnv = (): NodeJS.ProcessEnv => {
+  const library = process.platform === 'darwin' ? 'libonnxruntime.dylib'
+    : process.platform === 'win32' ? 'onnxruntime.dll' : 'libonnxruntime.so';
+  const candidate = path.join(process.resourcesPath, 'dist/instruments/semantic-search/onnx-runtime/lib', library);
+  return existsSync(candidate) ? { ...process.env, SOLO_SEARCH_ONNXRUNTIME_LIB: candidate } : process.env;
+};
+
+/**
  * Validates that a path is safe to access, accounting for symlinks.
  * Returns true if the path is within dataFolder or is a symlink target that originates from within dataFolder.
  */
@@ -323,8 +369,6 @@ const createWindow = () => {
     mainWindow.webContents.openDevTools();
   } else {
     const indexPath = path.join(process.resourcesPath, 'dist', 'index.html');
-    console.log('Loading index.html from:', indexPath);
-    console.log('Resources path:', process.resourcesPath);
     mainWindow.loadFile(indexPath);
   }
 
@@ -1042,7 +1086,7 @@ ipcMain.handle('read-structure', async () => {
               const metadataContent = await fs.readFile(metadataPath, 'utf-8');
               metadata = JSON.parse(metadataContent);
               // migration
-              metadata.tags = metadata?.tags.map((tag) => {
+              metadata!.tags = metadata?.tags.map((tag) => {
                 if (typeof tag === 'object') {
                   // @ts-ignore
                   return tag.path;
@@ -1822,7 +1866,6 @@ ipcMain.handle('get-digikam-images-by-tag', async (_event, dbPath: string, tagId
 
     const stmt = db.prepare(query);
     const images = stmt.all(tagId, limit);
-    console.log('Digikam query: ' + query + ` (results: ${images.length}). params: ${JSON.stringify({tagId})}`);
 
     return { success: true, images };
   } catch (error) {
@@ -1850,6 +1893,217 @@ const openLogFile = async () => {
 };
 ipcMain.handle('open-log-file', openLogFile);
 
+interface ReindexResult {
+  FilesScanned?: number;
+  FilesIndexed?: number;
+  FilesSkipped?: number;
+  FilesRemoved?: number;
+  ParagraphsNew?: number;
+}
+
+/**
+ * Spawn the `solo-search index` binary and stream its stdout. Progress lines
+ * "[X/Y]" are forwarded to the renderer via the `reindex-progress` channel so
+ * the Search page can drive a progress bar. The trailing JSON line is parsed
+ * as the run summary and returned to the caller.
+ */
+const runReindex = (extraArgs: string[]): Promise<{ success: boolean; result?: ReindexResult; error?: string }> => {
+  return new Promise((resolve) => {
+    if (!dataFolder) {
+      resolve({ success: false, error: 'No data folder selected' });
+      return;
+    }
+
+    const bin = resolveSearchBinary();
+    const modelDir = resolveModelDir();
+    const args = ['index', '--root', dataFolder, '--progress-stdout', ...extraArgs];
+    if (modelDir) {
+      args.push('--model-dir', modelDir);
+    }
+
+    let child;
+    try {
+      child = spawn(bin, args, { windowsHide: true, env: searchRuntimeEnv() });
+    } catch (error) {
+      resolve({ success: false, error: (error as Error).message });
+      return;
+    }
+
+    let stdoutBuffer = '';
+    let stderrBuffer = '';
+    let lastJsonLine: string | null = null;
+
+    child.stdout.on('data', (chunk: Buffer) => {
+      stdoutBuffer += chunk.toString();
+      let newlineIndex: number;
+      while ((newlineIndex = stdoutBuffer.indexOf('\n')) !== -1) {
+        const line = stdoutBuffer.slice(0, newlineIndex).trim();
+        stdoutBuffer = stdoutBuffer.slice(newlineIndex + 1);
+        if (!line) continue;
+
+        const progressMatch = line.match(/^\[(\d+)\/(\d+)\]/);
+        if (progressMatch) {
+          const processed = Number(progressMatch[1]);
+          const total = Number(progressMatch[2]);
+          mainWindow?.webContents.send('reindex-progress', { processed, total });
+        } else {
+          // Non-progress stdout lines are candidate JSON (the final summary).
+          lastJsonLine = line;
+        }
+      }
+    });
+
+    child.stderr.on('data', (chunk: Buffer) => {
+      stderrBuffer += chunk.toString();
+    });
+
+    child.on('error', (error) => {
+      resolve({ success: false, error: error.message });
+    });
+
+    child.on('close', (code) => {
+      // Flush any trailing JSON that arrived without a final newline.
+      const remaining = stdoutBuffer.trim();
+      if (remaining && !remaining.startsWith('[')) {
+        lastJsonLine = remaining;
+      }
+
+      if (code !== 0) {
+        resolve({
+          success: false,
+          error: stderrBuffer.trim() || `solo-search exited with code ${code}`,
+        });
+        return;
+      }
+
+      let result: ReindexResult | undefined;
+      if (lastJsonLine) {
+        try {
+          result = JSON.parse(lastJsonLine);
+        } catch {
+          // Non-fatal: indexing succeeded but summary was unparseable.
+        }
+      }
+      resolve({ success: true, result });
+    });
+  });
+};
+
+// Full re-index of every note under the data folder, with progress events.
+ipcMain.handle('reindex-all', async () => {
+  return runReindex([]);
+});
+
+// Incremental re-index (or removal) of a single note. `relativePath` points at
+// the note file relative to the data folder; if it no longer exists the binary
+// drops its index entry.
+ipcMain.handle('reindex-note', async (_, relativePath: string) => {
+  if (!dataFolder) {
+    return { success: false, error: 'No data folder selected' };
+  }
+  const fullPath = path.join(dataFolder, relativePath);
+  return runReindex(['--file', fullPath, '--quiet']);
+});
+
+interface SemanticSearchResult {
+  filePath: string;
+  paragraphIndex: number;
+  tag: string;
+  text: string;
+  paragraphTags: string[];
+  fileTags: string[];
+  noteId: string;
+  fileCreatedAt: string;
+  score?: number;
+  semanticScore?: number;
+  lexicalScore?: number;
+  tagMatched?: boolean;
+}
+
+interface SemanticSearchResponse {
+  mode: string;
+  query?: string;
+  tagExpr?: string;
+  count: number;
+  results: SemanticSearchResult[];
+}
+
+/**
+ * Spawn the `solo-search query` binary and capture its JSON output.
+ */
+const runSemanticSearch = async (queryText?: string, tagsExpr?: string): Promise<{ success: boolean; result?: SemanticSearchResponse; error?: string }> => {
+  if (!dataFolder) {
+    return { success: false, error: 'No data folder selected' };
+  }
+
+  const bin = resolveSearchBinary();
+  const modelDir = resolveModelDir();
+  
+  // Build arguments for solo-search query
+  const args = ['query', '--root', dataFolder];
+  if (modelDir) {
+    args.push('--model-dir', modelDir);
+  }
+  if (queryText && queryText.trim()) {
+    args.push('--query', queryText.trim());
+  }
+  if (tagsExpr && tagsExpr.trim()) {
+    args.push('--tags', tagsExpr.trim());
+  }
+  
+  // Set a reasonable limit for results
+  // args.push('--limit', '100');
+
+  return new Promise((resolve) => {
+    let child;
+    try {
+      child = spawn(bin, args, { windowsHide: true, env: searchRuntimeEnv() });
+    } catch (error) {
+      resolve({ success: false, error: (error as Error).message });
+      return;
+    }
+
+    let stdoutBuffer = '';
+    let stderrBuffer = '';
+
+    child.stdout.on('data', (chunk: Buffer) => {
+      stdoutBuffer += chunk.toString();
+    });
+
+    child.stderr.on('data', (chunk: Buffer) => {
+      stderrBuffer += chunk.toString();
+    });
+
+    child.on('error', (error) => {
+      resolve({ success: false, error: error.message });
+    });
+
+    child.on('close', (code) => {
+      if (code !== 0) {
+        resolve({
+          success: false,
+          error: stderrBuffer.trim() || `solo-search exited with code ${code}`,
+        });
+        return;
+      }
+
+      try {
+        const result: SemanticSearchResponse = JSON.parse(stdoutBuffer.trim());
+        resolve({ success: true, result });
+      } catch (parseError) {
+        resolve({
+          success: false,
+          error: `Failed to parse search results: ${parseError instanceof Error ? parseError.message : String(parseError)}`
+        });
+      }
+    });
+  });
+};
+
+// Handle semantic search requests
+ipcMain.handle('search-semantic', async (_, queryText?: string, tagsExpr?: string) => {
+  return runSemanticSearch(queryText, tagsExpr);
+});
 ipcMain.handle('check-for-updates', async () => {
   try {
     await updateManager.manualCheckForUpdates();

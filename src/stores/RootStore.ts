@@ -8,6 +8,7 @@ import { createExportFileRequest } from '../components/Search/export/exportNotes
 import { Note, SavedFilter } from '../types';
 import { flags } from '../utils/featureFlags';
 import { getNativeAPI } from '../utils/nativeBridge';
+import { getNotesForSavedFilter } from '../utils/search';
 
 export class RootStore {
   notesStore: NotesStore;
@@ -48,10 +49,12 @@ export class RootStore {
 
     for (const filter of filters) {
       const profile = filter.exportProfile!;
+      const notes = await this.getFilteredNotes(filter);
       const request = await createExportFileRequest(
         profile,
         filter,
-        this.getFilteredNotes(filter),
+        notes,
+        this.settingsStore.settings,
         profile.outputPath,
       );
       const result = await api.exportFile(request);
@@ -61,7 +64,10 @@ export class RootStore {
     }
   };
 
-  private getFilteredNotes = (filter: SavedFilter): Note[] => {
+  private getFilteredNotes = async (filter: SavedFilter): Promise<Note[]> => {
+    if (flags.extendedSearch && filter.extendedSearch) {
+      return getNotesForSavedFilter(filter, this.notesStore.getVisibleNotes());
+    }
     const query = filter.searchQuery.trim();
     const fuzzyMatch = (text: string) => {
       if (!query) return true;
