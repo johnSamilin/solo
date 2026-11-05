@@ -4,6 +4,7 @@ import { Note, SavedFilter, SavedSearchExportProfile } from '../../../types';
 import { useStore } from '../../../stores/StoreProvider';
 import { getNativeAPI } from '../../../utils/nativeBridge';
 import { createExportFileRequest } from './exportNotes';
+import { getNotesForSavedFilter } from '../../../utils/search';
 import '../../Modals/Modals.css';
 import './ExportSettingsModal.css';
 
@@ -25,7 +26,7 @@ const defaultProfile = (filter: SavedFilter): SavedSearchExportProfile => ({
 });
 
 export const ExportSettingsModal: FC<ExportSettingsModalProps> = ({ filter, notes, onClose }) => {
-  const { savedFiltersStore, settingsStore } = useStore();
+  const { notesStore, savedFiltersStore, settingsStore } = useStore();
   const [profile, setProfile] = useState(() => {
     const defaults = defaultProfile(filter);
     if (!filter.exportProfile) return defaults;
@@ -54,11 +55,19 @@ export const ExportSettingsModal: FC<ExportSettingsModalProps> = ({ filter, note
     setError(undefined);
     const api = getNativeAPI();
     if (!api) { setError('Экспорт доступен только в desktop-версии Solo'); setIsExporting(false); return; }
-    const result = await api.exportFile(await createExportFileRequest(profile, filter, notes, settingsStore.settings));
-    setIsExporting(false);
-    if (!result.success) { setError(result.error || 'Не удалось экспортировать заметки'); return; }
-    savedFiltersStore.updateExportProfile(filter.id, { ...profile, outputPath: result.outputPath });
-    onClose();
+    try {
+      const selectedNotes = filter.extendedSearch
+        ? await getNotesForSavedFilter(filter, notesStore.getVisibleNotes())
+        : notes;
+      const result = await api.exportFile(await createExportFileRequest(profile, filter, selectedNotes, settingsStore.settings));
+      if (!result.success) { setError(result.error || 'Не удалось экспортировать заметки'); return; }
+      savedFiltersStore.updateExportProfile(filter.id, { ...profile, outputPath: result.outputPath });
+      onClose();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return <div className="modal-overlay" onClick={onClose}><div className="modal export-settings-modal" onClick={event => event.stopPropagation()}>

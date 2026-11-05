@@ -46,6 +46,10 @@ export interface SavedFilter {
   searchQuery: string;
   tagFilters: { path: string; operator: 'AND' | 'OR' | 'NOT' }[];
   showOnlyEmptyNotes: boolean;
+  extendedSearch?: boolean;
+  relevanceThreshold?: number;
+  /** Current tag input for manual export; not stored in saved filters. */
+  tagInputValue?: string;
   exportProfile?: SavedSearchExportProfile;
 }
 
@@ -64,6 +68,8 @@ export interface Note {
   fileType: NoteFileType;
   isLoaded: boolean;
   paragraphTags: string[];
+  /** Transient paragraph positions from semantic search (not persisted). */
+  semanticParagraphIndices?: number[];
   sourceUrl?: string;
 }
 

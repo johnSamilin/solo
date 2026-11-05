@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Build two separate Electron packages for the current host platform. */
+/** Build light and extended desktop installers for the current host platform. */
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -178,7 +178,40 @@ export function verifyPackage(outputDir, variant, target, platform = process.pla
   }
 }
 
+export function makerForHost(platform = process.platform) {
+  if (platform === 'darwin') return { target: '@electron-forge/maker-dmg', extension: '.dmg' };
+  if (platform === 'linux') return { target: '@electron-forge/maker-deb', extension: '.deb' };
+  throw new Error(`Unsupported desktop installer platform: ${platform}`);
+}
+
+export function verifyMakeArtifact(directory, extension) {
+  const artifacts = [];
+  const visit = current => {
+    if (!fs.existsSync(current)) return;
+    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+      const file = path.join(current, entry.name);
+      if (entry.isDirectory()) visit(file);
+      else if (entry.isFile() && entry.name.endsWith(extension) && present(file)) artifacts.push(file);
+    }
+  };
+  visit(directory);
+  if (artifacts.length === 0) throw new Error(`No ${extension} installer found in ${directory}`);
+  return artifacts;
+}
+
+function makeVariant(variant, maker) {
+  const outputDir = path.join(electron, 'out', variant);
+  fs.rmSync(path.join(outputDir, 'make'), { recursive: true, force: true });
+  run('npm', ['exec', '--', 'electron-forge', 'make', '--skip-package', '--targets', maker.target], electron, {
+    ...process.env,
+    SOLO_BUILD_VARIANT: variant,
+    SOLO_EXCLUDE_INSTRUMENTS: variant === 'light' ? 'true' : 'false',
+  });
+  return verifyMakeArtifact(path.join(outputDir, 'make'), maker.extension);
+}
+
 export function buildDesktop() {
+  const maker = makerForHost();
   const target = runtimeTarget();
   const assets = ensureSearchAssets(assetsDir, target);
   prepareVosk();
@@ -188,11 +221,13 @@ export function buildDesktop() {
   // lightweight package (forge excludes it from asar and extraResource).
   buildWeb(false);
   packageVariant('light');
+  const lightArtifacts = makeVariant('light', maker);
 
   buildWeb(true);
   stageSearch(target, assets);
   packageVariant('extended');
-  console.log(`\nPackages: ${path.join(electron, 'out', '{light,extended}')}`);
+  const extendedArtifacts = makeVariant('extended', maker);
+  console.log(`\nInstallers:\n${[...lightArtifacts, ...extendedArtifacts].join('\n')}`);
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

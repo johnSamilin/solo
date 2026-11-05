@@ -39,3 +39,5 @@ native-clients/android/local.properties
 
 instruments/**/onnx-runtime
 extended-search-assets/
+libvosk
+

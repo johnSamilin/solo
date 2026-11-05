@@ -9,7 +9,7 @@ import { SearchResults } from './SearchResults';
 import { SaveFilterModal } from '../Modals/SaveFilterModal';
 import { flags } from '../../utils/featureFlags';
 import { getNativeAPI } from '../../utils/nativeBridge';
-import { performSemanticSearchWithNotes, buildTagExpression, TagFilter, filterNotes, fuzzyMatch, getTextMatchingParagraphs, getMatchingParagraphs } from '../../utils/search';
+import { getNotesForSavedFilter, TagFilter, filterNotes } from '../../utils/search';
 import { ExportSettingsModal } from './export/ExportSettingsModal';
 import './SearchPage.css';
 import { useI18n } from '../../i18n/I18nContext';
@@ -21,6 +21,11 @@ interface SearchPageProps {
   initialFilters?: SavedFilter;
 }
 
+const SEARCH_MODE_KEY = 'solo-extended-search-enabled';
+
+const readSearchMode = (): boolean => {
+  try { return localStorage.getItem(SEARCH_MODE_KEY) === 'true'; } catch { return false; }
+};
 
 export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect, initialTagPath, initialFilters }) => {
   const { notesStore, settingsStore, tagsStore, savedFiltersStore } = useStore();
@@ -32,13 +37,13 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
   const [selectedTagOperator, setSelectedTagOperator] = useState<'AND' | 'OR' | 'NOT'>('AND');
   const [showOnlyEmptyNotes, setShowOnlyEmptyNotes] = useState(false);
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
-  const [isExtendedSearch, setIsExtendedSearch] = useState(false);
+  const [isExtendedSearch, setIsExtendedSearch] = useState(() => initialFilters?.extendedSearch ?? readSearchMode());
   const [isReindexing, setIsReindexing] = useState(false);
   const [reindexProgress, setReindexProgress] = useState<{ processed: number; total: number } | null>(null);
   const [reindexError, setReindexError] = useState<string | null>(null);
   const [showTagTree, setShowTagTree] = useState(true);
   const [tagInputValue, setTagInputValue] = useState('');
-  const [relevanceThreshold, setRelevanceThreshold] = useState<number>(0.1);
+  const [relevanceThreshold, setRelevanceThreshold] = useState<number>(() => initialFilters?.relevanceThreshold ?? 0.1);
   const [semanticResults, setSemanticResults] = useState<Note[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isExportSettingsOpen, setIsExportSettingsOpen] = useState(false);
@@ -49,6 +54,8 @@ export const SearchPage: FC<SearchPageProps> = observer(({ onClose, onNoteSelect
       setSearchQuery(initialFilters.searchQuery);
       setTagFilters(initialFilters.tagFilters);
       setShowOnlyEmptyNotes(initialFilters.showOnlyEmptyNotes);
+      setIsExtendedSearch(initialFilters.extendedSearch ?? false);
+      setRelevanceThreshold(initialFilters.relevanceThreshold ?? 0.1);
     }
   }, [initialFilters]);
 
@@ -69,18 +76,33 @@ useEffect(() => {
 
   // Query the local model only when there is a text query. Tags remain a legacy filter.
   useEffect(() => {
+    let current = true;
     if (flags.extendedSearch && isExtendedSearch && searchQuery.trim()) {
-      const timer = setTimeout(async () => {
-        const results = await performSemanticSearchWithNotes(searchQuery, [], notesStore.notes, relevanceThreshold);
-        setSemanticResults(results);
+      setSemanticResults([]);
+      const timer = setTimeout(() => {
+        getNotesForSavedFilter(
+          { searchQuery, tagFilters: [], showOnlyEmptyNotes: false, extendedSearch: true, relevanceThreshold },
+          notesStore.getVisibleNotes(),
+        ).then(results => { if (current) setSemanticResults(results); })
+          .catch(error => { if (current) { setSemanticResults([]); console.error('Semantic search failed:', error); } });
       }, 300); // Задержка для предотвращения частых запросов
-     
-     return () => clearTimeout(timer);
+      return () => { current = false; clearTimeout(timer); };
    } else {
      // Reset semantic results when extended search is disabled
      setSemanticResults([]);
    }
- }, [searchQuery, tagFilters, notesStore.notes, flags.extendedSearch, isExtendedSearch, relevanceThreshold]);
+  }, [searchQuery, notesStore.notes, notesStore, isExtendedSearch, relevanceThreshold]);
+
+  const changeSearchMode = (enabled: boolean) => {
+    setIsExtendedSearch(enabled);
+    try { localStorage.setItem(SEARCH_MODE_KEY, String(enabled)); } catch { /* storage may be unavailable */ }
+    if (initialFilters) savedFiltersStore.updateSearchOptions(initialFilters.id, { extendedSearch: enabled });
+  };
+
+  const changeRelevanceThreshold = (value: number) => {
+    setRelevanceThreshold(value);
+    if (initialFilters) savedFiltersStore.updateSearchOptions(initialFilters.id, { relevanceThreshold: value });
+  };
 
   const handleReindex = async () => {
     const api = getNativeAPI();
@@ -227,7 +249,7 @@ useEffect(() => {
                   type="checkbox"
                   role="switch"
                   checked={isExtendedSearch}
-                  onChange={(e) => setIsExtendedSearch(e.target.checked)}
+                  onChange={(e) => changeSearchMode(e.target.checked)}
                 />
                 <span className="extended-search-toggle__slider" />
               </span>
@@ -282,7 +304,7 @@ useEffect(() => {
                   max="1"
                   step="0.01"
                   value={relevanceThreshold}
-                  onChange={(e) => setRelevanceThreshold(parseFloat(e.target.value))}
+                  onChange={(e) => changeRelevanceThreshold(parseFloat(e.target.value))}
                   className="relevance-threshold-slider"
                 />
               </div>
@@ -344,14 +366,16 @@ useEffect(() => {
       <SaveFilterModal
         isOpen={isSaveDialogOpen}
         onConfirm={(label) => {
-          savedFiltersStore.saveFilter(label, searchQuery, tagFilters, showOnlyEmptyNotes);
+          savedFiltersStore.saveFilter(label, searchQuery, tagFilters, showOnlyEmptyNotes, {
+            extendedSearch: isExtendedSearch, relevanceThreshold,
+          });
           setIsSaveDialogOpen(false);
         }}
         onCancel={() => setIsSaveDialogOpen(false)}
       />
       {flags.exportNotes && initialFilters && isExportSettingsOpen && (
         <ExportSettingsModal
-          filter={initialFilters}
+          filter={{ ...initialFilters, searchQuery, tagFilters, tagInputValue, showOnlyEmptyNotes, extendedSearch: isExtendedSearch, relevanceThreshold }}
           notes={filteredNotes}
           onClose={() => setIsExportSettingsOpen(false)}
         />

@@ -3,7 +3,26 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { runtimeTarget, resolveSearchAssets, ensureSearchAssets, copySearchAssets, verifyStagedSearch, verifyPackage } from './build-desktop.mjs';
+import { runtimeTarget, resolveSearchAssets, ensureSearchAssets, copySearchAssets, verifyStagedSearch, verifyPackage, makerForHost, verifyMakeArtifact } from './build-desktop.mjs';
+
+test('native makers produce DMG on macOS and DEB on Linux', () => {
+  assert.deepEqual(makerForHost('darwin'), { target: '@electron-forge/maker-dmg', extension: '.dmg' });
+  assert.deepEqual(makerForHost('linux'), { target: '@electron-forge/maker-deb', extension: '.deb' });
+  assert.throws(() => makerForHost('win32'), /Unsupported/);
+});
+
+test('a make run must produce a non-empty artifact', () => {
+  const output = fs.mkdtempSync(path.join(os.tmpdir(), 'solo-make-test-'));
+  try {
+    assert.throws(() => verifyMakeArtifact(output, '.dmg'), /No .*dmg/);
+    fs.mkdirSync(path.join(output, 'deb', 'x64'), { recursive: true });
+    fs.writeFileSync(path.join(output, 'deb', 'x64', 'solo.deb'), 'package');
+    assert.equal(verifyMakeArtifact(output, '.deb').length, 1);
+    assert.throws(() => verifyMakeArtifact(output, '.dmg'), /No .*dmg/);
+  } finally {
+    fs.rmSync(output, { recursive: true, force: true });
+  }
+});
 
 test('the ONNX bundle matches the target architecture and library name', () => {
   assert.deepEqual(runtimeTarget('darwin', 'arm64'), {

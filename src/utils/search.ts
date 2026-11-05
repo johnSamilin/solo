@@ -1,5 +1,6 @@
-import { Note, SemanticSearchResult, SemanticSearchResponse } from '../types';
+import { Note, SavedFilter, SemanticSearchResult, SemanticSearchResponse } from '../types';
 import { getNativeAPI } from './nativeBridge';
+import { flags } from './featureFlags';
 
 export interface TagFilter {
   path: string;
@@ -12,7 +13,7 @@ export interface TagFilter {
 export const convertSemanticResultsToNotes = (
   semanticResults: SemanticSearchResponse,
   allNotes: Note[],
-  tagFilters: TagFilter[] = [],
+  _tagFilters: TagFilter[] = [],
   relevanceThreshold: number = 0.1
 ): Note[] => {
   // Filter results by relevance threshold before processing
@@ -51,72 +52,9 @@ export const convertSemanticResultsToNotes = (
   
   // Convert to array and calculate average score for sorting
   return Array.from(groupedResults.values()).map(item => {
-    // Create modified content with paragraphs that match search results
-    let modifiedContent = item.note.content;
-    
-    // If there are specific paragraphs in results, modify content to show only those paragraphs
-    if (item.paragraphs && item.paragraphs.length > 0) {
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = item.note.content;
-      
-      // Find elements by their index (paragraphIndex from results)
-      const elements = tempDiv.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li');
-      const matchingElements: Element[] = [];
-      
-      item.paragraphs.forEach((paragraphResult: SemanticSearchResult) => {
-        // Find element by paragraph index
-        const element = elements[paragraphResult.paragraphIndex];
-        if (element) {
-          matchingElements.push(element);
-        }
-      });
-      
-      if (matchingElements.length > 0) {
-        // Create content with only matching paragraphs
-        modifiedContent = matchingElements.map(el => {
-          // Add visual highlighting for paragraphs with tags
-          const dataTags = el.getAttribute('data-tags');
-          if (dataTags) {
-            // Add a class for visual highlighting
-            el.setAttribute('class', (el.getAttribute('class') || '') + ' highlighted-paragraph');
-          }
-          return el.outerHTML;
-        }).join('<hr class="paragraph-separator" />');
-      }
-    } else if (tagFilters.length > 0) {
-      // Fallback logic: if no specific paragraphs but tag filters exist
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = item.note.content;
-      
-      const elements = tempDiv.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li');
-      const matchingElements: Element[] = [];
-      
-      elements.forEach(element => {
-        const dataTags = element.getAttribute('data-tags') || '';
-        if (!dataTags) return;
-        
-        const paragraphTags = dataTags.split(',').map(tag => tag.trim()).filter(tag => tag);
-        
-        const matches = tagFilters.some(filter => {
-          return paragraphTags.some(tag => tag.includes(filter.path));
-        });
-        
-        if (matches) {
-          matchingElements.push(element);
-        }
-      });
-      
-      if (matchingElements.length > 0) {
-        modifiedContent = matchingElements.map(el => {
-          el.setAttribute('class', (el.getAttribute('class') || '') + ' highlighted-paragraph');
-          return el.outerHTML;
-        }).join('<hr class="paragraph-separator" />');
-      }
-    }
-    
     return {
       ...item.note,
-      content: modifiedContent,
+      semanticParagraphIndices: item.paragraphs.map(paragraph => paragraph.paragraphIndex),
       // Use maximum score from all paragraphs in the note
       relevanceScore: Math.max(...item.scores)
     };
@@ -128,6 +66,35 @@ export const convertSemanticResultsToNotes = (
     // If no relevance, sort by creation date
     return b.createdAt.getTime() - a.createdAt.getTime();
   });
+};
+
+type SavedSearchCriteria = Pick<SavedFilter, 'searchQuery' | 'tagFilters' | 'showOnlyEmptyNotes' | 'extendedSearch' | 'relevanceThreshold'> & { tagInputValue?: string };
+type SemanticQuery = (query: string) => Promise<SemanticSearchResponse>;
+
+const nativeSemanticQuery: SemanticQuery = async query => {
+  const api = getNativeAPI();
+  if (!api?.searchSemantic) throw new Error('Расширенный поиск недоступен');
+  const response = await api.searchSemantic(query);
+  if (!response.success || !response.result) throw new Error(response.error || 'Ошибка расширенного поиска');
+  return response.result;
+};
+
+/** Shared by the search page, manual export and background auto-export. */
+export const getNotesForSavedFilter = async (
+  filter: SavedSearchCriteria,
+  allNotes: Note[],
+  semanticQuery: SemanticQuery = nativeSemanticQuery,
+): Promise<Note[]> => {
+  const { searchQuery, tagFilters, showOnlyEmptyNotes } = filter;
+  if (!flags.extendedSearch || !filter.extendedSearch || !searchQuery.trim()) {
+    return filterNotes(allNotes, searchQuery, tagFilters, filter.tagInputValue ?? '', showOnlyEmptyNotes);
+  }
+
+  const response = await semanticQuery(searchQuery.trim());
+  const matches = convertSemanticResultsToNotes(response, allNotes, [], filter.relevanceThreshold ?? 0.1);
+  if (!tagFilters.length && !filter.tagInputValue?.trim() && !showOnlyEmptyNotes) return matches;
+  const allowedIds = new Set(filterNotes(allNotes, '', tagFilters, filter.tagInputValue ?? '', showOnlyEmptyNotes).map(note => note.id));
+  return matches.filter(note => allowedIds.has(note.id));
 };
 
 /**

@@ -60,6 +60,15 @@ export const getNoteDisplayContent = (
   query: string,
   tagFilters: SearchTagFilter[],
 ): NoteDisplayContent => {
+  if (query.trim() && note.semanticParagraphIndices?.length) {
+    const root = document.createElement('div');
+    root.innerHTML = note.content;
+    const paragraphs = root.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li');
+    const matches = [...new Set(note.semanticParagraphIndices)]
+      .map(index => paragraphs[index]?.outerHTML)
+      .filter((html): html is string => Boolean(html));
+    if (matches.length > 0) return { content: matches.join('<br/><br/>'), isPartial: true };
+  }
   if (!query.trim() && tagFilters.length === 0) return { content: note.content, isPartial: false };
   if (query.trim() && noteFullyMatches(note, query) && tagFilters.length === 0) return { content: note.content, isPartial: false };
 

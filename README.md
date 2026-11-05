@@ -86,7 +86,7 @@ environment variable (each platform gets its own bundle):
 
 | Command | PLATFORM | Constants |
 | --- | --- | --- |
-| `npm run build:desktop` | `desktop` | two Electron packages: light and extended search |
+| `npm run build:desktop` | `desktop` | two native installers: light and extended search |
 | `npm run build:desktop:web` | `desktop` | web bundle for Electron (used internally) |
 | `npm run build:android` | `android` | `__IS_ANDROID__ = true` |
 | `npm run build:packaged` | `packaged` | `__IS_PACKAGED__ = true` |
@@ -106,10 +106,13 @@ any missing files are downloaded there and cached for the next build. The model
 profile `model.json` comes from `instruments/semantic-search/models/`. If the
 Vosk resources for voice memos are not already in
 `native-clients/electron/{models,libvosk}/`, fetch them separately with
-`bash scripts/fetch-vosk-models.sh`. The command builds the Go search binary and produces
-`native-clients/electron/out/light/` (without the search
-instrument or its model/runtime) and `native-clients/electron/out/extended/`
-(with all three under `resources/dist/instruments/semantic-search/`). Set
+`bash scripts/fetch-vosk-models.sh`. The command builds the Go search binary,
+packages both variants and creates **two `.dmg` files on macOS** or **two `.deb`
+files on Linux** under `native-clients/electron/out/{light,extended}/make/`.
+The light variant omits semantic search; the extended variant includes its
+binary, model and runtime under `resources/dist/instruments/semantic-search/`.
+The `.deb` maker requires `dpkg` and `fakeroot` on Linux; macOS does not build
+Linux installers. Set
 `SOLO_EXTENDED_SEARCH_ASSETS=/absolute/path` to use a different assets folder.
 Desktop packaging of ONNX Runtime currently supports macOS (arm64/x64) and
 Linux (x64/arm64); it fails explicitly on other hosts.
