@@ -49,6 +49,7 @@ const App = observer(() => {
   const { notesStore, settingsStore, tagsStore, readLaterStore } = useStore();
   const [initialContent, setInitialContent] = useState('');
   const [autoZenDisabled, setAutoZenDisabled] = useState(false);
+  const autoZenNoteId = useRef<string | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchInitialTag, setSearchInitialTag] = useState<string | undefined>(undefined);
   const [searchInitialFilters, setSearchInitialFilters] = useState<SavedFilter | undefined>(undefined);
@@ -130,15 +131,8 @@ const App = observer(() => {
           const currentWords = currentContent.split(/\s+/).filter(word => word.length > 0).length;
           const newWords = currentWords - initialWords;
 
-          // Учитываем тему заметки при проверке autoZenMode
-          const noteTheme = notesStore.selectedNote?.theme;
-          const currentSettings = noteTheme
-            ? themes[noteTheme].settings
-            : settingsStore.selectedTheme
-              ? themes[settingsStore.selectedTheme].settings
-              : settingsStore.settings;
-
-          if (newWords > 5 && !settingsStore.isZenMode && !autoZenDisabled && currentSettings.autoZenMode) {
+          // Theme changes update the preference; manual changes afterward take precedence.
+          if (newWords > 5 && !settingsStore.isZenMode && !autoZenDisabled && settingsStore.settings.autoZenMode) {
             settingsStore.toggleZenMode();
           }
         }
@@ -259,7 +253,10 @@ const App = observer(() => {
           editor.commands.setContent(content);
           setInitialContent(editor.state.doc.textContent);
         }
-        setAutoZenDisabled(false);
+        if (autoZenNoteId.current !== notesStore.selectedNote.id) {
+          autoZenNoteId.current = notesStore.selectedNote.id;
+          setAutoZenDisabled(false);
+        }
 
         const loadCustomCss = async () => {
           removeNoteStyles();
@@ -276,6 +273,10 @@ const App = observer(() => {
 
         loadCustomCss();
       }
+    }
+
+    if (!notesStore.selectedNote) {
+      autoZenNoteId.current = null;
     }
 
     return () => {
