@@ -251,6 +251,7 @@ export interface DigikamImage {
 }
 
 interface AndroidBridgeRaw {
+  consumePendingShare(): string;
   selectFolder(): void;
   getDataFolder(): string;
   openFile(relativePath: string): string;
@@ -292,5 +293,6 @@ declare global {
     SoloBridge?: AndroidBridgeRaw;
     __soloSelectFolderCallback?: (resultJson: string) => void;
     __soloVideoRecordingResult?: (resultJson: string) => void;
+    __soloReceiveShare?: () => void;
   }
 }

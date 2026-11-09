@@ -3,9 +3,10 @@ import { X, BookmarkPlus } from 'lucide-react';
 import { observer } from 'mobx-react-lite';
 import { useStore } from '../../stores/StoreProvider';
 import { useI18n } from '../../i18n/I18nContext';
+import './ReadLaterModal.css';
 
 export const ReadLaterModal: FC = observer(() => {
-  const { readLaterStore } = useStore();
+  const { readLaterStore, notesStore } = useStore();
   const { t } = useI18n();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -79,6 +80,23 @@ export const ReadLaterModal: FC = observer(() => {
                 boxSizing: 'border-box',
               }}
             />
+
+            <label htmlFor="read-later-notebook" className="read-later-notebook-label">
+              {t.readLater.notebook}
+            </label>
+            <select
+              id="read-later-notebook"
+              className="read-later-notebook-select"
+              value={readLaterStore.notebookId || ''}
+              onChange={e => readLaterStore.setNotebookId(e.target.value || null)}
+            >
+              <option value="">{t.readLater.noNotebook}</option>
+              {notesStore.notebooks.map(notebook => (
+                <option key={notebook.id} value={notebook.id}>
+                  {notebook.path || notebook.name}
+                </option>
+              ))}
+            </select>
 
             <label
               style={{

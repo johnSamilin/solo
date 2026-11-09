@@ -18,6 +18,9 @@ class WebViewBridge(
     private val searchEngine: SearchEngine
 ) {
     @JavascriptInterface
+    fun consumePendingShare(): String = activity.consumePendingShare()
+
+    @JavascriptInterface
     fun selectFolder() {
         activity.runOnUiThread { activity.launchFolderPicker() }
     }

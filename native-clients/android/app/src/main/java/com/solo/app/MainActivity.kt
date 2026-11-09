@@ -51,6 +51,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var transcriptionManager: TranscriptionManager
     private lateinit var searchEngine: SearchEngine
     private lateinit var bridge: WebViewBridge
+    private var pendingSharedText: String? = null
 
     private lateinit var videoRecorder: VideoRecorder
     private lateinit var videoOverlay: FrameLayout
@@ -126,9 +127,34 @@ class MainActivity : AppCompatActivity() {
             fileSystemManager.setRootFolder(savedFolder)
         }
 
+        receiveSharedIntent(intent)
         setupWebView()
         setupVideoOverlay()
         setupBackNavigation()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        receiveSharedIntent(intent)
+    }
+
+    private fun receiveSharedIntent(intent: Intent?) {
+        if (intent?.action != Intent.ACTION_SEND || intent.type != "text/plain") return
+        val text = intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()?.trim()
+        if (text.isNullOrEmpty()) return
+        synchronized(this) { pendingSharedText = text }
+        if (::webView.isInitialized) {
+            // The renderer consumes the queued value; a not-yet-ready page can
+            // retrieve it when its share handler is registered.
+            webView.evaluateJavascript("window.__soloReceiveShare?.()", null)
+        }
+    }
+
+    fun consumePendingShare(): String = synchronized(this) {
+        val text = pendingSharedText.orEmpty()
+        pendingSharedText = null
+        text
     }
 
     @SuppressLint("SetJavaScriptEnabled")

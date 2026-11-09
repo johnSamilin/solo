@@ -64,6 +64,23 @@ const App = observer(() => {
   // чтобы не создавать дублирующих записей в истории браузера.
   const suppressHistoryPush = useRef(false);
 
+  useEffect(() => {
+    if (!isAndroid || !window.SoloBridge?.consumePendingShare) return;
+
+    const receiveShare = () => {
+      const text = window.SoloBridge?.consumePendingShare();
+      if (text) readLaterStore.openSharedText(text);
+    };
+    window.__soloReceiveShare = receiveShare;
+    receiveShare(); // Cold start: the intent arrived before React was ready.
+
+    return () => {
+      if (window.__soloReceiveShare === receiveShare) {
+        delete window.__soloReceiveShare;
+      }
+    };
+  }, [readLaterStore]);
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({

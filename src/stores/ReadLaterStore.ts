@@ -26,12 +26,14 @@ function sanitizeTitle(title: string): string {
 export class ReadLaterStore {
   isOpen = false;
   url = '';
+  notebookId: string | null = null;
   saveStyles = false;
   isLoading = false;
   error: string | null = null;
 
   private notesStore: NotesStore;
   private settingsStore: SettingsStore;
+  private clipboardRequest = 0;
 
   constructor(notesStore: NotesStore, settingsStore: SettingsStore) {
     this.notesStore = notesStore;
@@ -42,12 +44,25 @@ export class ReadLaterStore {
   open = () => {
     this.error = null;
     this.saveStyles = false;
+    this.notebookId = this.notesStore.focusedNotebookId;
     this.isOpen = true;
-    this.prefillFromClipboard();
+    this.prefillFromClipboard(++this.clipboardRequest);
+  };
+
+  openSharedText = (text: string) => {
+    // ACTION_SEND may include the page title on a line before the URL.
+    const url = text.match(/https?:\/\/[^\s<>]+/i)?.[0] || text.trim();
+    this.clipboardRequest++;
+    this.url = url;
+    this.notebookId = null;
+    this.saveStyles = false;
+    this.error = isValidHttpUrl(url) ? null : 'Enter a valid http(s) URL';
+    this.isOpen = true;
   };
 
   close = () => {
     if (this.isLoading) return;
+    this.clipboardRequest++;
     this.isOpen = false;
     this.error = null;
   };
@@ -57,16 +72,20 @@ export class ReadLaterStore {
     this.error = null;
   };
 
+  setNotebookId = (notebookId: string | null) => {
+    this.notebookId = notebookId;
+  };
+
   setSaveStyles = (value: boolean) => {
     this.saveStyles = value;
   };
 
-  private prefillFromClipboard = async () => {
+  private prefillFromClipboard = async (request: number) => {
     try {
       const clipboard = navigator.clipboard;
       if (!clipboard || typeof clipboard.readText !== 'function') return;
       const text = (await clipboard.readText()).trim();
-      if (text && isValidHttpUrl(text)) {
+      if (request === this.clipboardRequest && this.isOpen && text && isValidHttpUrl(text)) {
         this.url = text;
       }
     } catch {
@@ -87,6 +106,11 @@ export class ReadLaterStore {
       return;
     }
 
+    if (this.notebookId && !this.notesStore.notebooks.some(notebook => notebook.id === this.notebookId)) {
+      this.error = 'Selected notebook no longer exists';
+      return;
+    }
+
     this.isLoading = true;
     this.error = null;
     try {
@@ -100,7 +124,7 @@ export class ReadLaterStore {
         throw new Error('No readable content found on the page');
       }
 
-      const created = await this.notesStore.createNote();
+      const created = await this.notesStore.createNote(this.notebookId || '');
       if (!created?.path) {
         throw new Error('Failed to create note');
       }
