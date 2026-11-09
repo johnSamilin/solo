@@ -544,6 +544,10 @@ const App = observer(() => {
               </div>
             </div>
           </div>
+        ) : notesStore.selectedNote && (!notesStore.selectedNote.isLoaded || notesStore.isLoadingNoteContent) ? (
+          <div className="loading-overlay">
+            <div className="loading-spinner"><p>Loading note...</p></div>
+          </div>
         ) : notesStore.selectedNote ? (
           <Editor
             editor={editor}
