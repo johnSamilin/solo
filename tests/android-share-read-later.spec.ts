@@ -2,11 +2,11 @@ import { expect, test, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-async function mockShareTarget(page: Page, startupShare = '') {
-  await page.addInitScript(({ initialShare }) => {
+async function mockShareTarget(page: Page, startupShare = '', createdId?: string) {
+  await page.addInitScript(({ initialShare, initialId }) => {
     let pendingShare = initialShare;
     const files = new Map<string, string>();
-    const metadata = new Map<string, { tags: string[]; sourceUrl?: string }>();
+    const metadata = new Map<string, { id: string; tags: string[]; sourceUrl?: string }>();
     const fetches: string[] = [];
     const structure = [{
       name: 'Reading', path: 'Reading', type: 'folder', children: [{
@@ -42,7 +42,7 @@ async function mockShareTarget(page: Page, startupShare = '') {
         const htmlPath = `${parent ? `${parent}/` : ''}${title}.html`;
         files.set(htmlPath, '');
         structure[0].children[0].children.push({ name: `${title}.html`, path: htmlPath, type: 'file' });
-        return { success: true, id: htmlPath, htmlPath };
+        return { success: true, id: initialId || htmlPath, htmlPath };
       },
       updateFile: async (path: string, content: string) => {
         files.set(path, content);
@@ -59,13 +59,15 @@ async function mockShareTarget(page: Page, startupShare = '') {
         }
         return { success: true, newPath };
       },
-      updateMetadata: async (path: string, data: { tags: string[]; sourceUrl?: string }) => {
+      updateMetadata: async (path: string, data: { id: string; tags: string[]; sourceUrl?: string }) => {
         metadata.set(path, data);
+        const node = structure[0].children[0].children.find(item => item.path === path);
+        if (node) node.metadata = data;
         return { success: true };
       },
       openFile: async (path: string) => ({ success: true, content: files.get(path) || '' }),
     };
-  }, { initialShare: startupShare });
+  }, { initialShare: startupShare, initialId: createdId });
 }
 
 test('Android registers as a share target for links', () => {
@@ -91,14 +93,14 @@ test('a shared link on cold start can be saved to a nested notebook', async ({ p
 
   await expect.poll(() => page.evaluate(() => {
     const state = (window as typeof window & {
-      shareTest: { files: Map<string, string>; metadata: Map<string, { tags: string[]; sourceUrl?: string }>; fetches: string[] };
+      shareTest: { files: Map<string, string>; metadata: Map<string, { id: string; tags: string[]; sourceUrl?: string }>; fetches: string[] };
     }).shareTest;
     const path = Array.from(state.files.keys())[0];
     return { path, content: state.files.get(path), metadata: state.metadata.get(path), fetches: state.fetches };
   })).toMatchObject({
     path: 'Reading/Tech/Test article.html',
     content: expect.stringContaining('A readable article'),
-    metadata: { tags: ['Unread'], sourceUrl: 'https://example.com/story' },
+    metadata: { id: 'Reading/Tech/Test article.html', tags: ['Unread'], sourceUrl: 'https://example.com/story' },
     fetches: ['https://example.com/story'],
   });
 });
@@ -153,4 +155,23 @@ test('choosing root overrides the focused notebook', async ({ page }) => {
   await expect.poll(() => page.evaluate(() => Array.from((window as typeof window & {
     shareTest: { files: Map<string, string> };
   }).shareTest.files.keys()))).toContain('Test article.html');
+});
+
+test('Read Later stores the final article filename as its note ID', async ({ page }) => {
+  await mockShareTarget(page, '', '1730764800000');
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Menu' }).click();
+  await page.getByRole('menuitem', { name: /Read later/i }).click();
+
+  const modal = page.locator('.modal');
+  await modal.locator('input[type=url]').fill('https://example.com/story');
+  await modal.locator('select').selectOption('Reading/Tech');
+  await modal.locator('button[type=submit]').click();
+
+  await expect.poll(() => page.evaluate(() => {
+    const state = (window as typeof window & {
+      shareTest: { metadata: Map<string, { id: string }> };
+    }).shareTest;
+    return Array.from(state.metadata.entries()).map(([path, metadata]) => ({ path, id: metadata.id }));
+  })).toEqual([{ path: 'Reading/Tech/Test article.html', id: 'Reading/Tech/Test article.html' }]);
 });

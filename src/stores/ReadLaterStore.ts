@@ -153,7 +153,7 @@ export class ReadLaterStore {
       }
 
       await api.updateMetadata(htmlPath, {
-        id: created.id,
+        id: htmlPath,
         tags: ['Unread'],
         createdAt: new Date(created.createdAt).toISOString().split('T')[0],
         theme: created.theme,
