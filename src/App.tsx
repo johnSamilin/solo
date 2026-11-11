@@ -14,6 +14,7 @@ import { CutIn } from './extensions/CutIn';
 import { Carousel } from './extensions/Carousel';
 import { VoiceMemo } from './extensions/VoiceMemo';
 import { VideoMemo } from './extensions/VideoMemo';
+import { TextHighlight } from './extensions/TextHighlight';
 import { useStore } from './stores/StoreProvider';
 import { SavedFilter } from './types';
 import { SettingsModal } from './components/Modals/SettingsModal/SettingsModal';
@@ -111,6 +112,7 @@ const App = observer(() => {
         nested: true,
       }),
       ParagraphTags,
+      TextHighlight,
       CutIn,
       Carousel,
       VoiceMemo,
