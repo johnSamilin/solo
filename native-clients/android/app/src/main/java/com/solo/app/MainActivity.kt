@@ -16,6 +16,7 @@ import android.os.Looper
 import android.provider.Settings
 import android.view.View
 import android.view.WindowManager
+import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -70,6 +71,16 @@ class MainActivity : AppCompatActivity() {
             videoTimer.text = "$m:${s.toString().padStart(2, '0')}"
             videoTimerHandler.postDelayed(this, 1000)
         }
+    }
+
+    private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
+
+    private val fileChooserLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val uris = WebChromeClient.FileChooserParams.parseResult(result.resultCode, result.data)
+        fileChooserCallback?.onReceiveValue(uris)
+        fileChooserCallback = null
     }
 
     private val folderPickerLauncher = registerForActivityResult(
@@ -219,6 +230,28 @@ class MainActivity : AppCompatActivity() {
                 // Grant audio capture so voice memos can record from the
                 // microphone inside the WebView.
                 request?.grant(request.resources)
+            }
+
+            override fun onShowFileChooser(
+                webView: WebView?,
+                filePathCallback: ValueCallback<Array<Uri>>?,
+                fileChooserParams: FileChooserParams?
+            ): Boolean {
+                fileChooserCallback?.onReceiveValue(null)
+                fileChooserCallback = filePathCallback
+                return try {
+                    val intent = fileChooserParams?.createIntent()
+                        ?: Intent(Intent.ACTION_GET_CONTENT).apply {
+                            type = "*/*"
+                            addCategory(Intent.CATEGORY_OPENABLE)
+                        }
+                    fileChooserLauncher.launch(intent)
+                    true
+                } catch (e: Exception) {
+                    fileChooserCallback?.onReceiveValue(null)
+                    fileChooserCallback = null
+                    false
+                }
             }
         }
 
