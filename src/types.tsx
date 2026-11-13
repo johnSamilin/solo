@@ -146,8 +146,14 @@ export interface ElectronAPI {
   renameNotebook: (relativePath: string, newName: string) => Promise<{ success: boolean; newPath?: string; error?: string }>;
   openPdfFile: (relativePath: string) => Promise<{ success: boolean; data?: string; error?: string }>;
   selectFile: (filters?: { name: string; extensions: string[] }[]) => Promise<{ success: boolean; path?: string; error?: string }>;
+  getPathForFile?: (file: File) => string;
+  attachImages?: (dbPath: string, absolutePaths: string[]) => Promise<AttachImagesResult>;
+  pickImagesForAttach?: () => Promise<AttachImagesResult>;
   getDigikamTags: (dbPath: string) => Promise<{ success: boolean; tags?: DigikamTag[]; error?: string }>;
   getDigikamImagesByTag: (dbPath: string, tagId: number, limit?: number) => Promise<{ success: boolean; images?: DigikamImage[]; digikamTag: string; error?: string }>;
+  selectDigikamFolder?: () => Promise<{ success: boolean; path?: string; error?: string }>;
+  is9x15Available?: () => Promise<{ success: boolean; available?: boolean; error?: string }>;
+  pick9x15Photos?: () => Promise<{ success: boolean; paths?: string[]; error?: string }>;
   exportFile: (request: ExportFileRequest) => Promise<ExportFileResult>;
   selectExportCoverImage: () => Promise<ExportCoverImageResult>;
   readImage: (url: string) => Promise<ReadImageResult>;
@@ -243,6 +249,17 @@ export interface DigikamTag {
   name: string;
 }
 
+export interface AttachedImage {
+  linked: boolean;
+  url: string;
+}
+
+export interface AttachImagesResult {
+  success: boolean;
+  images?: AttachedImage[];
+  error?: string;
+}
+
 export interface DigikamImage {
   id: number;
   name: string;
@@ -251,6 +268,12 @@ export interface DigikamImage {
 }
 
 interface AndroidBridgeRaw {
+  selectDigikamFolder(): void;
+  isNineByFifteenAvailable(): string;
+  pickNineByFifteenPhotos(): void;
+  pickImagesForAttach(): void;
+  getDigikamTags(dbPath: string): string;
+  getDigikamImagesByTag(dbPath: string, tagId: number, limit: number): string;
   consumePendingShare(): string;
   selectFolder(): void;
   getDataFolder(): string;
@@ -294,5 +317,8 @@ declare global {
     __soloSelectFolderCallback?: (resultJson: string) => void;
     __soloVideoRecordingResult?: (resultJson: string) => void;
     __soloReceiveShare?: () => void;
+    __soloSelectDigikamFolderCallback?: (resultJson: string) => void;
+    __solo9x15PickerCallback?: (resultJson: string) => void;
+    __soloAttachImagesCallback?: (resultJson: string) => void;
   }
 }

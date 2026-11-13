@@ -53,8 +53,31 @@ function wrapAndroidBridge(): ElectronAPI | null {
     renameNotebook: (relativePath: string, newName: string) =>
       Promise.resolve(parseJson(bridge.renameNotebook(relativePath, newName))),
     selectFile: () => Promise.resolve({ success: false, error: 'Not supported on Android' }),
-    getDigikamTags: () => Promise.resolve({ success: false, error: 'Not supported on Android' }),
-    getDigikamImagesByTag: () => Promise.resolve({ success: false, error: 'Not supported on Android', digikamTag: '' }),
+    getDigikamTags: (dbPath: string) => Promise.resolve(parseJson(bridge.getDigikamTags(dbPath))),
+    getDigikamImagesByTag: (dbPath: string, tagId: number, limit: number = 10) =>
+      Promise.resolve(parseJson(bridge.getDigikamImagesByTag(dbPath, tagId, limit))),
+    selectDigikamFolder: () => new Promise(resolve => {
+      window.__soloSelectDigikamFolderCallback = (resultJson: string) => {
+        delete window.__soloSelectDigikamFolderCallback;
+        resolve(parseJson(resultJson));
+      };
+      bridge.selectDigikamFolder();
+    }),
+    is9x15Available: () => Promise.resolve(parseJson(bridge.isNineByFifteenAvailable())),
+    pick9x15Photos: () => new Promise(resolve => {
+      window.__solo9x15PickerCallback = (resultJson: string) => {
+        delete window.__solo9x15PickerCallback;
+        resolve(parseJson(resultJson));
+      };
+      bridge.pickNineByFifteenPhotos();
+    }),
+    pickImagesForAttach: () => new Promise(resolve => {
+      window.__soloAttachImagesCallback = (resultJson: string) => {
+        delete window.__soloAttachImagesCallback;
+        resolve(parseJson(resultJson));
+      };
+      bridge.pickImagesForAttach();
+    }),
     exportFile: () => Promise.resolve({ success: false, error: 'Export is not supported on Android' }),
     selectExportCoverImage: () => Promise.resolve({ success: false, error: 'Export is not supported on Android' }),
     readImage: () => Promise.resolve({ success: false, error: 'Not supported on Android' }),

@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, webUtils } from 'electron';
 
 interface FileMetadata {
   id: string;
@@ -48,6 +48,8 @@ const api = {
   pauseVideoRecording: () => Promise.resolve({ success: false, error: 'Not supported on desktop' }),
   resumeVideoRecording: () => Promise.resolve({ success: false, error: 'Not supported on desktop' }),
   transcribeVideo: () => Promise.resolve({ success: false, error: 'Not supported on desktop' }),
+  getPathForFile: (file: unknown) => webUtils.getPathForFile(file),
+  attachImages: (dbPath: string, absolutePaths: string[]) => ipcRenderer.invoke('attach-images', dbPath, absolutePaths),
   getDigikamTags: (dbPath: string) => ipcRenderer.invoke('get-digikam-tags', dbPath),
   getDigikamImagesByTag: (dbPath: string, tagId: number, limit?: number) => ipcRenderer.invoke('get-digikam-images-by-tag', dbPath, tagId, limit),
   openPdfFile: (relativePath: string) => ipcRenderer.invoke('open-pdf-file', relativePath),

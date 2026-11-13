@@ -7,7 +7,7 @@ import { Statistics } from "./Statistics";
 import { observer } from "mobx-react-lite";
 import { useStore } from "../../../stores/StoreProvider";
 import { useI18n } from "../../../i18n/I18nContext";
-import { getNativeAPI } from "../../../utils/nativeBridge";
+import { getNativeAPI, isAndroid } from "../../../utils/nativeBridge";
 import "./SettingsModal.css";
 
 type SettingsModalProps = {
@@ -36,11 +36,11 @@ export const SettingsModal: FC<SettingsModalProps> = observer(({ onClose}) => {
 
   const handleSelectDigikamDb = async () => {
     const api = getNativeAPI();
-    if (!api?.selectFile) return;
+    if (!api) return;
 
-    const result = await api.selectFile([
-      { name: 'SQLite Database', extensions: ['db', 'sqlite', 'sqlite3'] }
-    ]);
+    const result = isAndroid && api.selectDigikamFolder
+      ? await api.selectDigikamFolder()
+      : await api.selectFile([{ name: 'SQLite Database', extensions: ['db', 'sqlite', 'sqlite3'] }]);
     if (result.success && result.path) {
       settingsStore.setDigikamDbPath(result.path);
       settingsStore.setToast('digiKam database path updated', 'success');
@@ -111,7 +111,7 @@ export const SettingsModal: FC<SettingsModalProps> = observer(({ onClose}) => {
                 </button>
               </div>
               <small className="data-folder-help">
-                Optional: Path to digiKam database file
+                 {isAndroid ? 'Select the photo folder containing digikam4.db' : 'Optional: Path to digiKam database file'}
               </small>
             </div>
           </div>

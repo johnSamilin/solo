@@ -318,6 +318,11 @@ class FileSystemManager(
         }
 
         val bytes = Base64.decode(actualData, Base64.DEFAULT)
+        return saveImageBytes(bytes, fileName)
+    }
+
+    fun saveImageBytes(bytes: ByteArray, fileName: String): String {
+        val root = rootFolder ?: throw IllegalStateException("Root folder not set")
 
         val sanitizedName = SecurityUtils.sanitizeFileName(fileName)
         val imagesDir = File(root, "assets")

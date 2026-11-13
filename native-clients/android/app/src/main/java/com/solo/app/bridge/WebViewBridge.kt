@@ -12,11 +12,46 @@ import java.net.URL
 class WebViewBridge(
     private val activity: MainActivity,
     private val fileSystemManager: FileSystemManager,
+    private val digikamManager: DigikamManager,
     private val audioPlayer: AudioPlayer,
     private val audioRecorder: AudioRecorder,
     private val transcriptionManager: TranscriptionManager,
     private val searchEngine: SearchEngine
 ) {
+    @JavascriptInterface
+    fun selectDigikamFolder() {
+        activity.runOnUiThread { activity.selectDigikamFolder() }
+    }
+
+    @JavascriptInterface
+    fun isNineByFifteenAvailable(): String =
+        """{"success":true,"available":${activity.isNineByFifteenAvailable()}}"""
+
+    @JavascriptInterface
+    fun pickNineByFifteenPhotos() {
+        activity.runOnUiThread { activity.pickNineByFifteenPhotos() }
+    }
+
+    @JavascriptInterface
+    fun pickImagesForAttach() {
+        activity.runOnUiThread { activity.pickImagesForAttach() }
+    }
+
+    @JavascriptInterface
+    fun getDigikamTags(dbPath: String): String = try {
+        """{"success":true,"tags":${digikamManager.tags(dbPath)}}"""
+    } catch (e: Exception) {
+        """{"success":false,"error":${SecurityUtils.toJsonString(e.message ?: "Unable to load digiKam tags")}}"""
+    }
+
+    @JavascriptInterface
+    fun getDigikamImagesByTag(dbPath: String, tagId: Int, limit: Int): String = try {
+        val data = digikamManager.imagesByTag(dbPath, tagId, limit)
+        data.put("success", true).toString()
+    } catch (e: Exception) {
+        """{"success":false,"error":${SecurityUtils.toJsonString(e.message ?: "Unable to load digiKam images")}}"""
+    }
+
     @JavascriptInterface
     fun consumePendingShare(): String = activity.consumePendingShare()
 

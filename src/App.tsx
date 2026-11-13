@@ -16,7 +16,7 @@ import { VoiceMemo } from './extensions/VoiceMemo';
 import { VideoMemo } from './extensions/VideoMemo';
 import { TextHighlight } from './extensions/TextHighlight';
 import { useStore } from './stores/StoreProvider';
-import { SavedFilter } from './types';
+import { SavedFilter, AttachedImage } from './types';
 import { SettingsModal } from './components/Modals/SettingsModal/SettingsModal';
 import { NewNotebookModal } from './components/Modals/NewNoteBookModal';
 import { Sidebar } from './components/Sidebar/Sidebar';
@@ -420,6 +420,51 @@ const App = observer(() => {
 
   imageUploadRef.current = handleImageUpload;
 
+  const insertAttachedImages = (images: AttachedImage[]) => {
+    if (!editor || images.length === 0) return;
+    const linked = images.filter(image => image.linked).map(image => image.url);
+    const uploaded = images.filter(image => !image.linked).map(image => image.url);
+    const chain = editor.chain().focus();
+    if (uploaded.length === 1) {
+      chain.setImage({ src: uploaded[0] });
+    } else if (uploaded.length > 1) {
+      chain.setCarousel(uploaded, '');
+    }
+    if (linked.length > 0) {
+      chain.setCarousel(linked, '');
+    }
+    chain.run();
+  };
+
+  const handleInsertFiles = async (files: File[]) => {
+    const api = getNativeAPI();
+    if (!api?.attachImages || files.length === 0) return;
+    try {
+      const getPath = window.electronAPI?.getPathForFile;
+      const paths = files
+        .map(file => (getPath ? getPath(file) : (file as File & { path?: string }).path))
+        .filter((path): path is string => typeof path === 'string' && path.length > 0);
+      if (paths.length === 0) return;
+      const result = await api.attachImages(settingsStore.digikamDbPath || '', paths);
+      if (result.success && result.images) insertAttachedImages(result.images);
+      else if (result.error) settingsStore.setToast(result.error, 'error');
+    } catch (error) {
+      settingsStore.setToast((error as Error).message || 'Failed to attach images', 'error');
+    }
+  };
+
+  const handlePickImages = async () => {
+    const api = getNativeAPI();
+    if (!api?.pickImagesForAttach) return;
+    try {
+      const result = await api.pickImagesForAttach();
+      if (result.success && result.images) insertAttachedImages(result.images);
+      else if (result.error && result.error !== 'Selection cancelled') settingsStore.setToast(result.error, 'error');
+    } catch (error) {
+      settingsStore.setToast((error as Error).message || 'Failed to attach images', 'error');
+    }
+  };
+
   const handleImageInsertClick = () => {
     setIsImageInsertModalOpen(true);
   };
@@ -613,9 +658,10 @@ const App = observer(() => {
       )}
 
       {isImageInsertModalOpen && (
-        <ImageInsertModal
+          <ImageInsertModal
           onClose={() => setIsImageInsertModalOpen(false)}
-          onInsertFile={handleImageUpload}
+            onInsertFiles={handleInsertFiles}
+            onPickImages={handlePickImages}
           onInsertCarousel={handleInsertCarousel}
         />
       )}

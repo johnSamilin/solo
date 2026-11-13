@@ -21,6 +21,10 @@
         android:name="android.hardware.camera.front"
         android:required="false" />
 
+    <queries>
+        <package android:name="ru.example.ninexfifteen" />
+    </queries>
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"

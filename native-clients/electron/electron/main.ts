@@ -1838,6 +1838,51 @@ ipcMain.handle('get-digikam-images-by-tag', async (_event, dbPath: string, tagId
   }
 });
 
+ipcMain.handle('attach-images', async (_event, dbPath: string, absolutePaths: string[]) => {
+  let db: Database.Database | null = null;
+  try {
+    const roots: string[] = [];
+    if (dbPath && existsSync(dbPath)) {
+      db = new Database(dbPath, { readonly: true, fileMustExist: true });
+      const rows = db.prepare('SELECT DISTINCT specificPath FROM AlbumRoots').all() as Array<{ specificPath: string }>;
+      roots.push(...rows.map((row) => path.resolve(row.specificPath)).filter(Boolean));
+    }
+
+    const assetsDir = path.join(dataFolder, 'assets');
+    if (!existsSync(assetsDir)) {
+      await fs.mkdir(assetsDir, { recursive: true });
+    }
+
+    let copyIndex = 0;
+    const images = await Promise.all(
+      absolutePaths.map(async (absolutePath) => {
+        const resolved = path.resolve(absolutePath);
+        const root = roots.find((candidate) => resolved === candidate || resolved.startsWith(candidate + path.sep));
+        if (root) {
+          return { linked: true, url: `file://${resolved}` };
+        }
+        const fileName = path.basename(resolved);
+        const sanitized = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const unique = `${Date.now()}-${copyIndex++}-${sanitized}`.toLowerCase();
+        await fs.copyFile(resolved, path.join(assetsDir, unique));
+        return { linked: false, url: `image://${unique}` };
+      }),
+    );
+
+    return { success: true, images };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  } finally {
+    if (db) {
+      try {
+        db.close();
+      } catch {
+        // already closed
+      }
+    }
+  }
+});
+
 const openLogFile = async () => {
   try {
     const logFile = logger.getLogFile();
