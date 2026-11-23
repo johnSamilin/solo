@@ -46,7 +46,7 @@ Solo stores notes as **HTML in your filesystem**, so you can read, backup, sync,
 - Timeline view + date picker navigation
 
 ### Typography
-- Themes: [Air](https://johnsamilin.github.io/?note=Theme-+air.html), [Typewriter](https://johnsamilin.github.io/?note=Theme-+typewriter.html), [Narrow](https://johnsamilin.github.io/?note=Theme-+narrow.html), [FBI](https://johnsamilin.github.io/?note=Theme-+FBI.html), [Alighieri](https://johnsamilin.github.io/?note=Theme-+Alighieri.html), [Terminal](https://johnsamilin.github.io/?note=Theme-+terminal.html)  
+- Themes: [Air](https://johnsamilin.github.io/?note=Theme-+air.html), [Typewriter](https://johnsamilin.github.io/?note=Theme-+typewriter.html), [Narrow](https://johnsamilin.github.io/?note=Theme-+narrow.html), [FBI](https://johnsamilin.github.io/?note=Theme-+FBI.html), [Alighieri](https://johnsamilin.github.io/?note=Theme-+Alighieri.html), [Terminal](https://johnsamilin.github.io/?note=Theme-+terminal.html)
 - Controls: font, size, line height, margins, paragraph spacing, drop caps, content width
 
 ## Integrations
@@ -86,10 +86,39 @@ environment variable (each platform gets its own bundle):
 
 | Command | PLATFORM | Constants |
 | --- | --- | --- |
-| `npm run build:desktop` | `desktop` | `__IS_DESKTOP__ = true` |
+| `npm run build:desktop` | `desktop` | two native installers: light and extended search |
+| `npm run build:desktop:web` | `desktop` | web bundle for Electron (used internally) |
 | `npm run build:android` | `android` | `__IS_ANDROID__ = true` |
 | `npm run build:packaged` | `packaged` | `__IS_PACKAGED__ = true` |
-| `npm run build` | — | builds desktop + android |
+| `npm run build` | — | builds both desktop packages + android |
+
+To build both desktop variants on the current host, install dependencies in the
+root and `native-clients/electron`, then run:
+
+```sh
+npm run build:desktop
+```
+
+Requires Go 1.23+, a C compiler, `curl` and `tar`. It reuses existing
+`model.onnx` and `tokenizer.json` in `extended-search-assets/models/` and the
+host-compatible ONNX shared library in `extended-search-assets/onnx-runtime/lib/`;
+any missing files are downloaded there and cached for the next build. The model
+profile `model.json` comes from `instruments/semantic-search/models/`. If the
+Vosk resources for voice memos are not already in
+`native-clients/electron/{models,libvosk}/`, fetch them separately with
+`bash scripts/fetch-vosk-models.sh`. The command builds the Go search binary,
+packages both variants and creates **two `.dmg` files on macOS** or **two `.deb`
+files on Linux** under `native-clients/electron/out/{light,extended}/make/`.
+The light variant omits semantic search; the extended variant includes its
+binary, model and runtime under `resources/dist/instruments/semantic-search/`.
+The `.deb` maker requires `dpkg` and `fakeroot` on Linux; macOS does not build
+Linux installers. Set
+`SOLO_EXTENDED_SEARCH_ASSETS=/absolute/path` to use a different assets folder.
+Desktop packaging of ONNX Runtime currently supports macOS (arm64/x64) and
+Linux (x64/arm64); it fails explicitly on other hosts.
+
+`SOLO_EXTENDED_SEARCH=true|false` overrides only the desktop web build's
+compile-time flag. The two-package command sets it for each variant automatically.
 
 Each flag is expanded into a compile-time boolean constant `__FF_<NAME>__`
 (e.g. `extended-search` → `__FF_EXTENDED_SEARCH__`), so unused branches are
@@ -119,12 +148,13 @@ if (isFeatureEnabled('extended-search')) { /* ... */ }
 ```bash
 # Install dependencies
 npm install
+npm --prefix native-clients/electron install
 
 # Development
-npm run electron:dev     # Desktop version
+npm --prefix native-clients/electron run electron:start
 
-# Production builds
-npm run electron:build  # Desktop version
+# Both desktop packages
+npm run build:desktop
 ```
 
 ## License

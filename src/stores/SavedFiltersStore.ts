@@ -17,6 +17,7 @@ export class SavedFiltersStore {
     searchQuery: string,
     tagFilters: { path: string; operator: 'AND' | 'OR' | 'NOT' }[],
     showOnlyEmptyNotes: boolean,
+    searchOptions: Pick<SavedFilter, 'extendedSearch' | 'relevanceThreshold'> = {},
   ) {
     const filter: SavedFilter = {
       id: generateUniqueId(),
@@ -24,6 +25,8 @@ export class SavedFiltersStore {
       searchQuery,
       tagFilters: tagFilters.map(f => ({ path: f.path, operator: f.operator })),
       showOnlyEmptyNotes,
+      extendedSearch: searchOptions.extendedSearch ?? false,
+      relevanceThreshold: searchOptions.relevanceThreshold ?? 0.1,
     };
     this.savedFilters.push(filter);
     this.saveToStorage();
@@ -47,6 +50,14 @@ export class SavedFiltersStore {
     if (!filter) return;
 
     filter.exportProfile = profile;
+    this.saveToStorage();
+  }
+
+  updateSearchOptions(id: string, options: Pick<SavedFilter, 'extendedSearch' | 'relevanceThreshold'>) {
+    const filter = this.savedFilters.find(savedFilter => savedFilter.id === id);
+    if (!filter) return;
+    if (options.extendedSearch !== undefined) filter.extendedSearch = options.extendedSearch;
+    if (options.relevanceThreshold !== undefined) filter.relevanceThreshold = options.relevanceThreshold;
     this.saveToStorage();
   }
 

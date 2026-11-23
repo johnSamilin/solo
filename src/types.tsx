@@ -46,6 +46,10 @@ export interface SavedFilter {
   searchQuery: string;
   tagFilters: { path: string; operator: 'AND' | 'OR' | 'NOT' }[];
   showOnlyEmptyNotes: boolean;
+  extendedSearch?: boolean;
+  relevanceThreshold?: number;
+  /** Current tag input for manual export; not stored in saved filters. */
+  tagInputValue?: string;
   exportProfile?: SavedSearchExportProfile;
 }
 
@@ -64,6 +68,8 @@ export interface Note {
   fileType: NoteFileType;
   isLoaded: boolean;
   paragraphTags: string[];
+  /** Transient paragraph positions from semantic search (not persisted). */
+  semanticParagraphIndices?: number[];
   sourceUrl?: string;
 }
 
@@ -138,6 +144,7 @@ export interface ElectronAPI {
   toggleZenMode: (enable: boolean) => Promise<{ success: boolean; isZenMode?: boolean; error?: string }>;
   getZenMode: () => Promise<{ success: boolean; isZenMode?: boolean; error?: string }>;
   search: (searchString?: string, tags?: string[]) => Promise<{ success: boolean; results?: any[]; error?: string }>;
+  searchSemantic?: (queryText?: string, tagsExpr?: string) => Promise<{ success: boolean; result?: SemanticSearchResponse; error?: string }>;
   createNotebook: (parentPath: string, name: string) => Promise<{ success: boolean; path?: string; error?: string }>;
   createNote: (parentPath: string, name: string) => Promise<{ success: boolean; htmlPath?: string; jsonPath?: string; error?: string, id: string }>;
   deleteNote: (relativePath: string) => Promise<{ success: boolean; error?: string }>;
@@ -151,6 +158,10 @@ export interface ElectronAPI {
   pickImagesForAttach?: () => Promise<AttachImagesResult>;
   getDigikamTags: (dbPath: string) => Promise<{ success: boolean; tags?: DigikamTag[]; error?: string }>;
   getDigikamImagesByTag: (dbPath: string, tagId: number, limit?: number) => Promise<{ success: boolean; images?: DigikamImage[]; digikamTag: string; error?: string }>;
+  // Semantic-search re-indexing (Electron-only; optional on other platforms).
+  reindexAll?: () => Promise<{ success: boolean; result?: ReindexResult; error?: string }>;
+  reindexNote?: (relativePath: string) => Promise<{ success: boolean; result?: ReindexResult; error?: string }>;
+  onReindexProgress?: (callback: (data: ReindexProgress) => void) => () => void;
   selectDigikamFolder?: () => Promise<{ success: boolean; path?: string; error?: string }>;
   is9x15Available?: () => Promise<{ success: boolean; available?: boolean; error?: string }>;
   pick9x15Photos?: () => Promise<{ success: boolean; paths?: string[]; error?: string }>;
@@ -171,6 +182,19 @@ export interface ElectronAPI {
   stopVideoRecording: () => Promise<{ success: boolean; error?: string }>;
   pauseVideoRecording: () => Promise<{ success: boolean; error?: string }>;
   resumeVideoRecording: () => Promise<{ success: boolean; error?: string }>;
+}
+
+export interface ReindexProgress {
+  processed: number;
+  total: number;
+}
+
+export interface ReindexResult {
+  FilesScanned?: number;
+  FilesIndexed?: number;
+  FilesSkipped?: number;
+  FilesRemoved?: number;
+  ParagraphsNew?: number;
 }
 
 export interface ExportFileRequest {
@@ -321,4 +345,26 @@ declare global {
     __solo9x15PickerCallback?: (resultJson: string) => void;
     __soloAttachImagesCallback?: (resultJson: string) => void;
   }
+}
+export interface SemanticSearchResult {
+  filePath: string;
+  paragraphIndex: number;
+  tag: string;
+  text: string;
+  paragraphTags: string[];
+  fileTags: string[];
+  noteId: string;
+  fileCreatedAt: string;
+  score?: number;
+  semanticScore?: number;
+  lexicalScore?: number;
+  tagMatched?: boolean;
+}
+
+export interface SemanticSearchResponse {
+  mode: string;
+  query?: string;
+  tagExpr?: string;
+  count: number;
+  results: SemanticSearchResult[];
 }
