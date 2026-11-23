@@ -67,7 +67,6 @@ export class SettingsStore {
       if (stored) {
         const data = JSON.parse(stored);
         this.settings = data.settings;
-        this.isZenMode = data.isZenMode;
         this.isToolbarExpanded = data.isToolbarExpanded;
         this.digikamDbPath = data.digikamDbPath || null;
         this.selectedTheme = data.selectedTheme;
@@ -84,7 +83,6 @@ export class SettingsStore {
     try {
       const data = {
         settings: this.settings,
-        isZenMode: this.isZenMode,
         isToolbarExpanded: this.isToolbarExpanded,
         digikamDbPath: this.digikamDbPath,
         selectedTheme: this.selectedTheme,

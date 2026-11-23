@@ -63,6 +63,10 @@ declare module 'electron' {
   export const contextBridge: {
     exposeInMainWorld(apiKey: string, api: any): void;
   };
+
+  export const webUtils: {
+    getPathForFile(file: any): string;
+  };
 }
 
 declare global {

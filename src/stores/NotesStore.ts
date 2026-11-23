@@ -139,6 +139,7 @@ export class NotesStore {
         notebookId: targetNotebookId || null,
         isLoaded: true,
         path: result.htmlPath,
+        filePath: result.htmlPath,
         paragraphTags: [],
         fileType: 'html',
       };
@@ -581,6 +582,7 @@ export class NotesStore {
         const storedNote = this.notes.find(item => item.id === note.id);
         if (storedNote) {
           storedNote.content = content;
+          storedNote.isLoaded = true;
         }
 
         if (this.selectedNote?.id === note.id) {

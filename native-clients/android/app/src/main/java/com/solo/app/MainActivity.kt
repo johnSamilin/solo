@@ -16,6 +16,7 @@ import android.os.Looper
 import android.provider.Settings
 import android.view.View
 import android.view.WindowManager
+import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -29,12 +30,15 @@ import androidx.camera.view.PreviewView
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
+import org.json.JSONArray
+import org.json.JSONObject
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import com.solo.app.bridge.AudioPlayer
 import com.solo.app.bridge.AudioRecorder
 import com.solo.app.bridge.FileSystemManager
+import com.solo.app.bridge.DigikamManager
 import com.solo.app.bridge.SearchEngine
 import com.solo.app.bridge.TranscriptionManager
 import com.solo.app.bridge.VideoRecorder
@@ -46,11 +50,13 @@ class MainActivity : AppCompatActivity() {
     private lateinit var webView: WebView
     private lateinit var prefs: SharedPreferences
     private lateinit var fileSystemManager: FileSystemManager
+    private lateinit var digikamManager: DigikamManager
     private lateinit var audioPlayer: AudioPlayer
     private lateinit var audioRecorder: AudioRecorder
     private lateinit var transcriptionManager: TranscriptionManager
     private lateinit var searchEngine: SearchEngine
     private lateinit var bridge: WebViewBridge
+    private var pendingSharedText: String? = null
 
     private lateinit var videoRecorder: VideoRecorder
     private lateinit var videoOverlay: FrameLayout
@@ -71,10 +77,82 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
+
+    private val fileChooserLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val uris = WebChromeClient.FileChooserParams.parseResult(result.resultCode, result.data)
+        fileChooserCallback?.onReceiveValue(uris)
+        fileChooserCallback = null
+    }
+
     private val folderPickerLauncher = registerForActivityResult(
         ActivityResultContracts.OpenDocumentTree()
     ) { uri: Uri? ->
         handleFolderPickerResult(uri)
+    }
+
+    private val digikamFolderPickerLauncher = registerForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri: Uri? ->
+        val result = runCatching {
+            val folder = uri ?: error("Folder selection cancelled")
+            val path = SecurityUtils.getPathFromUri(this, folder) ?: error("Unable to resolve folder")
+            digikamManager.setSoloRoot(File(path))
+        }
+        val json = result.fold(
+            onSuccess = { JSONObject().put("success", true).put("path", it) },
+            onFailure = { JSONObject().put("success", false).put("error", it.message) },
+        )
+        webView.evaluateJavascript("window.__soloSelectDigikamFolderCallback?.(${JSONObject.quote(json.toString())})", null)
+    }
+
+    private val nineByFifteenPickerLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val json = runCatching {
+            if (result.resultCode != RESULT_OK) error("Selection cancelled")
+            val rootPath = result.data?.getStringExtra("picker_root") ?: error("Missing photo folder")
+            val selected = result.data?.getStringArrayListExtra("picker_paths") ?: error("No photos selected")
+            if (selected.isEmpty() || selected.size > 200) error("Select between 1 and 200 images")
+            val root = File(rootPath).canonicalFile
+            val references = selected.map { relative ->
+                val file = File(root, relative).canonicalFile
+                if (!file.path.startsWith(root.path + File.separator) || !file.isFile ||
+                    file.extension.lowercase() !in setOf("jpg", "jpeg", "png", "gif", "webp", "bmp", "avif", "heic", "heif")
+                ) error("Invalid photo selection")
+                relative.replace(File.separatorChar, '/')
+            }.distinct()
+            digikamManager.setNineByFifteenRoot(root)
+            JSONObject().put("success", true).put("paths", JSONArray(references))
+        }.getOrElse { JSONObject().put("success", false).put("error", it.message) }
+        webView.evaluateJavascript("window.__solo9x15PickerCallback?.(${JSONObject.quote(json.toString())})", null)
+    }
+
+    private val attachImagesLauncher = registerForActivityResult(
+        ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris: List<Uri> ->
+        val json = runCatching {
+            if (uris.isEmpty()) error("Selection cancelled")
+            val images = JSONArray()
+            uris.forEach { uri ->
+                val path = SecurityUtils.getPathFromDocumentUri(this, uri)
+                val relative = path?.let { digikamManager.classifySoloImage(File(it)) }
+                if (relative != null) {
+                    val encoded = relative.split('/').joinToString("/") { Uri.encode(it) }
+                    images.put(JSONObject().put("linked", true).put("url", "digikam://solo/$encoded"))
+                } else {
+                    val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                        ?: error("Unable to read selected image")
+                    val name = path?.substringAfterLast('/')?.takeIf { it.isNotBlank() }
+                        ?: "image-${System.currentTimeMillis()}.jpg"
+                    images.put(JSONObject().put("linked", false).put("url", fileSystemManager.saveImageBytes(bytes, name)))
+                }
+            }
+            JSONObject().put("success", true).put("images", images)
+        }.getOrElse { JSONObject().put("success", false).put("error", it.message) }
+        webView.evaluateJavascript("window.__soloAttachImagesCallback?.(${JSONObject.quote(json.toString())})", null)
     }
 
     private val recordAudioPermissionLauncher = registerForActivityResult(
@@ -112,6 +190,7 @@ class MainActivity : AppCompatActivity() {
         prefs = getSharedPreferences("solo_prefs", MODE_PRIVATE)
 
         fileSystemManager = FileSystemManager(this, prefs)
+        digikamManager = DigikamManager(prefs)
         audioPlayer = AudioPlayer(this)
         audioRecorder = AudioRecorder()
         transcriptionManager = TranscriptionManager(this)
@@ -126,16 +205,41 @@ class MainActivity : AppCompatActivity() {
             fileSystemManager.setRootFolder(savedFolder)
         }
 
+        receiveSharedIntent(intent)
         setupWebView()
         setupVideoOverlay()
         setupBackNavigation()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        receiveSharedIntent(intent)
+    }
+
+    private fun receiveSharedIntent(intent: Intent?) {
+        if (intent?.action != Intent.ACTION_SEND || intent.type != "text/plain") return
+        val text = intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()?.trim()
+        if (text.isNullOrEmpty()) return
+        synchronized(this) { pendingSharedText = text }
+        if (::webView.isInitialized) {
+            // The renderer consumes the queued value; a not-yet-ready page can
+            // retrieve it when its share handler is registered.
+            webView.evaluateJavascript("window.__soloReceiveShare?.()", null)
+        }
+    }
+
+    fun consumePendingShare(): String = synchronized(this) {
+        val text = pendingSharedText.orEmpty()
+        pendingSharedText = null
+        text
     }
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun setupWebView() {
         webView = findViewById(R.id.webView)
 
-        bridge = WebViewBridge(this, fileSystemManager, audioPlayer, audioRecorder, transcriptionManager, searchEngine)
+        bridge = WebViewBridge(this, fileSystemManager, digikamManager, audioPlayer, audioRecorder, transcriptionManager, searchEngine)
 
         @Suppress("DEPRECATION")
         webView.settings.apply {
@@ -184,6 +288,9 @@ class MainActivity : AppCompatActivity() {
                 if (url.scheme == "video") {
                     return handleVideoRequest(url)
                 }
+                if (url.scheme == "digikam") {
+                    return handleDigikamRequest(url)
+                }
                 return super.shouldInterceptRequest(view, request)
             }
         }
@@ -193,6 +300,28 @@ class MainActivity : AppCompatActivity() {
                 // Grant audio capture so voice memos can record from the
                 // microphone inside the WebView.
                 request?.grant(request.resources)
+            }
+
+            override fun onShowFileChooser(
+                webView: WebView?,
+                filePathCallback: ValueCallback<Array<Uri>>?,
+                fileChooserParams: FileChooserParams?
+            ): Boolean {
+                fileChooserCallback?.onReceiveValue(null)
+                fileChooserCallback = filePathCallback
+                return try {
+                    val intent = fileChooserParams?.createIntent()
+                        ?: Intent(Intent.ACTION_GET_CONTENT).apply {
+                            type = "*/*"
+                            addCategory(Intent.CATEGORY_OPENABLE)
+                        }
+                    fileChooserLauncher.launch(intent)
+                    true
+                } catch (e: Exception) {
+                    fileChooserCallback?.onReceiveValue(null)
+                    fileChooserCallback = null
+                    false
+                }
             }
         }
 
@@ -461,6 +590,44 @@ class MainActivity : AppCompatActivity() {
             headers,
             ByteArrayInputStream(bytes)
         )
+    }
+
+    private fun handleDigikamRequest(uri: Uri): WebResourceResponse {
+        val file = digikamManager.imageFile(uri.host.orEmpty(), uri.pathSegments.joinToString("/"))
+        if (file != null) {
+            val stream = runCatching { file.inputStream() }.getOrNull()
+            if (stream != null) {
+                return WebResourceResponse(
+                    fileSystemManager.guessMimeType(file.name), null, 200, "OK", emptyMap(), stream,
+                )
+            }
+        }
+        return WebResourceResponse(
+            "text/plain", "utf-8", 404, "Not Found", emptyMap(), ByteArrayInputStream(ByteArray(0)),
+        )
+    }
+
+    fun selectDigikamFolder() {
+        digikamFolderPickerLauncher.launch(null)
+    }
+
+    fun isNineByFifteenAvailable(): Boolean = try {
+        packageManager.getPackageInfo("ru.example.ninexfifteen", 0)
+        true
+    } catch (_: PackageManager.NameNotFoundException) {
+        false
+    }
+
+    fun pickNineByFifteenPhotos() {
+        nineByFifteenPickerLauncher.launch(
+            Intent("ru.example.ninexfifteen.PICK_FOR_SOLO").setClassName(
+                "ru.example.ninexfifteen", "ru.example.ninexfifteen.MainActivity",
+            ),
+        )
+    }
+
+    fun pickImagesForAttach() {
+        attachImagesLauncher.launch(arrayOf("image/*"))
     }
 
     /**

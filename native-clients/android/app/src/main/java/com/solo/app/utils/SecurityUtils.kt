@@ -95,4 +95,30 @@ object SecurityUtils {
 
         return uri.path
     }
+
+    /** Best-effort resolution of a single document URI to a filesystem path. */
+    fun getPathFromDocumentUri(context: Context, uri: Uri): String? {
+        if (uri.scheme == "file") return uri.path
+        if (!DocumentsContract.isDocumentUri(context, uri)) return null
+        val docId = DocumentsContract.getDocumentId(uri)
+        val separator = docId.indexOf(':')
+        if (separator < 0) return null
+        val type = docId.substring(0, separator)
+        val id = docId.substring(separator + 1)
+        return when (type) {
+            "primary" -> "${Environment.getExternalStorageDirectory().absolutePath}/$id"
+            "raw" -> id
+            "home" -> "${Environment.getExternalStorageDirectory().absolutePath}/Documents/$id"
+            else -> {
+                val storageDirs = context.getExternalFilesDirs(null)
+                for (dir in storageDirs) {
+                    if (dir != null) {
+                        val storageRoot = dir.absolutePath.split("/Android/")[0]
+                        if (storageRoot.contains(type)) return "$storageRoot/$id"
+                    }
+                }
+                "/storage/$type/$id"
+            }
+        }
+    }
 }

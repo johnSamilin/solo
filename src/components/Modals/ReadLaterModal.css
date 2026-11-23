@@ -1,0 +1,12 @@
+.read-later-notebook-label {
+  display: block;
+  margin: 1rem 0 0.5rem;
+  color: var(--color-text);
+  font-family: 'Outfit', system-ui, sans-serif;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.read-later-notebook-select {
+  width: 100%;
+}

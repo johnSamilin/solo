@@ -92,6 +92,43 @@
   gap: 0.5rem;
 }
 
+.highlight-palette {
+  position: absolute;
+  right: calc(100% + 0.5rem);
+  bottom: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1.75rem);
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  background: var(--color-white);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.highlight-swatch,
+.highlight-remove {
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.highlight-swatch[data-color="yellow"] { background-color: #fff3a6; }
+.highlight-swatch[data-color="peach"] { background-color: #ffdfc4; }
+.highlight-swatch[data-color="pink"] { background-color: #ffd9e6; }
+.highlight-swatch[data-color="lavender"] { background-color: #e5dcff; }
+.highlight-swatch[data-color="mint"] { background-color: #d2f2df; }
+.highlight-swatch[data-color="sky"] { background-color: #d8ecff; }
+
+.highlight-remove {
+  display: grid;
+  place-items: center;
+  background: var(--color-white);
+  color: var(--color-text);
+}
+
 .editor-content {
   flex: 1;
   overflow-y: auto;

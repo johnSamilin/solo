@@ -19,6 +19,7 @@ import { VideoRecordingOverlay } from "./VideoRecordingOverlay";
 import { AudioRecordingOverlay } from "./AudioRecordingOverlay";
 import { useZenMode } from "./hooks/useZenMode";
 import { PdfViewer } from "../PdfViewer/PdfViewer";
+import { themes } from '../../constants';
 
 import './Editor.css';
 
@@ -103,6 +104,10 @@ export const Editor: FC<EditorProps> = observer(({
       notesStore.updateNote(notesStore.selectedNote.id, {
         theme: theme || undefined
       });
+      const activeTheme = themes[theme || settingsStore.selectedTheme || ''];
+      if (activeTheme) {
+        settingsStore.updateSettings({ autoZenMode: activeTheme.settings.autoZenMode });
+      }
     }
   };
 

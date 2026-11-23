@@ -3,11 +3,13 @@ import { FC, useState, useRef, useEffect } from 'react';
 import { observer } from 'mobx-react-lite';
 import { useStore } from '../../stores/StoreProvider';
 import { DigikamTag } from '../../types';
-import { getNativeAPI } from '../../utils/nativeBridge';
+import { getNativeAPI, isAndroid } from '../../utils/nativeBridge';
+import { digikamImageRef } from '../../utils/digikamImageRefs';
 
 interface ImageInsertModalProps {
   onClose: () => void;
-  onInsertFile: (file: File) => void;
+  onInsertFiles: (files: File[]) => void;
+  onPickImages: () => void;
   onInsertCarousel: (images: string[], digikamTag: string) => void;
 }
 
@@ -17,7 +19,8 @@ interface TagNode extends DigikamTag {
 
 export const ImageInsertModal: FC<ImageInsertModalProps> = observer(({
   onClose,
-  onInsertFile,
+  onInsertFiles,
+  onPickImages,
   onInsertCarousel
 }) => {
   const { settingsStore } = useStore();
@@ -107,8 +110,9 @@ export const ImageInsertModal: FC<ImageInsertModalProps> = observer(({
 
       if (result.success && result.images) {
         const imagePaths = result.images.map(img => {
-          const fullPath = `${img.specificPath}${img.relativePath}/${img.name}`;
-          return `file://${fullPath}`;
+          if (!isAndroid) return `file://${img.specificPath}${img.relativePath}/${img.name}`;
+          const directory = img.relativePath.replace(/^\/+|\/+$/g, '');
+          return digikamImageRef('solo', [directory, img.name].filter(Boolean).join('/'));
         });
 
         if (imagePaths.length > 0) {
@@ -128,15 +132,20 @@ export const ImageInsertModal: FC<ImageInsertModalProps> = observer(({
   };
 
   const handleFileSelect = () => {
-    fileInputRef.current?.click();
+    if (isAndroid) {
+      onPickImages();
+    } else {
+      fileInputRef.current?.click();
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      onInsertFile(file);
+    const files = Array.from(e.target.files ?? []);
+    if (files.length > 0) {
+      onInsertFiles(files);
       onClose();
     }
+    e.target.value = '';
   };
 
   const renderTagNode = (tag: TagNode, depth: number = 0): JSX.Element => {
@@ -240,6 +249,7 @@ export const ImageInsertModal: FC<ImageInsertModalProps> = observer(({
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
+                multiple
                 onChange={handleFileChange}
                 style={{ display: 'none' }}
               />

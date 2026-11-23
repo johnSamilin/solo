@@ -161,6 +161,8 @@ export interface Translations {
   readLater: {
     title: string;
     urlPlaceholder: string;
+    notebook: string;
+    noNotebook: string;
     saveStyles: string;
     save: string;
     saving: string;
@@ -330,6 +332,8 @@ export const translations: Record<Locale, Translations> = {
     readLater: {
       title: 'Read later',
       urlPlaceholder: 'https://example.com/article',
+      notebook: 'Notebook',
+      noNotebook: 'No notebook (root)',
       saveStyles: 'Save styles',
       save: 'Save article',
       saving: 'Saving...',
@@ -497,6 +501,8 @@ export const translations: Record<Locale, Translations> = {
     readLater: {
       title: 'Read later',
       urlPlaceholder: 'https://example.com/article',
+      notebook: 'Блокнот',
+      noNotebook: 'Без блокнота (корень)',
       saveStyles: 'Сохранить стили',
       save: 'Сохранить статью',
       saving: 'Сохранение...',

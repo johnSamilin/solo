@@ -14,8 +14,9 @@ import { CutIn } from './extensions/CutIn';
 import { Carousel } from './extensions/Carousel';
 import { VoiceMemo } from './extensions/VoiceMemo';
 import { VideoMemo } from './extensions/VideoMemo';
+import { TextHighlight } from './extensions/TextHighlight';
 import { useStore } from './stores/StoreProvider';
-import { SavedFilter } from './types';
+import { SavedFilter, AttachedImage } from './types';
 import { SettingsModal } from './components/Modals/SettingsModal/SettingsModal';
 import { NewNotebookModal } from './components/Modals/NewNoteBookModal';
 import { Sidebar } from './components/Sidebar/Sidebar';
@@ -49,6 +50,7 @@ const App = observer(() => {
   const { notesStore, settingsStore, tagsStore, readLaterStore } = useStore();
   const [initialContent, setInitialContent] = useState('');
   const [autoZenDisabled, setAutoZenDisabled] = useState(false);
+  const autoZenNoteId = useRef<string | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchInitialTag, setSearchInitialTag] = useState<string | undefined>(undefined);
   const [searchInitialFilters, setSearchInitialFilters] = useState<SavedFilter | undefined>(undefined);
@@ -62,6 +64,23 @@ const App = observer(() => {
   // Подавляет запись в history при программной навигации (deep link / popstate),
   // чтобы не создавать дублирующих записей в истории браузера.
   const suppressHistoryPush = useRef(false);
+
+  useEffect(() => {
+    if (!isAndroid || !window.SoloBridge?.consumePendingShare) return;
+
+    const receiveShare = () => {
+      const text = window.SoloBridge?.consumePendingShare();
+      if (text) readLaterStore.openSharedText(text);
+    };
+    window.__soloReceiveShare = receiveShare;
+    receiveShare(); // Cold start: the intent arrived before React was ready.
+
+    return () => {
+      if (window.__soloReceiveShare === receiveShare) {
+        delete window.__soloReceiveShare;
+      }
+    };
+  }, [readLaterStore]);
 
   const editor = useEditor({
     extensions: [
@@ -93,6 +112,7 @@ const App = observer(() => {
         nested: true,
       }),
       ParagraphTags,
+      TextHighlight,
       CutIn,
       Carousel,
       VoiceMemo,
@@ -130,15 +150,8 @@ const App = observer(() => {
           const currentWords = currentContent.split(/\s+/).filter(word => word.length > 0).length;
           const newWords = currentWords - initialWords;
 
-          // Учитываем тему заметки при проверке autoZenMode
-          const noteTheme = notesStore.selectedNote?.theme;
-          const currentSettings = noteTheme
-            ? themes[noteTheme].settings
-            : settingsStore.selectedTheme
-              ? themes[settingsStore.selectedTheme].settings
-              : settingsStore.settings;
-
-          if (newWords > 5 && !settingsStore.isZenMode && !autoZenDisabled && currentSettings.autoZenMode) {
+          // Theme changes update the preference; manual changes afterward take precedence.
+          if (newWords > 5 && !settingsStore.isZenMode && !autoZenDisabled && settingsStore.settings.autoZenMode) {
             settingsStore.toggleZenMode();
           }
         }
@@ -259,7 +272,10 @@ const App = observer(() => {
           editor.commands.setContent(content);
           setInitialContent(editor.state.doc.textContent);
         }
-        setAutoZenDisabled(false);
+        if (autoZenNoteId.current !== notesStore.selectedNote.id) {
+          autoZenNoteId.current = notesStore.selectedNote.id;
+          setAutoZenDisabled(false);
+        }
 
         const loadCustomCss = async () => {
           removeNoteStyles();
@@ -276,6 +292,10 @@ const App = observer(() => {
 
         loadCustomCss();
       }
+    }
+
+    if (!notesStore.selectedNote) {
+      autoZenNoteId.current = null;
     }
 
     return () => {
@@ -399,6 +419,51 @@ const App = observer(() => {
   };
 
   imageUploadRef.current = handleImageUpload;
+
+  const insertAttachedImages = (images: AttachedImage[]) => {
+    if (!editor || images.length === 0) return;
+    const linked = images.filter(image => image.linked).map(image => image.url);
+    const uploaded = images.filter(image => !image.linked).map(image => image.url);
+    const chain = editor.chain().focus();
+    if (uploaded.length === 1) {
+      chain.setImage({ src: uploaded[0] });
+    } else if (uploaded.length > 1) {
+      chain.setCarousel(uploaded, '');
+    }
+    if (linked.length > 0) {
+      chain.setCarousel(linked, '');
+    }
+    chain.run();
+  };
+
+  const handleInsertFiles = async (files: File[]) => {
+    const api = getNativeAPI();
+    if (!api?.attachImages || files.length === 0) return;
+    try {
+      const getPath = window.electronAPI?.getPathForFile;
+      const paths = files
+        .map(file => (getPath ? getPath(file) : (file as File & { path?: string }).path))
+        .filter((path): path is string => typeof path === 'string' && path.length > 0);
+      if (paths.length === 0) return;
+      const result = await api.attachImages(settingsStore.digikamDbPath || '', paths);
+      if (result.success && result.images) insertAttachedImages(result.images);
+      else if (result.error) settingsStore.setToast(result.error, 'error');
+    } catch (error) {
+      settingsStore.setToast((error as Error).message || 'Failed to attach images', 'error');
+    }
+  };
+
+  const handlePickImages = async () => {
+    const api = getNativeAPI();
+    if (!api?.pickImagesForAttach) return;
+    try {
+      const result = await api.pickImagesForAttach();
+      if (result.success && result.images) insertAttachedImages(result.images);
+      else if (result.error && result.error !== 'Selection cancelled') settingsStore.setToast(result.error, 'error');
+    } catch (error) {
+      settingsStore.setToast((error as Error).message || 'Failed to attach images', 'error');
+    }
+  };
 
   const handleImageInsertClick = () => {
     setIsImageInsertModalOpen(true);
@@ -544,6 +609,10 @@ const App = observer(() => {
               </div>
             </div>
           </div>
+        ) : notesStore.selectedNote && (!notesStore.selectedNote.isLoaded || notesStore.isLoadingNoteContent) ? (
+          <div className="loading-overlay">
+            <div className="loading-spinner"><p>Loading note...</p></div>
+          </div>
         ) : notesStore.selectedNote ? (
           <Editor
             editor={editor}
@@ -589,9 +658,10 @@ const App = observer(() => {
       )}
 
       {isImageInsertModalOpen && (
-        <ImageInsertModal
+          <ImageInsertModal
           onClose={() => setIsImageInsertModalOpen(false)}
-          onInsertFile={handleImageUpload}
+            onInsertFiles={handleInsertFiles}
+            onPickImages={handlePickImages}
           onInsertCarousel={handleInsertCarousel}
         />
       )}
