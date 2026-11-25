@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Publishing Solo on Google Play, RuStore, F-Droid, and Snap Store</title>
+
+  <style>
+    body { max-width: 60em; margin: 2em auto; padding: 0 1em; line-height: 1.55; font-family: Georgia, 'Times New Roman', serif; color: #1a1a1a; }
+    h1, h2, h3, h4 { font-family: -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; line-height: 1.25; }
+    table { border-collapse: collapse; margin: 1em 0; display: block; overflow-x: auto; }
+    th, td { border: 1px solid rgba(120,120,120,.45); padding: 4px 9px; text-align: left; vertical-align: top; }
+    th { background: rgba(120,120,120,.12); }
+    pre { background: rgba(120,120,120,.09); border: 1px solid rgba(120,120,120,.25); padding: 10px 12px; overflow-x: auto; border-radius: 4px; }
+    code { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: .9em; }
+    :not(pre) > code { background: rgba(120,120,120,.12); padding: 1px 4px; border-radius: 3px; }
+    blockquote { border-left: 3px solid rgba(120,120,120,.5); margin-left: 0; padding-left: 1em; color: #555; }
+    hr { border: none; border-top: 1px solid rgba(120,120,120,.4); margin: 2em 0; }
+    a { color: #14539a; }
+  </style>
+</head>
+<body>
+  <h1>Publishing Solo on Google Play, RuStore, F-Droid, and Snap Store</h1>
+<p>Solo consists of two clients:</p>
+<ul>
+<li>Android: <code>native-clients/android</code>, Kotlin + WebView with the web app;</li>
+<li>Linux desktop: <code>native-clients/electron</code>, Electron.</li>
+</ul>
+<p>The Android builds are already split into the <code>googlePlay</code> and <code>ruStore</code> flavors. Google Play requires an Android App Bundle (<code>.aab</code>); RuStore requires a signed APK (<code>.apk</code>). F-Droid does not accept uploaded binaries: it builds the FOSS app from source code. To get Solo into the Ubuntu app store, the Electron client must be published as a snap in the Snap Store.</p>
+<h2>1. General Preparation</h2>
+<ol>
+<li>
+<p>Choose the owner, package name, and permanent identifiers:</p>
+<ul>
+<li>Android package: currently <code>com.solo.app</code>;</li>
+<li>Snap name: for example <code>solo-notes</code>, if <code>solo</code> is already taken;</li>
+<li>GitHub repository: currently <code>https://github.com/johnSamilin/solo</code>.</li>
+</ul>
+<p>The <code>applicationId</code> cannot be changed after the first publication without shipping a brand-new app. First verify that <code>com.solo.app</code> is available in Google Play Console and RuStore Console.</p>
+</li>
+<li>
+<p>Maintain a single version across all clients. Currently Android and Electron use <code>3.6.0</code>, and the Android <code>versionCode</code> is <code>3</code>. Before each release, update:</p>
+<ul>
+<li><code>version</code> in <code>package.json</code>;</li>
+<li><code>version</code> in <code>native-clients/electron/package.json</code>;</li>
+<li><code>versionName</code> and the next higher <code>versionCode</code> in <code>native-clients/android/app/build.gradle.kts</code>;</li>
+<li><code>CHANGELOG.md</code>.</li>
+</ul>
+</li>
+<li>
+<p>Add an explicit open-source license to the repository root, for example a <code>LICENSE</code> file with the GPL-3.0-or-later text or another F-Droid-compatible license. The README currently says <code>NO LICENSE</code>; this blocks publication on F-Droid. A license should be chosen only if the author is genuinely willing to release the source code under its terms.</p>
+</li>
+<li>
+<p>Prepare the public-facing materials:</p>
+<ul>
+<li>a privacy policy at a stable HTTPS URL;</li>
+<li>a support address;</li>
+<li>a 512 x 512 px PNG icon;</li>
+<li>at least 2 honest screenshots of the Android UI;</li>
+<li>a description, category, and content rating;</li>
+<li>a complete list of collected and transmitted data.</li>
+</ul>
+<p>The description may state that Solo stores notes locally as HTML. Do not claim &quot;no cloud&quot; or &quot;no data transmission&quot; until this has been confirmed by auditing all dependencies and network calls.</p>
+</li>
+<li>
+<p>Run the basic checks for the web and desktop clients from the repository root:</p>
+<pre><code class="language-bash">npm ci
+npm run lint
+npm test
+npm run build
+npm --prefix native-clients/electron ci
+npm --prefix native-clients/electron run lint
+npm --prefix native-clients/electron run typecheck
+</code></pre>
+</li>
+</ol>
+<h2>2. Prepare the Android Release</h2>
+<h3>Review Permissions</h3>
+<p><code>native-clients/android/app/src/main/AndroidManifest.xml</code> contains:</p>
+<ul>
+<li><code>MANAGE_EXTERNAL_STORAGE</code>;</li>
+<li><code>READ_MEDIA_IMAGES</code>;</li>
+<li>network access.</li>
+</ul>
+<p><code>MANAGE_EXTERNAL_STORAGE</code> is a restricted Google Play permission. It is allowed only if full storage access is the app's core functionality. For Solo, the preferable approach is to let the user pick a directory via the Storage Access Framework and persist long-term access to the chosen directory, without accessing the whole device. If the permission is kept:</p>
+<ol>
+<li>Prepare a video showing that the key feature cannot work without it.</li>
+<li>Complete the <strong>All files access</strong> declaration in Google Play Console.</li>
+<li>Clearly explain its necessity to RuStore.</li>
+</ol>
+<p>Google Play also checks <code>targetSdk</code>. The project currently targets API 34. Right before submission, verify the current requirement in Play Console and update <code>compileSdk</code>/<code>targetSdk</code> in <code>native-clients/android/app/build.gradle.kts</code> if required.</p>
+<h3>Create the Signing Key</h3>
+<p>A single keystore is used for all future Android updates and for RuStore. Keep it out of Git and create a secure backup.</p>
+<pre><code class="language-bash">keytool -genkeypair \
+  -keystore &quot;$HOME/.android/solo-release.jks&quot; \
+  -alias solo \
+  -keyalg RSA \
+  -keysize 4096 \
+  -validity 10000
+</code></pre>
+<p>Create <code>native-clients/android/keystore.properties</code> and add it to <code>.gitignore</code>:</p>
+<pre><code class="language-properties">storeFile=/Users/USER/.android/solo-release.jks
+storePassword=CHANGE_ME
+keyAlias=solo
+keyPassword=CHANGE_ME
+</code></pre>
+<p>Then wire the file into <code>native-clients/android/app/build.gradle.kts</code>:</p>
+<pre><code class="language-kotlin">import java.util.Properties
+
+val keystoreProperties = Properties().apply {
+    val file = rootProject.file(&quot;keystore.properties&quot;)
+    require(file.exists()) { &quot;Release signing requires keystore.properties&quot; }
+    file.inputStream().use(::load)
+}
+
+android {
+    signingConfigs {
+        create(&quot;release&quot;) {
+            storeFile = file(keystoreProperties[&quot;storeFile&quot;] as String)
+            storePassword = keystoreProperties[&quot;storePassword&quot;] as String
+            keyAlias = keystoreProperties[&quot;keyAlias&quot;] as String
+            keyPassword = keystoreProperties[&quot;keyPassword&quot;] as String
+        }
+    }
+    buildTypes {
+        release {
+            signingConfig = signingConfigs.getByName(&quot;release&quot;)
+        }
+    }
+}
+</code></pre>
+<p>Never commit real passwords or the <code>.jks</code> file to the repository. In CI, store them only in protected/secret variables.</p>
+<h3>Build and Verify</h3>
+<p>The web assets must be built before the Android Gradle build. Run from the repository root:</p>
+<pre><code class="language-bash">npm ci
+npm run build:android
+./native-clients/android/gradlew -p native-clients/android clean test lint
+./native-clients/android/gradlew -p native-clients/android bundleGooglePlayRelease assembleRuStoreRelease
+</code></pre>
+<p>Release artifacts:</p>
+<pre><code class="language-bash">ls -lh native-clients/android/app/build/outputs/bundle/googlePlayRelease/app-googlePlay-release.aab
+ls -lh native-clients/android/app/build/outputs/apk/ruStore/release/app-ruStore-release.apk
+apksigner verify --verbose --print-certs \
+  native-clients/android/app/build/outputs/apk/ruStore/release/app-ruStore-release.apk
+</code></pre>
+<p>Test the RuStore APK on a clean device:</p>
+<pre><code class="language-bash">adb uninstall com.solo.app
+adb install native-clients/android/app/build/outputs/apk/ruStore/release/app-ruStore-release.apk
+</code></pre>
+<p>Verify directory picking, creating/editing an HTML note, images, search, app restart, and updating over the previous version. Test the AAB via Google Play Internal testing.</p>
+<h2>3. Publish on Google Play</h2>
+<ol>
+<li>
+<p>Register a Google Play Developer account, pay the registration fee, and complete the requested verification.</p>
+</li>
+<li>
+<p>In <a href="https://play.google.com/console/">Google Play Console</a>, create the app with package name <code>com.solo.app</code>.</p>
+</li>
+<li>
+<p>Fill in the Store listing: title, descriptions, icon, screenshots, a 1024 x 500 px feature graphic, contact details, and the privacy policy.</p>
+</li>
+<li>
+<p>In <strong>App content</strong>, complete Privacy policy, Ads, App access, Content rating, Target audience, and Data safety.</p>
+</li>
+<li>
+<p>If <code>MANAGE_EXTERNAL_STORAGE</code> is kept, complete the All files access declaration with a justification and video.</p>
+</li>
+<li>
+<p>Enable Play App Signing on the first release. Google will manage the app-signing key, while the created keystore remains the upload key.</p>
+</li>
+<li>
+<p>Create an <strong>Internal testing</strong> release and upload:</p>
+<pre><code class="language-text">native-clients/android/app/build/outputs/bundle/googlePlayRelease/app-googlePlay-release.aab
+</code></pre>
+</li>
+<li>
+<p>Have testers install the build from the Play Store. For new personal accounts, Google may require closed testing before production: follow the Console's requirement.</p>
+</li>
+<li>
+<p>After testing, create a <strong>Production</strong> release, add release notes, and submit it for review.</p>
+</li>
+</ol>
+<h2>4. Publish on RuStore</h2>
+<ol>
+<li>
+<p>Create and verify an account in <a href="https://console.rustore.ru/">RuStore Console</a> as an individual, self-employed person, sole proprietor (IP), or legal entity.</p>
+</li>
+<li>
+<p>Create the app with the same package name <code>com.solo.app</code>.</p>
+</li>
+<li>
+<p>Fill in the store listing: description, category, contacts, privacy policy, content rating, icon, and screenshots.</p>
+</li>
+<li>
+<p>Create a release and upload:</p>
+<pre><code class="language-text">native-clients/android/app/build/outputs/apk/ruStore/release/app-ruStore-release.apk
+</code></pre>
+</li>
+<li>
+<p>Provide details about data, monetization, ads, and special permissions. Explain the all-files access if it has not been removed.</p>
+</li>
+<li>
+<p>Submit for moderation; after approval, publish the release and install it from RuStore on a real device.</p>
+</li>
+</ol>
+<h2>5. Prepare the F-Droid Release</h2>
+<p>F-Droid publishes only free and open-source software. You cannot upload <code>app-ruStore-release.apk</code> or <code>app-googlePlay-release.aab</code> to it. The process is: prepare a reproducible build, add metadata to the <a href="https://gitlab.com/fdroid/fdroiddata">fdroid/fdroiddata</a> repository, and wait for their infrastructure to build and sign the APK.</p>
+<h3>Requirements</h3>
+<ul>
+<li>A FOSS license compatible with the source code and dependencies is present at the repository root.</li>
+<li>The Android source code, web assets, and all required dependencies are publicly available under an immutable git tag.</li>
+<li>The build does not download proprietary dependencies, trackers, or closed-source SDKs.</li>
+<li>No mandatory anti-features: ads, tracking, a required external account, or non-free network services without a free alternative.</li>
+<li>The app builds without secrets, local paths, or pre-copied untracked assets.</li>
+</ul>
+<p>The current project needs work to reach this state: <code>copy-web-assets.sh</code> and the Gradle build must either build the web client themselves or obtain it from source in a deterministic way. The F-Droid build server cannot use the locally created <code>app/src/main/assets</code> folder, because it is excluded from Git.</p>
+<h3>Add Fastlane Metadata</h3>
+<p>Create the directory <code>native-clients/android/fastlane/metadata/android/en-US/</code> with at least these files:</p>
+<pre><code class="language-text">title.txt
+short_description.txt
+full_description.txt
+</code></pre>
+<p>Place the PNG screenshots in:</p>
+<pre><code class="language-text">native-clients/android/fastlane/metadata/android/en-US/images/phoneScreenshots/
+</code></pre>
+<p>Example commands:</p>
+<pre><code class="language-bash">mkdir -p native-clients/android/fastlane/metadata/android/en-US/images/phoneScreenshots
+touch native-clients/android/fastlane/metadata/android/en-US/title.txt
+touch native-clients/android/fastlane/metadata/android/en-US/short_description.txt
+touch native-clients/android/fastlane/metadata/android/en-US/full_description.txt
+</code></pre>
+<p>Add the Russian locale the same way under <code>android/ru-RU/</code>.</p>
+<h3>Create the F-Droid Variant</h3>
+<p>Create an <code>fdroid</code> flavor without services or dependencies prohibited by F-Droid policy. Its application ID must be the same as the main FOSS version, for example <code>com.solo.app</code>; the flavor must not add any mandatory proprietary SDKs.</p>
+<p>Once Gradle can prepare the assets deterministically, verify the build locally:</p>
+<pre><code class="language-bash">npm ci
+npm run build:android
+./native-clients/android/gradlew -p native-clients/android assembleFdroidRelease
+</code></pre>
+<p>Create a signed git tag of the sources:</p>
+<pre><code class="language-bash">git tag -s v3.6.0 -m &quot;Solo 3.6.0&quot;
+git push origin v3.6.0
+</code></pre>
+<p>Prepare the <code>metadata/com.solo.app.yml</code> file in a fork of the <code>fdroid/fdroiddata</code> repository. It records the source URL, tag/commit, Android subdirectory, Gradle flavor, version numbers, license, build description, and anti-features if any. Use the template and validator from the <a href="https://f-droid.org/docs/Submitting_to_F-Droid_Quick_Start_Guide/">F-Droid documentation</a>, then open a Merge Request in <code>fdroid/fdroiddata</code>.</p>
+<p>Do not use the Google Play key for F-Droid: F-Droid signs the APK with its own signing key. Because of the different signatures, users cannot update an APK installed from Google Play/RuStore via F-Droid, or vice versa. This is a normal limitation and should be noted on the downloads page.</p>
+<h2>6. Publish the Electron Client on Snap Store</h2>
+<p>Electron Forge currently produces a DEB, but there is no <code>snapcraft.yaml</code>. A separate snap recipe is needed. A convenient place for it is the repository root: that way the build has access to both the web project and <code>native-clients/electron</code>.</p>
+<h3>Set Up Snapcraft</h3>
+<p>On Ubuntu, install the tools and log in:</p>
+<pre><code class="language-bash">sudo snap install snapcraft --classic
+snapcraft login
+</code></pre>
+<p>Register the package name in advance so another developer does not take it:</p>
+<pre><code class="language-bash">snapcraft register solo-notes
+</code></pre>
+<p>Create <code>snap/snapcraft.yaml</code> at the project root. This is a working starting configuration for x86_64; before production, replace the owner, links, and version:</p>
+<pre><code class="language-yaml">name: solo-notes
+base: core22
+version: &quot;3.6.0&quot;
+summary: Local-first HTML notes
+description: |
+  Solo is a private local-first note-taking application.
+  Notes are stored as HTML files chosen by the user.
+grade: devel
+confinement: strict
+license: GPL-3.0-or-later
+website: https://github.com/johnSamilin/solo
+source-code: https://github.com/johnSamilin/solo
+issues: https://github.com/johnSamilin/solo/issues
+contact: https://t.me/WatasheeBaka
+architectures:
+  - build-on: [amd64]
+    build-for: [amd64]
+
+apps:
+  solo-notes:
+    command: opt/solo/solo
+    desktop: usr/share/applications/solo-notes.desktop
+    plugs:
+      - desktop
+      - desktop-legacy
+      - wayland
+      - x11
+      - opengl
+      - audio-playback
+      - home
+
+parts:
+  solo:
+    plugin: nil
+    source: .
+    build-packages:
+      - nodejs
+      - npm
+      - python3
+      - make
+      - g++
+    override-build: |
+      npm ci
+      npm --prefix native-clients/electron ci
+      npm --prefix native-clients/electron run package
+      mkdir -p &quot;$CRAFT_PART_INSTALL/opt/solo&quot;
+      cp -a native-clients/electron/out/Solo-linux-x64/. &quot;$CRAFT_PART_INSTALL/opt/solo/&quot;
+      mkdir -p &quot;$CRAFT_PART_INSTALL/usr/share/applications&quot;
+      cp snap/gui/solo-notes.desktop &quot;$CRAFT_PART_INSTALL/usr/share/applications/&quot;
+</code></pre>
+<p><code>native-clients/electron/out/Solo-linux-x64</code> is the expected Electron Forge output path for the current app name. If the <code>package</code> command produces a different path, replace it in the <code>cp</code> command and pin that in the recipe.</p>
+<p>Add <code>snap/gui/solo-notes.desktop</code>:</p>
+<pre><code class="language-ini">[Desktop Entry]
+Name=Solo
+Comment=Local-first HTML notes
+Exec=solo-notes
+Icon=solo-notes
+Terminal=false
+Type=Application
+Categories=Office;Utility;
+StartupWMClass=Solo
+</code></pre>
+<p>Copy the PNG/SVG icon to <code>snap/gui/solo-notes.png</code>. The <code>Icon=</code> identifier in the desktop file must match the icon file name without the extension. Add the <code>removable-media</code> plug only if the app truly needs USB drives or SD cards: it requires manual connection by the user after installation.</p>
+<p>Verify that the desktop client can be built on Ubuntu x86_64:</p>
+<pre><code class="language-bash">npm ci
+npm --prefix native-clients/electron ci
+npm --prefix native-clients/electron run make:linux
+</code></pre>
+<p>After adding the recipe, build and test the snap:</p>
+<pre><code class="language-bash">snapcraft
+sudo snap install --dangerous solo-notes_3.6.0_amd64.snap
+solo-notes
+snapcraft lint solo-notes_3.6.0_amd64.snap
+</code></pre>
+<p><code>--dangerous</code> is only needed for locally installing an unsigned snap. Verify launch, opening and saving notes, home-directory access, file dialogs, the icon, and the app appearing in the Ubuntu application menu.</p>
+<h3>Submit to Snap Store</h3>
+<ol>
+<li>
+<p>Sign in to the <a href="https://snapcraft.io/">Snapcraft Dashboard</a> with the same account that registered the name.</p>
+</li>
+<li>
+<p>Check the store listing: description, category, license, screenshots, icon, website, and source-code link.</p>
+</li>
+<li>
+<p>Upload a test build to the <code>edge</code> channel:</p>
+<pre><code class="language-bash">snapcraft upload --release=edge solo-notes_3.6.0_amd64.snap
+</code></pre>
+</li>
+<li>
+<p>Install it on a separate Ubuntu machine:</p>
+<pre><code class="language-bash">sudo snap install solo-notes --edge
+</code></pre>
+</li>
+<li>
+<p>After testing, promote the same revision to <code>candidate</code>, then to <code>stable</code>, via the Dashboard or CLI:</p>
+<pre><code class="language-bash">snapcraft release solo-notes &lt;revision&gt; candidate
+snapcraft release solo-notes &lt;revision&gt; stable
+</code></pre>
+<p><code>&lt;revision&gt;</code> is the revision number Snapcraft returns after upload. Once published to <code>stable</code>, the app becomes available through Ubuntu App Center/Snap Store.</p>
+</li>
+</ol>
+<h2>7. Releasing Updates</h2>
+<ol>
+<li>
+<p>Update all version numbers and <code>CHANGELOG.md</code>.</p>
+</li>
+<li>
+<p>Build and verify the Android artifacts:</p>
+<pre><code class="language-bash">npm ci
+npm run build:android
+./native-clients/android/gradlew -p native-clients/android clean test lint \
+  bundleGooglePlayRelease assembleRuStoreRelease
+</code></pre>
+</li>
+<li>
+<p>Upload the new AAB to Google Play and the new APK to RuStore. The <code>versionCode</code> must be greater than the previous one.</p>
+</li>
+<li>
+<p>For F-Droid, create a new signed git tag and update the build block in the <code>fdroiddata</code> Merge Request.</p>
+</li>
+<li>
+<p>For Snap, update the version, build, and publish:</p>
+<pre><code class="language-bash">snapcraft
+snapcraft upload --release=edge solo-notes_&lt;version&gt;_amd64.snap
+</code></pre>
+</li>
+<li>
+<p>Always test updates first via Google Play internal/closed testing and Snap <code>edge</code>/<code>candidate</code>, then promote them to production/stable.</p>
+</li>
+</ol>
+<h2>Checklist</h2>
+<ul>
+<li>[ ] An agreed FOSS license and a <code>LICENSE</code> file are in place.</li>
+<li>[ ] The privacy policy and contact details are published.</li>
+<li>[ ] Privacy and network-activity claims have been verified.</li>
+<li>[ ] The need for <code>MANAGE_EXTERNAL_STORAGE</code> has been reviewed or removed.</li>
+<li>[ ] <code>targetSdk</code> meets the current Google Play requirement.</li>
+<li>[ ] The Android keystore is stored outside Git and backed up.</li>
+<li>[ ] The Google Play AAB and RuStore APK are built and signed.</li>
+<li>[ ] Updating and clean-installing the Android app have been tested.</li>
+<li>[ ] For F-Droid, the build is reproducible from a public tag without local assets or secrets.</li>
+<li>[ ] For F-Droid, Fastlane metadata and a Merge Request in <code>fdroiddata</code> have been added.</li>
+<li>[ ] <code>snap/snapcraft.yaml</code>, the desktop file, and the icon have been added.</li>
+<li>[ ] The snap has been tested locally and published to edge before stable.</li>
+</ul>
+
+</body>
+</html>

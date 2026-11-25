@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Voice Memos — Architecture & Design</title>
+
+  <style>
+    body { max-width: 60em; margin: 2em auto; padding: 0 1em; line-height: 1.55; font-family: Georgia, 'Times New Roman', serif; color: #1a1a1a; }
+    h1, h2, h3, h4 { font-family: -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; line-height: 1.25; }
+    table { border-collapse: collapse; margin: 1em 0; display: block; overflow-x: auto; }
+    th, td { border: 1px solid rgba(120,120,120,.45); padding: 4px 9px; text-align: left; vertical-align: top; }
+    th { background: rgba(120,120,120,.12); }
+    pre { background: rgba(120,120,120,.09); border: 1px solid rgba(120,120,120,.25); padding: 10px 12px; overflow-x: auto; border-radius: 4px; }
+    code { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: .9em; }
+    :not(pre) > code { background: rgba(120,120,120,.12); padding: 1px 4px; border-radius: 3px; }
+    blockquote { border-left: 3px solid rgba(120,120,120,.5); margin-left: 0; padding-left: 1em; color: #555; }
+    hr { border: none; border-top: 1px solid rgba(120,120,120,.4); margin: 2em 0; }
+    a { color: #14539a; }
+  </style>
+</head>
+<body>
+  <h1>Voice Memos — Architecture & Design</h1>
+<blockquote>
+<p>Design doc. Implementation is out of scope for this document — design only.</p>
+</blockquote>
+<h2>Goal</h2>
+<p>Add voice memos to Solo: record an audio note directly inside a text note and
+store it alongside the rest of the content. The audio file is saved as <code>.wav</code>,
+inserted into the note as a dedicated block, and can be transcribed <strong>on-device</strong>
+(no cloud). The transcript is written as a regular <code>&lt;p&gt;</code> paragraph right after
+the memo and participates in search.</p>
+<h2>Key Constraints (inherited from the project)</h2>
+<ol>
+<li><strong>No external runtime.</strong> As with read-later (<code>plans/read-later-architecture.md</code>),
+the device has no <code>go</code>/<code>node</code>/<code>python</code>/<code>rust</code>/<code>ffmpeg</code>. Anything that cannot be
+done with the stock WebView/Chromium or Kotlin must be <strong>pure TypeScript</strong>
+(npm dependencies are allowed — the project already uses <code>jszip</code>,
+<code>pdfjs-dist</code>, <code>howler</code>).</li>
+<li><strong>Three platforms, one storage model.</strong> A note is an <code>.html</code> file + <code>.json</code>
+sidecar inside a user-selected root folder. Assets (currently images) live in
+<code>&lt;root&gt;/assets/</code> and are addressed via the custom <code>image://&lt;fileName&gt;</code>
+protocol. Voice files live in the <code>&lt;root&gt;/assets/voice/</code> subfolder and are
+addressed via <code>voice://&lt;fileName&gt;</code>.</li>
+<li><strong>Privacy / offline.</strong> Transcription runs <strong>on-device only</strong> — audio and text
+never leave the device. Cloud STT services are not used.</li>
+</ol>
+<h2>User Flow</h2>
+<ol>
+<li>The FAB toolbar gets a &quot;Voice memo&quot; button (an <code>AudioLines</code> or <code>Mic2</code> icon
+from <code>lucide-react</code>, next to the <code>Mic</code> dictation button).</li>
+<li>Clicking starts microphone recording; the button switches to a &quot;recording&quot;
+state (timer indicator); clicking again stops it.</li>
+<li>The recorded chunk is encoded to <code>.wav</code> (pure TS) and saved via the
+<code>uploadAudio</code> bridge into <code>&lt;root&gt;/assets/voice/</code>, returning
+<code>voice://&lt;fileName&gt;</code>.</li>
+<li>An atomic TipTap <code>voiceMemo</code> block with the file reference, duration and
+metadata is inserted at the cursor.</li>
+<li>The block plays back inline (<code>&lt;audio&gt;</code> / native player). A context menu offers
+<strong>Transcribe</strong>, <strong>Download/export</strong> and <strong>Delete</strong>.</li>
+<li>&quot;Transcribe&quot; runs <strong>on-device</strong> transcription and inserts the result as a
+regular <code>&lt;p&gt;</code> paragraph immediately after the memo; the text is editable and
+participates in full-text search.</li>
+</ol>
+<h2>1. Storage format: WAV</h2>
+<p>We record <strong>only to <code>.wav</code></strong> — lossless, encoded by trivial pure TypeScript
+(16-bit PCM + a 44-byte header, ~30 lines), with no third-party encoders.</p>
+<h3>Capture — PCM in the renderer</h3>
+<p>Important detail: the stock Web <code>MediaRecorder</code> in WebView/Chromium produces
+<code>audio/webm;codecs=opus</code> / <code>audio/ogg</code>, <strong>not</strong> <code>.wav</code>. Hence the pipeline:</p>
+<ol>
+<li><code>getUserMedia({ audio: true })</code> → <code>MediaStream</code>.</li>
+<li><code>AudioContext</code> + <code>MediaStreamAudioSourceNode</code> + <code>AudioWorkletNode</code>
+(fallback <code>ScriptProcessorNode</code>) write raw PCM samples into a buffer.</li>
+<li>Encode to WAV: 16-bit PCM + WAV header (pure TS).</li>
+</ol>
+<p>Recommended capture parameters — mono, 16 kHz (voice): ≈ 1.9 MB/min. To reduce
+size, optionally 8 kHz or 24 kHz (only the WAV header sample rate changes).</p>
+<p>In parallel, an <code>AnalyserNode</code> samples peak amplitudes (50–100 normalized
+values) — they are stored in the block attribute so the waveform can be drawn
+without re-decoding the file.</p>
+<h3>File name and path</h3>
+<ul>
+<li>Path: <code>&lt;root&gt;/assets/voice/</code> (a <code>voice</code> subfolder inside the existing <code>assets/</code>).</li>
+<li>Name: <code>memo-&lt;yyyy-mm-dd-hhmmss&gt;.wav</code> (e.g. <code>memo-2026-10-26-093045.wav</code>). Collisions
+(two memos in the same second) are resolved by the existing
+<code>buildUniqueAssetName</code> — <code>-1</code>, <code>-2</code>, etc. are appended.</li>
+<li>MIME type: <code>audio/wav</code>. Link protocol: <code>voice://memo-&lt;yyyy-mm-dd-hhmmss&gt;.wav</code>.</li>
+</ul>
+<h2>2. Playback</h2>
+<p>The renderer uses <code>&lt;audio src=&quot;voice://&lt;fileName&gt;&quot;&gt;</code>; the file is served by the
+custom <code>voice://</code> protocol, mirroring <code>image://</code> but resolving to
+<code>&lt;root&gt;/assets/voice/</code>.</p>
+<ul>
+<li><strong>Electron</strong> — a new <code>protocol.handle('voice', ...)</code> in
+<code>native-clients/electron/electron/main.ts</code>, resolving
+<code>&lt;dataFolder&gt;/assets/voice/&lt;name&gt;</code> (analogous to the existing <code>getFile</code>, lines
+180–204, but with the <code>voice</code> subfolder). Returns via <code>net.fetch</code> on <code>file://</code>;
+<strong><code>Range</code> support is required</strong> for seeking (see risks).</li>
+<li><strong>Android</strong> — a branch in <code>shouldInterceptRequest</code> (<code>MainActivity.kt</code>, next to
+<code>handleImageRequest</code>), serving bytes from <code>assets/voice/</code> via a dedicated
+<code>readVoiceAsset</code> (or a parameterized <code>readAsset(subfolder, name)</code>) with
+<code>guessMimeType</code> extended by <code>audio/wav</code>. Seeking in WebView requires <code>Range</code>
+support in <code>WebResourceResponse</code> (see risks).</li>
+<li><code>mediaPlaybackRequiresUserGesture = false</code> is already set (MainActivity.kt:100),
+so autoplay is allowed. An alternative for accurate seeking is a native
+<code>MediaPlayer</code>/<code>ExoPlayer</code> via a <code>playAudio(url)</code> bridge method (the way
+<code>playTypewriterSound()</code> currently goes to <code>AudioPlayer</code>/SoundPool — though
+SoundPool is unsuitable for long files, <code>MediaPlayer</code> is needed).</li>
+</ul>
+<h2>3. Transcription — on-device only</h2>
+<p>Requirements: optional, on explicit user action, result inserted as a <code>&lt;p&gt;</code>
+paragraph after the memo. Cloud services are not used. Language: <strong>Russian</strong>.</p>
+<h3>Final architecture (as implemented)</h3>
+<ul>
+<li><strong>Android</strong> — the native <strong>Vosk AAR</strong> (<code>com.alphacephei:vosk-android</code>). The
+Russian model ships as a ZIP in <code>assets/model-ru.zip</code>; <code>TranscriptionManager.kt</code>
+unpacks it to the app's files dir on first use (self-unzip, no <code>StorageService</code>),
+extracts the memo's PCM from its WAV and feeds it to <code>Recognizer</code>, returning the
+text.</li>
+<li><strong>Desktop (Electron)</strong> — the native <strong>Vosk library via <code>koffi</code> FFI</strong> in the
+main process. <code>libvosk</code> is bundled in the app and the Russian model is unpacked
+next to it; <code>transcribe-audio</code> reads the WAV, extracts its PCM and runs
+<code>vosk_recognizer_*</code> through koffi. This avoids WASM entirely.</li>
+<li><strong>Language</strong> — Russian (<code>vosk-model-small-ru-0.22</code>).</li>
+</ul>
+<p>Both paths are fully on-device; audio and text never leave the device. Both use
+the same standard Vosk model (<code>.zip</code>, extracted) — see the Setup section.</p>
+<h3>Where the result is written</h3>
+<p>The transcript is <strong>not</strong> stored in a block attribute. After successful
+recognition, a regular paragraph is inserted immediately after the memo:</p>
+<pre><code class="language-html">&lt;div data-type=&quot;voice-memo&quot; ...&gt;…&lt;/div&gt;
+&lt;p data-voice-transcript=&quot;memo-2026-10-26-45.wav&quot;&gt;Record design-doc talking points…&lt;/p&gt;
+</code></pre>
+<ul>
+<li>The <code>&lt;p&gt;</code> is a normal editable paragraph: it participates in
+<code>doc.body.textContent</code> (search, word count, <code>extractParagraphTags</code>) and
+survives save/load without special logic.</li>
+<li><code>data-voice-transcript</code> only marks &quot;this is the transcript of memo X&quot; — so a
+re-transcription can find and update/replace the right paragraph, and CSS can
+style it paired with the block.</li>
+</ul>
+<h3>Punctuation &amp; capitalization restoration</h3>
+<p>Vosk outputs raw lowercase text. Before inserting the transcript, the renderer
+runs a pure post-processor (<code>src/utils/transcription/punctuate.ts</code>) that restores
+punctuation and capitalization using acoustic cues:</p>
+<ul>
+<li><strong>Pauses</strong> (silence between words, from Vosk word timings) → sentence boundaries;</li>
+<li><strong>Pitch (F0)</strong> — a rising pitch at a sentence end → <code>?</code>;</li>
+<li><strong>Energy</strong> — a loud ending → <code>!</code>;</li>
+<li>sentence starts and the Russian <code>я</code> are capitalized.</li>
+</ul>
+<p>The native layer enables word timings (<code>set_words</code>) and computes per-word pitch
+(autocorrelation) + energy (RMS) from the PCM, returning <code>words</code> and <code>prosody</code>
+alongside <code>text</code>.</p>
+<h2>4. Data model</h2>
+<p>A new TipTap block <code>voiceMemo</code> (atomic, <code>group: 'block'</code>), implemented after the
+<code>CutIn.ts</code> pattern (<code>ReactNodeViewRenderer</code>) — it already serializes correctly
+and survives the <code>getHTML</code>/<code>setContent</code>/<code>updateFile</code> round-trip.</p>
+<pre><code class="language-ts">// src/extensions/VoiceMemo.ts
+addAttributes() {
+  return {
+    src:        { default: '' },                 // voice://memo-....wav
+    fileName:   { default: '' },                 // memo-....wav
+    duration:   { default: 0 },                  // ms
+    createdAt:  { default: null },               // ISO string
+    peaks:      { default: [] },                 // number[] for the waveform
+    lang:       { default: '' },                 // locale for on-device recognition
+  };
+}
+</code></pre>
+<p>HTML serialization (analogous to <code>data-type=&quot;cut-in&quot;</code>):</p>
+<pre><code class="language-html">&lt;div data-type=&quot;voice-memo&quot;
+     data-src=&quot;voice://memo-2026-10-26-45.wav&quot;
+     data-file-name=&quot;memo-2026-10-26-45.wav&quot;
+     data-duration=&quot;42000&quot;
+     data-created-at=&quot;2026-10-26T09:30:45.000Z&quot;
+     data-peaks=&quot;[0.1,0.4,0.9,...]&quot;
+     data-lang=&quot;ru-RU&quot;&gt;
+  &lt;!-- fallback for static export/render without JS --&gt;
+  &lt;audio src=&quot;voice://memo-2026-10-26-45.wav&quot; controls&gt;&lt;/audio&gt;
+&lt;/div&gt;
+</code></pre>
+<p><code>renderHTML</code> outputs a fallback <code>&lt;audio&gt;</code> inside the <code>data-type</code> wrapper so the
+block degrades to a plain player outside the editor (e.g. in export). The node
+must <strong>not</strong> be caught by the <code>.carousel</code> strip in
+<code>NotesStore.saveNoteContent</code> — it serializes on its own, no strip needed.</p>
+<p>There is no transcript in the block's attributes: it lives in a separate <code>&lt;p&gt;</code>
+after the memo (see §3), so no special search/statistics handling is required —
+it is ordinary note text.</p>
+<h2>5. Platform contract (bridge)</h2>
+<p>New methods on <code>ElectronAPI</code> (<code>src/types.tsx</code>) and <code>AndroidBridgeRaw</code>:</p>
+<pre><code class="language-ts">// write audio into assets/voice/ (analogous to uploadImage), returns voice://&lt;fileName&gt;
+uploadAudio(base64Data: string, fileName: string):
+  Promise&lt;{ success: boolean; url?: string; error?: string }&gt;;
+
+// on-device transcription of an audio file in assets/voice/
+transcribeAudio(fileName: string):
+  Promise&lt;{ success: boolean; text?: string; error?: string }&gt;;
+
+// native microphone recording (Android) — start, then stop which returns the voice:// url
+startRecording(): Promise&lt;{ success: boolean; error?: string }&gt;;
+stopRecording(): Promise&lt;{ success: boolean; url?: string; duration?: number; error?: string }&gt;;
+
+// (optional) native player with accurate seeking on Android
+playAudio?(url: string): Promise&lt;{ success: boolean; error?: string }&gt;;
+</code></pre>
+<p>Layer-by-layer:</p>
+<ul>
+<li><code>src/utils/nativeBridge.ts</code> — forward <code>uploadAudio</code>/<code>transcribeAudio</code> for
+Electron and Android (<code>wrapAndroidBridge</code>), stubs in <code>createStubAPI.ts</code> for
+PACKAGED.</li>
+<li><code>native-clients/electron/electron/preload.ts</code> — <code>ipcRenderer.invoke('upload-audio', ...)</code>.</li>
+<li><code>native-clients/electron/electron/main.ts</code> — <code>ipcMain.handle('upload-audio')</code>
+(writes to <code>assets/voice/</code>, copy of <code>upload-image</code>, lines 1240–1266) +
+<code>protocol.handle('voice', ...)</code> (serving <code>assets/voice/</code>). On-device STT on
+Desktop goes through the WASM engine in the renderer (bytes read via
+<code>fetch('voice://…')</code>), so a separate <code>transcribe-audio</code> in main may be absent.</li>
+<li><code>native-clients/android/.../WebViewBridge.kt</code> — <code>uploadAudio(base64, fileName)</code>
+(analogous to <code>uploadImage</code>, but into <code>assets/voice/</code>), <code>transcribeAudio(fileName)</code>;
+<code>FileSystemManager.saveAudio</code> (shared code with <code>saveImage</code>, <code>voice</code> subfolder),
+<code>readVoiceAsset</code>/parameterized <code>readAsset</code>, <code>guessMimeType</code> extended by <code>audio/wav</code>.</li>
+<li><code>native-clients/android/.../MainActivity.kt</code> — <code>voice://</code> branch in
+<code>shouldInterceptRequest</code> + <code>onPermissionRequest</code> in <code>WebChromeClient</code> for
+<code>RESOURCE_AUDIO_CAPTURE</code>; <code>RECORD_AUDIO</code> in <code>AndroidManifest.xml</code>.</li>
+</ul>
+<p>Capture is entirely in the renderer (no native calls needed) — native only
+stores/serves files and performs on-device recognition.</p>
+<h2>6. Five ways to render a voice memo inside a note</h2>
+<p>The block is rendered by a React <code>VoiceMemoNode</code> component
+(<code>ReactNodeViewRenderer</code>). Below — 5 rendering variants. Common: all use the
+design tokens (<code>--color-*</code>, <code>--editor-font-family</code>), work across themes
+(including <code>terminal</code>), and expose a context menu (Transcribe / Delete /
+Download). The transcript is <strong>always</strong> a separate <code>&lt;p&gt;</code> after the block (see
+§3); variants 3 and 5 merely visually group it with the memo via the CSS
+sibling selector <code>.voice-memo + p[data-voice-transcript]</code>. Switching is a setting
+in <code>SettingsModal → Layout</code> (<code>voiceMemoStyle</code>).</p>
+<h3>Variant 1 — &quot;Compact bar&quot;</h3>
+<p>Classic player row: a round play/pause button, a progress scrubber, current/total
+time.</p>
+<pre><code>┌───────────────────────────────────────────────┐
+│  ▶   ━━━━━━━━━━━━━━━━●─────────────────  0:42 │
+└───────────────────────────────────────────────┘
+</code></pre>
+<ul>
+<li><strong>Elements:</strong> play/pause, seekbar, <code>current/total</code>, (right) <code>⋯</code> menu.</li>
+<li><strong>Interaction:</strong> button toggles playback; dragging seeks; <code>⋯</code> — transcribe/delete/download.</li>
+<li><strong>Pros:</strong> familiar, minimal, fits any theme, nothing extra.</li>
+<li><strong>When:</strong> the default variant.</li>
+<li><strong>CSS:</strong> flex row, <code>border: 1px solid var(--color-border)</code>,
+<code>border-radius: 0.5rem</code>, <code>background: var(--color-white)</code>.</li>
+</ul>
+<h3>Variant 2 — &quot;Voice message&quot; (waveform)</h3>
+<p>Like a Telegram/WhatsApp voice note: play + vertical waveform bars + duration chip.</p>
+<pre><code>┌────────────────────────────────────────────────┐
+│  ▶   ▂▃▅▃▁▂▅▇▅▃▁▂▃▅▇▅▃▁▂▃▅▅▃▂   ┌─────┐  ⋯ │
+│                              │ 0:42│           │
+└────────────────────────────────────────────────┘
+</code></pre>
+<ul>
+<li><strong>Elements:</strong> play/pause, waveform from <code>peaks</code> (with the played part filled),
+<code>0:42</code> chip, <code>⋯</code> menu.</li>
+<li><strong>Interaction:</strong> clicking the waveform seeks; the progress fill is synced with
+playback.</li>
+<li><strong>Pros:</strong> visually rich, intuitively &quot;this is audio&quot;, more compact than a full
+player.</li>
+<li><strong>When:</strong> a recognizable &quot;voice&quot; look is desired.</li>
+<li><strong>CSS:</strong> an array of <code>div</code> bars (or <code>canvas</code>), <code>--color-text-light</code> for the
+played part, <code>--color-checkbox</code> for progress.</li>
+</ul>
+<h3>Variant 3 — &quot;Card&quot;</h3>
+<p>The memo is wrapped in a card that visually groups the block with the following
+transcript <code>&lt;p&gt;</code> (CSS: <code>.voice-memo[data-variant=&quot;card&quot;] + p[data-voice-transcript]</code>
+gets the same background/border). The transcript remains an editable paragraph.</p>
+<pre><code>┌────────────────────────────────────────────────┐
+│  ▶ 0:42 · 26 Oct 09:30:45                 [⋯] │
+│  ┌──────────────────────────────────────────┐ │
+│  │  Record design-doc talking points…        │ │  ← the following &lt;p&gt; (transcript),
+│  │  (a normal editable paragraph)            │ │    pinned to the card via CSS
+│  └──────────────────────────────────────────┘ │
+└────────────────────────────────────────────────┘
+</code></pre>
+<ul>
+<li><strong>Elements:</strong> top row — play, duration, date/time, <code>⋯</code> menu; below — the
+transcript as a separate <code>&lt;p&gt;</code>.</li>
+<li><strong>Interaction:</strong> play starts playback; the transcript is selected/edited as
+ordinary text.</li>
+<li><strong>Pros:</strong> the transcript reads as one unit with the player, looks &quot;document-like&quot;.</li>
+<li><strong>When:</strong> the text is the main value (interviews, notes, dictation).</li>
+<li><strong>CSS:</strong> card <code>background: var(--color-bg)</code>, <code>border: 1px solid var(--color-border)</code>; the transcript <code>&lt;p&gt;</code> gets the same background via the
+adjacent-sibling selector.</li>
+</ul>
+<h3>Variant 4 — &quot;Inline chip&quot;</h3>
+<p>A minimal &quot;pill&quot; in the text flow, like a footnote/tag.</p>
+<pre><code>…notes from the meeting.  ▶ 0:42   The text continues further…
+                         (inline pill)
+</code></pre>
+<ul>
+<li><strong>Elements:</strong> a play icon + duration (while playing — a mini progress ring/fill).</li>
+<li><strong>Interaction:</strong> click plays/pauses inline; the context menu —
+transcribe/delete/download.</li>
+<li><strong>Pros:</strong> doesn't break the text rhythm, the most compact, an analog of
+<code>paragraph-tag</code>.</li>
+<li><strong>When:</strong> quick notes &quot;in the margins&quot;, when audio is secondary.</li>
+<li><strong>CSS:</strong> like <code>.paragraph-tag</code> / <code>.tag</code> pills, <code>inline-flex</code>,
+<code>border-radius: 9999px</code>.</li>
+</ul>
+<h3>Variant 5 — &quot;Quote block&quot;</h3>
+<p>The voice memo is styled as a literary quote with a vertical accent; the following
+transcript <code>&lt;p&gt;</code> is styled in italics in the theme's typography.</p>
+<pre><code>┌────────────────────────────────────────────────┐
+│ ▍ ▶ 0:42 · waveform  ▂▃▅▃▁     · 26 Oct       │
+│ ▍                                              │
+│ ▍   (transcript — the following &lt;p&gt;, italic,    │
+│ ▍    theme font)                                │
+└────────────────────────────────────────────────┘
+</code></pre>
+<ul>
+<li><strong>Elements:</strong> a vertical accent bar (<code>border-left</code>), play, a metadata row
+(date · duration), a thin waveform; the transcript — an italic <code>&lt;p&gt;</code> after the
+block.</li>
+<li><strong>Interaction:</strong> play via the button or the block; <code>⋯</code> menu.</li>
+<li><strong>Pros:</strong> fits Solo's &quot;literary&quot; aesthetic, the transcript reads as part of the
+note.</li>
+<li><strong>When:</strong> themes with distinctive typography (Alighieri, Typewriter), when the
+note is text and the voice is the source.</li>
+<li><strong>CSS:</strong> <code>border-left: 3px solid var(--color-text-light)</code>,
+<code>font-family: var(--editor-font-family)</code>; the transcript <code>&lt;p&gt;</code> — <code>font-style: italic</code>.</li>
+</ul>
+<h3>Choice and switching</h3>
+<ul>
+<li>Default: <strong>Variant 1</strong> (compact bar) — universal.</li>
+<li>A <code>voiceMemoStyle</code> setting (<code>'compact' | 'waveform' | 'card' | 'chip' | 'quote'</code>)
+in <code>SettingsModal → Layout</code>, persisted in global settings, renders the block
+via <code>ReactNodeViewRenderer</code> with the chosen look.</li>
+<li>The transcript is, in every variant, a regular <code>&lt;p&gt;</code> after the block; variants
+3 and 5 only differ in visually grouping that paragraph with the memo.</li>
+</ul>
+<h2>7. Integration</h2>
+<ul>
+<li><code>src/extensions/VoiceMemo.ts</code> — the node; registered in <code>App.tsx</code> next to <code>CutIn</code>.</li>
+<li><code>src/components/Editor/VoiceMemoNode.tsx</code> (+ <code>VoiceMemo.css</code>) — the 5 variants
+and the context menu.</li>
+<li><code>src/components/Editor/hooks/useVoiceMemo.ts</code> — recording (native <code>AudioRecord</code>
+bridge on Android, <code>getUserMedia</code> + PCM→WAV on Desktop), node insertion,
+play/pause/seek logic; transcript <code>&lt;p&gt;</code> insertion after the memo.</li>
+<li><code>src/components/Editor/hooks/useTranscription.ts</code> — on-device transcription
+orchestration: both platforms call <code>getNativeAPI().transcribeAudio(fileName)</code>
+(Android → Vosk AAR, Desktop → native Vosk via koffi in the Electron main).</li>
+<li><code>src/components/Editor/FAB.tsx</code> — an <code>AudioLines</code> button next to <code>Mic</code> (dictation).</li>
+<li><code>src/i18n/translations.ts</code> — keys <code>editor.voiceMemo</code>, <code>voiceMemo.record</code>,
+<code>voiceMemo.transcribe</code>, <code>voiceMemo.*</code>, etc.</li>
+<li><code>src/types.tsx</code> — <code>ElectronAPI</code> methods, <code>AndroidBridgeRaw</code>, an optional
+<code>voiceMemoStyle</code> field on <code>TypographySettings</code>.</li>
+<li>Export (<code>src/components/Search/export/exportNotes.ts</code>) — transform
+<code>div[data-type=&quot;voice-memo&quot;]</code> into a static &quot;▶ 0:42&quot; block and <strong>transcribe any
+memo without a transcript</strong> (on-device) so the exported PDF/EPUB always includes
+the text.</li>
+</ul>
+<h2>8. Setup — transcription models</h2>
+<p>The Vosk models are ~45 MB each and are <strong>not</strong> committed to the repository. To
+enable on-device transcription on both platforms, run the fetch script once and
+rebuild the native clients.</p>
+<h3>1. Download the models</h3>
+<pre><code class="language-bash">bash scripts/fetch-vosk-models.sh
+</code></pre>
+<p>This downloads:</p>
+<table>
+<thead>
+<tr>
+<th>Platform</th>
+<th>File</th>
+<th>Destination</th>
+<th>Engine</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Android</td>
+<td><code>vosk-model-small-ru-0.22.zip</code></td>
+<td><code>native-clients/android/app/src/main/assets/model-ru.zip</code></td>
+<td>Vosk AAR</td>
+</tr>
+<tr>
+<td>Desktop</td>
+<td><code>vosk-model-small-ru-0.22.zip</code> (extracted)</td>
+<td><code>native-clients/electron/models/vosk-model-small-ru-0.22/</code></td>
+<td>native Vosk via koffi</td>
+</tr>
+<tr>
+<td>Desktop</td>
+<td><code>libvosk.dylib</code> / <code>libvosk.so</code></td>
+<td><code>native-clients/electron/libvosk/</code></td>
+<td>native Vosk via koffi</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>Both platforms use the <strong>same</strong> standard Vosk model (<code>.zip</code>, extracted): the
+Android AAR unpacks it at runtime, while the desktop <code>transcribe-audio</code> handler
+loads the extracted folder directly. They are interchangeable.</p>
+</blockquote>
+<blockquote>
+<p>The model is fetched from Hugging Face (<code>rhasspy/vosk-models</code>) first, then a
+GitHub mirror, then <code>alphacephei.com</code> — the script falls back automatically.
+<code>libvosk</code> is extracted from the <code>vosk</code> npm package tarball (npm registry).</p>
+</blockquote>
+<h3>2. Rebuild the clients</h3>
+<ul>
+<li><strong>Android</strong> — the new <code>com.alphacephei:vosk-android</code> dependency requires a
+<code>gradle sync</code> and a fresh build (<code>./gradlew assembleGooglePlayDebug</code> /
+<code>assembleRuStoreDebug</code>). The <code>gradle-wrapper.jar</code> must be present in
+<code>native-clients/android/gradle/wrapper/</code>.</li>
+<li><strong>Desktop (Electron)</strong> — <code>npm install</code> in <code>native-clients/electron/</code> (adds the
+<code>koffi</code> FFI dependency), then rebuild the main process (<code>npm run build:electron</code>).
+For the packaged app, forge bundles <code>models/</code> and <code>libvosk/</code> via <code>extraResource</code>.</li>
+</ul>
+<h3>3. Verify</h3>
+<ul>
+<li><strong>Android:</strong> record a memo → &quot;Transcribe&quot; → the transcript <code>&lt;p&gt;</code> appears. On
+the very first transcription the model is unpacked to the app files dir (a
+one-time delay).</li>
+<li><strong>Desktop:</strong> record a memo → &quot;Transcribe&quot; → the transcript appears with no
+network access (the model is bundled).</li>
+<li><strong>Export:</strong> export a notebook to PDF/EPUB containing a memo without a
+transcript → the document includes the on-device-generated transcript.</li>
+</ul>
+<h2>Feature flag</h2>
+<p>Add <code>voice-memos</code> to <code>feature-flags.json</code>: <code>true</code> for <code>DESKTOP</code> and <code>MOBILE</code>,
+<code>false</code> for <code>PACKAGED</code> (like <code>read-later</code> — due to browser-build limitations: no
+<code>getUserMedia</code> under <code>file://</code> and no bridge). The button is gated by the static
+flag <code>__FF_VOICE_MEMOS__</code> / <code>flags.voiceMemos</code>.</p>
+<h2>Delivery plan</h2>
+<ol>
+<li>Flag, types (<code>uploadAudio</code>, <code>transcribeAudio</code>, <code>voiceMemoStyle</code>), the
+<code>VoiceMemo</code> node with <code>data-type</code> serialization and a fallback <code>&lt;audio&gt;</code>; an
+HTML round-trip test.</li>
+<li><code>uploadAudio</code> in Electron (main + preload) and <code>protocol.handle('voice')</code>
+(resolving <code>assets/voice/</code>); stubs in the Android bridge and <code>createStubAPI</code>.</li>
+<li>Recording: native <code>AudioRecord</code> on Android (via <code>startRecording</code>/<code>stopRecording</code>
+bridge) and <code>getUserMedia</code> + PCM → WAV on Desktop; node insertion, <code>useVoiceMemo</code>,
+the FAB button, i18n.</li>
+<li>Playback: <code>&lt;audio&gt;</code> + <code>voice://</code> on Android (<code>shouldInterceptRequest</code> for
+<code>assets/voice/</code>, <code>onPermissionRequest</code>, <code>RECORD_AUDIO</code>) and Electron
+(<code>Range</code> support).</li>
+<li>The 5 rendering variants + the <code>voiceMemoStyle</code> setting; the context menu
+(deleting the block + deleting the file from <code>assets/voice/</code>).</li>
+<li>On-device transcription: Android Vosk AAR (bridge <code>transcribeAudio</code>) and the
+WASM engine for Desktop; inserting the result as a <code>&lt;p&gt;</code> after the memo.</li>
+<li>PDF/EPUB export: a static &quot;▶ duration&quot; block, transcribing memos without a
+transcript on-device and including the text.</li>
+</ol>
+<h2>Acceptance criteria</h2>
+<ul>
+<li>A &quot;Voice memo&quot; button in the FAB (gated by the flag, absent from PACKAGED).</li>
+<li>Recording → a <code>memo-&lt;yyyy-mm-dd-hhmmss&gt;.wav</code> file in <code>&lt;root&gt;/assets/voice/</code>, a
+<code>voice://...</code> reference in the block, a correct save/load round-trip.</li>
+<li>Playback and seeking work on Desktop and Android.</li>
+<li>&quot;Transcribe&quot; works on-device (without network/cloud) and inserts the result as
+a <code>&lt;p&gt;</code> right after the memo; the text is editable and searchable.</li>
+<li>Deleting the block deletes the audio file (or marks it orphaned — see risks).</li>
+<li>Export doesn't break and shows &quot;▶ duration&quot; + the transcript as plain text.</li>
+<li>The whole scenario (record/play/transcribe) works offline.</li>
+</ul>
+<h2>Open questions / risks</h2>
+<ol>
+<li><strong><code>Range</code> requests.</strong> Seeking via <code>&lt;audio&gt;</code> requires <code>Range</code>-header support: on
+Android <code>shouldInterceptRequest</code> returns the whole file — seek may break; on
+Electron <code>net.fetch('file://')</code> may also not support partial delivery. Plan B —
+native <code>MediaPlayer</code>/<code>ExoPlayer</code> (Android) and a <code>Range</code> stream (Electron).</li>
+<li><strong>Model size / first-use delay.</strong> The Russian model is ~45 MB per platform. On
+Android it inflates the APK and is unpacked to the app files dir on the first
+transcription (a one-time delay); on Desktop it inflates the installer bundle.</li>
+<li><strong>WASM memory.</strong> Vosk-WASM holds the ~45 MB model in memory and runs inference
+in a Web Worker — on low-memory machines the Electron renderer may be
+constrained. The model is loaded lazily on the first &quot;Transcribe&quot;.</li>
+<li><strong>Orphan assets.</strong> Currently <code>deleteNote</code> removes only <code>.html</code>/<code>.json</code>/<code>.css</code>,
+leaving <code>assets/</code> untouched (already true for images). For voice files (larger),
+propose a GC pass: on note deletion remove its <code>voice://</code> assets from
+<code>assets/voice/</code>, or periodically reconcile <code>assets/voice/</code> against HTML content.</li>
+<li><strong>Attachment size.</strong> <code>.wav</code> is larger than compressed formats — a size warning
+for long recordings and (optionally) a lower sample rate.</li>
+<li><strong>Microphone permission.</strong> Android records natively via <code>AudioRecord</code>, which
+still requires the runtime <code>RECORD_AUDIO</code> permission (requested at startup);
+the PACKAGED build has no native bridge and the feature is disabled there.</li>
+</ol>
+
+</body>
+</html>

@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Updated Architecture of the Solo Mobile App for Android</title>
+
+  <style>
+    body { max-width: 60em; margin: 2em auto; padding: 0 1em; line-height: 1.55; font-family: Georgia, 'Times New Roman', serif; color: #1a1a1a; }
+    h1, h2, h3, h4 { font-family: -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; line-height: 1.25; }
+    table { border-collapse: collapse; margin: 1em 0; display: block; overflow-x: auto; }
+    th, td { border: 1px solid rgba(120,120,120,.45); padding: 4px 9px; text-align: left; vertical-align: top; }
+    th { background: rgba(120,120,120,.12); }
+    pre { background: rgba(120,120,120,.09); border: 1px solid rgba(120,120,120,.25); padding: 10px 12px; overflow-x: auto; border-radius: 4px; }
+    code { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: .9em; }
+    :not(pre) > code { background: rgba(120,120,120,.12); padding: 1px 4px; border-radius: 3px; }
+    blockquote { border-left: 3px solid rgba(120,120,120,.5); margin-left: 0; padding-left: 1em; color: #555; }
+    hr { border: none; border-top: 1px solid rgba(120,120,120,.4); margin: 2em 0; }
+    a { color: #14539a; }
+  </style>
+</head>
+<body>
+  <h1>Updated Architecture of the Solo Mobile App for Android</h1>
+<h2>Architecture Changes per Requirements</h2>
+<h3>Key changes:</h3>
+<ol>
+<li><strong>Simplified UI</strong>: Native UI components removed; only the WebView container remains</li>
+<li><strong>Arbitrary storage location</strong>: Support for a <code>rootFolder</code> anywhere in the file system</li>
+<li><strong>No image compression</strong>: Images are saved at original quality</li>
+<li><strong>No dark theme</strong>: Light theme only</li>
+<li><strong>No analytics</strong>: Monitoring and analytics systems removed</li>
+<li><strong>Multi-store</strong>: Support for publishing on Google Play and RuStore</li>
+</ol>
+<h2>Overall Architecture</h2>
+<pre><code class="language-mermaid">graph TB
+    subgraph &quot;UI Layer&quot;
+        A[MainActivity] --&gt; B[WebViewFragment]
+        A --&gt; C[FolderPickerActivity]
+        A --&gt; D[SimpleSettingsActivity]
+    end
+    
+    subgraph &quot;Bridge Layer&quot;
+        B --&gt; F[WebViewBridge]
+        F --&gt; G[JavaScriptInterface]
+        G --&gt; H[FileSystemManager]
+        G --&gt; I[AudioPlayer]
+        G --&gt; J[SearchEngine]
+    end
+    
+    subgraph &quot;Data Layer&quot;
+        H --&gt; K[RootFolder Storage]
+        K --&gt; L[Arbitrary location]
+        J --&gt; M[Search Index]
+        N[Assets] --&gt; B
+    end
+    
+    subgraph &quot;Web Application&quot;
+        O[Solo Web App] --&gt; B
+        O --&gt; P[TipTap Editor]
+        O --&gt; Q[Howler.js Audio]
+        O --&gt; R[Search UI]
+    end
+    
+    F --&gt; O
+    O --&gt; G
+    
+    subgraph &quot;Permissions&quot;
+        S[MANAGE_EXTERNAL_STORAGE] --&gt; H
+        T[Storage Access Framework] --&gt; C
+    end
+</code></pre>
+<h2>Component Diagram (Simplified)</h2>
+<pre><code class="language-mermaid">graph LR
+    subgraph &quot;Android Application&quot;
+        A[MainActivity] --&gt; B[WebViewBridge]
+        A --&gt; C[FileSystemManager]
+        A --&gt; D[AudioPlayer]
+        A --&gt; E[SearchEngine]
+        A --&gt; F[SimpleSettingsManager]
+        
+        B --&gt; G[JavaScript Interface]
+        G --&gt; H[WebView]
+        
+        C --&gt; I[RootFolder Storage]
+        C --&gt; J[MANAGE_EXTERNAL_STORAGE]
+        D --&gt; K[MediaPlayer]
+        E --&gt; L[Search Index]
+        F --&gt; M[SharedPreferences]
+    end
+    
+    subgraph &quot;Web Application&quot;
+        H --&gt; N[Solo App]
+        N --&gt; O[Editor Component]
+        N --&gt; P[Search Component]
+        N --&gt; Q[Audio Component]
+        N --&gt; R[Image Upload]
+    end
+    
+    subgraph &quot;External&quot;
+        S[Google Play] --&gt; A
+        T[RuStore] --&gt; A
+    end
+</code></pre>
+<h2>App Startup Sequence (Updated)</h2>
+<pre><code class="language-mermaid">sequenceDiagram
+    participant User
+    participant MainActivity
+    participant WebView
+    participant WebViewBridge
+    participant FileSystem
+    participant StorageFramework
+    participant SoloApp
+    
+    User-&gt;&gt;MainActivity: Launch the app
+    MainActivity-&gt;&gt;StorageFramework: Check rootFolder
+    alt rootFolder not selected
+        StorageFramework-&gt;&gt;User: Folder picker dialog
+        User-&gt;&gt;StorageFramework: Select rootFolder
+    end
+    StorageFramework--&gt;&gt;MainActivity: Path to rootFolder
+    MainActivity-&gt;&gt;WebView: Initialization
+    MainActivity-&gt;&gt;WebViewBridge: Create bridge
+    MainActivity-&gt;&gt;FileSystem: Configure rootFolder
+    WebView-&gt;&gt;SoloApp: Load index.html from assets
+    SoloApp-&gt;&gt;WebViewBridge: Check bridge availability
+    WebViewBridge-&gt;&gt;FileSystem: Request file structure
+    FileSystem--&gt;&gt;WebViewBridge: Folder structure
+    WebViewBridge--&gt;&gt;SoloApp: Data via JavaScript
+    SoloApp--&gt;&gt;User: Render the interface
+</code></pre>
+<h2>Bridge API Diagram (Updated)</h2>
+<pre><code class="language-mermaid">graph TD
+    subgraph &quot;JavaScript Interface&quot;
+        A[selectFolder] --&gt; B[Folder selection via SAF]
+        C[getDataFolder] --&gt; D[Get rootFolder]
+        E[openFile] --&gt; F[Read file]
+        G[updateFile] --&gt; H[Write file]
+        I[readStructure] --&gt; J[Read structure]
+        K[search] --&gt; L[Search notes]
+        M[playTypewriterSound] --&gt; N[Play sound]
+        O[uploadImage] --&gt; P[Upload images without compression]
+    end
+    
+    subgraph &quot;Android Implementation&quot;
+        B --&gt; Q[Storage Access Framework]
+        Q --&gt; R[MANAGE_EXTERNAL_STORAGE]
+        D --&gt; S[SharedPreferences]
+        F --&gt; T[File.readText]
+        H --&gt; U[File.writeText]
+        J --&gt; V[File.walk]
+        L --&gt; W[SearchEngine.search]
+        N --&gt; X[MediaPlayer.play]
+        P --&gt; Y[Image Save Original Quality]
+    end
+</code></pre>
+<h2>Android Project Structure (Updated)</h2>
+<pre><code>solo/native-clients/android/
+├── app/
+│   ├── src/main/
+│   │   ├── java/com/solo/
+│   │   │   ├── MainActivity.kt
+│   │   │   ├── bridge/
+│   │   │   │   ├── WebViewBridge.kt
+│   │   │   │   ├── FileSystemManager.kt
+│   │   │   │   ├── AudioPlayer.kt
+│   │   │   │   └── SearchEngine.kt
+│   │   │   ├── ui/
+│   │   │   │   ├── FolderPickerActivity.kt
+│   │   │   │   └── SimpleSettingsActivity.kt
+│   │   │   └── utils/
+│   │   │       ├── PermissionHelper.kt
+│   │   │       └── SecurityUtils.kt
+│   │   ├── res/
+│   │   │   ├── layout/
+│   │   │   │   ├── activity_main.xml
+│   │   │   │   ├── activity_folder_picker.xml
+│   │   │   │   └── activity_settings.xml
+│   │   │   └── values/
+│   │   │       ├── colors.xml (light theme only)
+│   │   │       └── strings.xml
+│   │   └── assets/
+│   │       ├── solo/          # Solo web application
+│   │       │   ├── index.html
+│   │       │   ├── assets/
+│   │       │   └── ...
+│   │       └── typewriter.mp3
+│   ├── build.gradle.kts
+│   └── AndroidManifest.xml
+├── build.gradle.kts
+└── settings.gradle.kts
+</code></pre>
+<h2>Data Flow for Image Upload (Without Compression)</h2>
+<pre><code class="language-mermaid">sequenceDiagram
+    participant User
+    participant EditorUI
+    participant WebViewBridge
+    participant FileSystem
+    participant Storage
+    
+    User-&gt;&gt;EditorUI: Insert an image
+    EditorUI-&gt;&gt;WebViewBridge: uploadImage(base64Data, fileName)
+    WebViewBridge-&gt;&gt;FileSystem: saveImage(base64Data, fileName)
+    FileSystem-&gt;&gt;FileSystem: Decode base64
+    FileSystem-&gt;&gt;Storage: Save original bytes
+    Storage--&gt;&gt;FileSystem: Write confirmation
+    FileSystem--&gt;&gt;WebViewBridge: Path to the saved file
+    WebViewBridge--&gt;&gt;EditorUI: Image URL
+    EditorUI--&gt;&gt;User: Display the image
+</code></pre>
+<h2>Folder Selection Flow with MANAGE_EXTERNAL_STORAGE</h2>
+<pre><code class="language-mermaid">sequenceDiagram
+    participant User
+    participant App
+    participant SAF
+    participant System
+    
+    User-&gt;&gt;App: Request folder selection
+    App-&gt;&gt;System: Check MANAGE_EXTERNAL_STORAGE permission
+    alt Permission granted
+        App-&gt;&gt;SAF: Request to pick any folder
+        SAF-&gt;&gt;User: System picker dialog
+        User-&gt;&gt;SAF: Select rootFolder
+        SAF--&gt;&gt;App: URI of the selected folder
+        App-&gt;&gt;App: Save to SharedPreferences
+    else Permission not granted
+        App-&gt;&gt;System: Request permission
+        System-&gt;&gt;User: Permission dialog
+        User-&gt;&gt;System: Grant permission
+        System--&gt;&gt;App: Confirmation
+        App-&gt;&gt;SAF: Retry picker request
+    end
+</code></pre>
+<h2>Technology Stack (Updated)</h2>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Technology</th>
+<th>Purpose</th>
+<th>Changes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Language</td>
+<td>Kotlin</td>
+<td>Primary development language</td>
+<td>No changes</td>
+</tr>
+<tr>
+<td>UI Framework</td>
+<td>Jetpack Compose (minimal)</td>
+<td>Basic UI</td>
+<td>Simplified; complex components removed</td>
+</tr>
+<tr>
+<td>Architecture</td>
+<td>MVVM (simplified)</td>
+<td>Code organization</td>
+<td>Clean Architecture removed for simplicity</td>
+</tr>
+<tr>
+<td>Asynchrony</td>
+<td>Kotlin Coroutines</td>
+<td>Asynchronous operations</td>
+<td>No changes</td>
+</tr>
+<tr>
+<td>WebView</td>
+<td>Android WebView + Accompanist</td>
+<td>Rendering the web application</td>
+<td>No changes</td>
+</tr>
+<tr>
+<td>Bridge</td>
+<td>@JavascriptInterface</td>
+<td>JS-Kotlin communication</td>
+<td>No changes</td>
+</tr>
+<tr>
+<td>Audio</td>
+<td>Android MediaPlayer</td>
+<td>Playing sounds</td>
+<td>No changes</td>
+</tr>
+<tr>
+<td>Storage</td>
+<td>File API + SAF + MANAGE_EXTERNAL_STORAGE</td>
+<td>Local storage in arbitrary folders</td>
+<td>Added support for arbitrary paths</td>
+</tr>
+<tr>
+<td>Search</td>
+<td>Kotlin Sequence + Regex</td>
+<td>Searching files</td>
+<td>No changes</td>
+</tr>
+<tr>
+<td>Permissions</td>
+<td>Android Permissions API</td>
+<td>Permission management</td>
+<td>Added MANAGE_EXTERNAL_STORAGE</td>
+</tr>
+<tr>
+<td>Publishing</td>
+<td>Google Play + RuStore</td>
+<td>App distribution</td>
+<td>Added RuStore support</td>
+</tr>
+</tbody>
+</table>
+<h2>Permissions Scheme</h2>
+<pre><code class="language-mermaid">graph TD
+    A[Application] --&gt; B[Core permissions]
+    B --&gt; C[INTERNET]
+    B --&gt; D[ACCESS_NETWORK_STATE]
+    
+    A --&gt; E[Storage permissions]
+    E --&gt; F[READ_EXTERNAL_STORAGE]
+    E --&gt; G[WRITE_EXTERNAL_STORAGE]
+    E --&gt; H[MANAGE_EXTERNAL_STORAGE]
+    
+    A --&gt; I[Media permissions]
+    I --&gt; J[READ_MEDIA_IMAGES]
+    
+    H --&gt; K[Selecting arbitrary folders]
+    F --&gt; L[Reading files]
+    G --&gt; M[Writing files]
+    J --&gt; N[Access to the gallery]
+</code></pre>
+<h2>Security Model</h2>
+<h3>Path traversal protection:</h3>
+<pre><code class="language-kotlin">fun isPathSafe(file: File): Boolean {
+    val rootPath = rootFolder?.canonicalPath ?: return false
+    val filePath = file.canonicalPath
+    // Check that the file is inside rootFolder
+    return filePath.startsWith(rootPath)
+}
+</code></pre>
+<h3>Permission handling:</h3>
+<ol>
+<li><strong>Runtime permissions</strong>: READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE</li>
+<li><strong>Special permission</strong>: MANAGE_EXTERNAL_STORAGE (requires manual approval by the user)</li>
+<li><strong>Storage Access Framework</strong>: For folder selection without MANAGE_EXTERNAL_STORAGE</li>
+</ol>
+<h3>Data isolation:</h3>
+<ul>
+<li>All file system operations are restricted to <code>rootFolder</code></li>
+<li>The JavaScript bridge has access only to FileSystemManager methods</li>
+<li>All paths are validated for safety</li>
+</ul>
+<h2>Build Configuration for Different Stores</h2>
+<h3>Google Play:</h3>
+<pre><code class="language-gradle">android {
+    defaultConfig {
+        applicationId &quot;com.solo.app&quot;
+        versionCode 1
+        versionName &quot;1.0&quot;
+    }
+    
+    buildTypes {
+        release {
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt')
+        }
+    }
+}
+</code></pre>
+<h3>RuStore:</h3>
+<pre><code class="language-gradle">android {
+    defaultConfig {
+        applicationId &quot;com.solo.app&quot;
+        versionCode 1
+        versionName &quot;1.0&quot;
+        // RuStore-specific settings
+    }
+    
+    // Possible additional configurations
+    flavorDimensions &quot;store&quot;
+    productFlavors {
+        googlePlay {
+            dimension &quot;store&quot;
+            // Settings for Google Play
+        }
+        companyStore {
+            dimension &quot;store&quot;
+            // Settings for RuStore
+        }
+    }
+}
+</code></pre>
+<h2>Migration from electron.ts to nativeBridge.ts</h2>
+<h3>Changes in the codebase:</h3>
+<ol>
+<li><strong>File rename</strong>: <code>src/utils/electron.ts</code> → <code>src/utils/nativeBridge.ts</code></li>
+<li><strong>Import updates</strong>: In all files that import electron.ts</li>
+<li><strong>API unification</strong>: Creating a common interface for Electron and Android</li>
+<li><strong>Platform detection</strong>: Logic for detecting the available API</li>
+</ol>
+<h3>New nativeBridge.ts structure:</h3>
+<pre><code class="language-typescript">// Common interface for all platforms
+interface NativeAPI {
+    readStructure(): Promise&lt;{success: boolean, structure?: FileNode[], error?: string}&gt;;
+    openFile(path: string): Promise&lt;{success: boolean, content?: string, error?: string}&gt;;
+    updateFile(path: string, content: string): Promise&lt;{success: boolean, error?: string}&gt;;
+    selectFolder(): Promise&lt;{success: boolean, path?: string, error?: string}&gt;;
+    getDataFolder(): Promise&lt;{success: boolean, path?: string, error?: string}&gt;;
+    playTypewriterSound(): Promise&lt;void&gt;;
+    uploadImage(base64Data: string, fileName: string): Promise&lt;{success: boolean, url?: string, error?: string}&gt;;
+}
+
+// Detect the available API
+export function getPlatformAPI(): NativeAPI | null {
+    if (window.electronAPI) {
+        return window.electronAPI as NativeAPI;
+    } else if (window.androidBridge) {
+        return window.androidBridge as NativeAPI;
+    } else {
+        return null; // Web version
+    }
+}
+</code></pre>
+<p>This updated architecture reflects all the changes requested by the user and provides a minimalist yet functional approach to implementing the Android version of Solo.</p>
+
+</body>
+</html>

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Plan - Go CLI Semantic Search Tool (solo-instruments-semantic-search)</title>
+
+  <style>
+    body { max-width: 60em; margin: 2em auto; padding: 0 1em; line-height: 1.55; font-family: Georgia, 'Times New Roman', serif; color: #1a1a1a; }
+    h1, h2, h3, h4 { font-family: -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; line-height: 1.25; }
+    table { border-collapse: collapse; margin: 1em 0; display: block; overflow-x: auto; }
+    th, td { border: 1px solid rgba(120,120,120,.45); padding: 4px 9px; text-align: left; vertical-align: top; }
+    th { background: rgba(120,120,120,.12); }
+    pre { background: rgba(120,120,120,.09); border: 1px solid rgba(120,120,120,.25); padding: 10px 12px; overflow-x: auto; border-radius: 4px; }
+    code { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: .9em; }
+    :not(pre) > code { background: rgba(120,120,120,.12); padding: 1px 4px; border-radius: 3px; }
+    blockquote { border-left: 3px solid rgba(120,120,120,.5); margin-left: 0; padding-left: 1em; color: #555; }
+    hr { border: none; border-top: 1px solid rgba(120,120,120,.4); margin: 2em 0; }
+    a { color: #14539a; }
+  </style>
+</head>
+<body>
+  <h1>Plan - Go CLI Semantic Search Tool (solo-instruments-semantic-search)</h1>
+<h2>Task</h2>
+<p>Create a standalone Go program in <code>solo/instruments</code> that:</p>
+<ul>
+<li>compiles as a CLI tool for Ubuntu;</li>
+<li>takes a <code>rootFolder</code> and a search query (text + optional tags) and performs semantic search among the files in that folder using a <em>local</em> (offline) neural network model;</li>
+<li>takes a <code>rootFolder</code> and a command to rebuild the index;</li>
+<li>searches among <code>.html</code> note files; next to each html there is a <code>.json</code> file with the same name containing metadata (<code>tags</code>, <code>paragraphTags</code>, etc. — important for search).</li>
+</ul>
+<p>This task is the Go/CLI counterpart of the existing Electron plan <a href="../plans/semantic-search.md:1"><code>semantic-search.md</code></a>, but as a self-contained portable binary without Node/Electron.</p>
+<h2>Refined decisions</h2>
+<ol>
+<li><strong>Embedding model</strong>: ONNX Runtime via <code>onnxruntime-go</code> (<a href="http://github.com/yalue/onnxruntime_go">github.com/yalue/onnxruntime_go</a>), the <code>all-MiniLM-L6-v2</code> model in ONNX format (same model as in the Electron plan, so that embeddings are comparable). Implemented and verified end-to-end with ONNX Runtime 1.26.0 and the model/tokenizer from <code>Xenova/all-MiniLM-L6-v2</code> (HuggingFace).</li>
+<li><strong>CLI interface</strong>: a single <code>solo-search</code> binary with subcommands:
+<ul>
+<li><code>solo-search index --root &lt;dir&gt; [--model-dir &lt;dir&gt;]</code> — build/rebuild the index;</li>
+<li><code>solo-search query --root &lt;dir&gt; [--query &quot;&lt;text&gt;&quot;] [--tags &quot;&lt;boolean expression&gt;&quot;] [--model-dir &lt;dir&gt;]</code> — search. At least one of the <code>--query</code>/<code>--tags</code> parameters must be specified (both together are also allowed); if neither is specified — error.
+The result is printed to stdout as JSON.</li>
+</ul>
+</li>
+<li><strong>Index storage</strong>: a SQLite file <code>&lt;root&gt;/.solo-index/index.db</code>, accessed without cgo via <code>modernc.org/sqlite</code> (the only heavy C dependency is ONNX Runtime itself).</li>
+<li><strong>Model/tokenizer</strong>: files <code>model.onnx</code>, <code>tokenizer.json</code>, etc. are shipped next to the binary in a <code>models/</code> folder (placed into the repository/distribution manually); the path can be overridden with the <code>--model-dir</code> flag or an environment variable (e.g. <code>SOLO_SEARCH_MODEL_DIR</code>).</li>
+<li><strong>Document chunking</strong>: by paragraphs. Each HTML element <code>p</code>/<code>h1-h6</code>/<code>li</code> with a <code>data-tags</code> attribute (see <a href="../src/extensions/ParagraphTags.ts:30"><code>ParagraphTags.ts</code></a> and <a href="../src/utils.tsx:6"><code>extractParagraphTags()</code></a>) becomes a separate chunk with its own <code>paragraphTags</code>. Search returns the specific matching paragraphs, not the whole file.</li>
+<li><strong>Interaction of <code>--query</code> and <code>--tags</code></strong>: at least one of the parameters is required.
+<ul>
+<li>Both specified (<code>--query</code> and <code>--tags</code>): <code>--tags</code> acts as a soft relevance boost (not a hard AND filter, does not exclude results without tags). The <code>--tags</code> value is a boolean expression over the tag set of a chunk/file, e.g. <code>foo AND (bar OR baz)</code>. Final relevance = semantic similarity + boost for a tag-expression match.</li>
+<li>Only <code>--tags</code> specified (no <code>--query</code>): no semantic ranking — <code>--tags</code> acts as a hard filter, selecting only the subset of chunks/files that exactly satisfy the tag expression (the result is sorted, e.g. by date or by path, without a score).</li>
+<li>Only <code>--query</code> specified (no <code>--tags</code>): pure semantic search without tag consideration.</li>
+<li>If neither parameter is specified — the CLI returns a validation error.</li>
+</ul>
+</li>
+</ol>
+<h2>Metadata format</h2>
+<p>Mirrors the TS type <a href="../src/types.tsx:78"><code>FileMetadata</code></a>:</p>
+<pre><code class="language-json">{
+  &quot;id&quot;: &quot;string&quot;,
+  &quot;tags&quot;: [&quot;string&quot;],
+  &quot;createdAt&quot;: &quot;ISO-date&quot;,
+  &quot;theme&quot;: &quot;string (optional)&quot;,
+  &quot;paragraphTags&quot;: [&quot;string&quot;]
+}
+</code></pre>
+<p>For each <code>note.html</code> there is a <code>note.json</code> next to it — the same way this is already implemented in the Electron handlers (<a href="../native-clients/electron/electron/main.ts:709"><code>main.ts:709</code></a>, <a href="../native-clients/electron/electron/main.ts:765"><code>main.ts:765</code></a>).</p>
+<h2>Architecture</h2>
+<pre><code class="language-mermaid">flowchart TD
+    CLI[solo-search CLI] --&gt; Index[index command]
+    CLI --&gt; Query[query command]
+
+    Index --&gt; Walker[Traverse rootFolder]
+    Walker --&gt; HTMLParse[Parse HTML into paragraphs]
+    Walker --&gt; MetaRead[Read sidecar JSON metadata]
+    HTMLParse --&gt; Embed[ONNX embedding of chunks]
+    MetaRead --&gt; Embed
+    Embed --&gt; Store[SQLite index.db in rootFolder slash .solo-index]
+
+    Query --&gt; QEmbed[ONNX embedding of the query]
+    Query --&gt; TagExpr[Parse boolean tag expression]
+    QEmbed --&gt; Search[Cosine similarity over paragraphs]
+    TagExpr --&gt; Search
+    Store --&gt; Search
+    Search --&gt; JSONOut[JSON result to stdout]
+</code></pre>
+<h2>Module structure (plan)</h2>
+<pre><code>solo/instruments/semantic-search/
+├── go.mod
+├── README.md
+├── Makefile                      # build for linux/amd64
+├── models/                       # model + tokenizer (manually placed files)
+├── cmd/solo-search/main.go       # index/query subcommand parsing
+└── internal/
+    ├── embedding/                # ONNX model loading, tokenization, mean-pooling
+    ├── htmlparse/                # paragraph extraction + data-tags
+    ├── metadata/                 # reading/structures for sidecar JSON
+    ├── store/                    # SQLite schema and index access
+    ├── indexer/                  # rootFolder traversal, incremental update
+    └── query/
+        ├── tagexpr/               # boolean tag expression parser
+        └── search/                # cosine similarity + boost + top-N
+</code></pre>
+<h2>Step-by-step implementation plan</h2>
+<ol>
+<li>Initialize the Go module in <code>solo/instruments/semantic-search</code> (go.mod, basic directory structure <code>cmd</code>/<code>internal</code>/<code>models</code>).</li>
+<li>Implement the CLI scaffolding in <code>cmd/solo-search/main.go</code>: parsing of the <code>index</code> and <code>query</code> subcommands and the common flags <code>--root</code>, <code>--model-dir</code> (and/or the environment variable <code>SOLO_SEARCH_MODEL_DIR</code>).</li>
+<li>Implement loading of the ONNX model (<code>all-MiniLM-L6-v2</code>) and tokenizer via <code>onnxruntime-go</code>: <code>internal/embedding</code> (model.go, tokenizer.go, embedder.go) with mean-pooling and vector normalization.</li>
+<li>Implement the note HTML file parser in <code>internal/htmlparse</code>: splitting into paragraphs (<code>p</code>, <code>h1-h6</code>, <code>li</code>), extracting <code>data-tags</code> as <code>paragraphTags</code> for each paragraph.</li>
+<li>Implement reading of sidecar JSON metadata (<code>internal/metadata</code>): a <code>FileMetadata</code> struct (id, tags, createdAt, theme, paragraphTags) mirroring the TS type <code>FileMetadata</code>.</li>
+<li>Design and implement the SQLite index storage (<code>internal/store</code>): files/paragraphs/meta schema, DB initialization at <code>&lt;root&gt;/.solo-index/index.db</code>, migrations when the model changes.</li>
+<li>Implement the indexer (<code>internal/indexer</code>): traverse <code>rootFolder</code>, hash files (html+json) for incremental updates, embed new/changed paragraphs, delete records for removed files.</li>
+<li>Implement the boolean tag expression parser (<code>internal/query/tagexpr</code>): grammar with <code>AND</code>/<code>OR</code>/<code>NOT</code> and parentheses, e.g. <code>foo AND (bar OR baz)</code>, evaluating a match against a paragraph's tag set.</li>
+<li>Implement the <code>query</code> subcommand logic in <code>internal/query/search</code>, supporting three modes:
+<ul>
+<li><code>--query</code> + <code>--tags</code>: embed the query, cosine similarity over all paragraphs, soft relevance boost for a tag-expression match, top-N sorting;</li>
+<li><code>--tags</code> only: hard filtering of paragraphs/files by the tag expression without semantic ranking;</li>
+<li><code>--query</code> only: pure semantic search without tag consideration.
+Validation: if neither <code>--query</code> nor <code>--tags</code> is provided — return an error.</li>
+</ul>
+</li>
+<li>Implement JSON result output to stdout (result structures: filePath, paragraphIndex, text, tags, score, semanticScore, tagBoost, note metadata).</li>
+<li>Prepare the Ubuntu build (Makefile/cross-compile script <code>GOOS=linux GOARCH=amd64</code>, <code>CGO_ENABLED=1</code>), document the dependency on <code>libonnxruntime.so</code> and its placement.</li>
+<li>Add a README with instructions for obtaining the model/tokenizer (<code>models/</code>), examples of the <code>index</code> and <code>query</code> commands, and a description of the JSON output format.</li>
+<li>Write unit tests: tag expression parser, paragraph extraction from HTML, cosine similarity, index/query round-trip on test files.</li>
+</ol>
+<h2>Possible enhancements (discussed, but deferred/not included in the first iteration)</h2>
+<ul>
+<li>A <code>status</code> subcommand to check the index state (number of files/chunks, last indexing date, model version).</li>
+<li>Indexing PDF files alongside HTML (would require text extraction from PDF, e.g. via <code>pdfcpu</code>/<code>ledongthuc/pdf</code>, and defining an analog of <code>paragraphTags</code> for PDF content).</li>
+</ul>
+<p>These items can be added as separate steps to the todo list before implementation starts, if a decision is made to include them in scope.</p>
+
+</body>
+</html>

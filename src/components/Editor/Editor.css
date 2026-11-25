@@ -290,6 +290,41 @@
   margin: 0;
 }
 
+/* Tables (via official @tiptap/extension-table) */
+.editor-body .ProseMirror table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0 0 var(--paragraph-spacing) 0;
+  table-layout: fixed;
+}
+
+.editor-body .ProseMirror table p {
+  margin: 0;
+}
+
+.editor-body .ProseMirror th,
+.editor-body .ProseMirror td {
+  border: 1px solid rgba(128, 128, 128, 0.4);
+  padding: 0.35em 0.6em;
+  vertical-align: top;
+  min-width: 1em;
+  position: relative;
+}
+
+.editor-body .ProseMirror th {
+  font-weight: 600;
+  background: rgba(128, 128, 128, 0.1);
+  text-align: left;
+}
+
+.editor-body .ProseMirror .selectedCell:after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(200, 200, 255, 0.3);
+  pointer-events: none;
+}
+
 .editor-body.drop-caps .ProseMirror>p:first-child::first-letter {
   font-size: var(--drop-cap-size);
   line-height: 1;

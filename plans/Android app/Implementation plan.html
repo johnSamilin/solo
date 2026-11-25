@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Solo Mobile App Implementation Plan for Android</title>
+
+  <style>
+    body { max-width: 60em; margin: 2em auto; padding: 0 1em; line-height: 1.55; font-family: Georgia, 'Times New Roman', serif; color: #1a1a1a; }
+    h1, h2, h3, h4 { font-family: -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; line-height: 1.25; }
+    table { border-collapse: collapse; margin: 1em 0; display: block; overflow-x: auto; }
+    th, td { border: 1px solid rgba(120,120,120,.45); padding: 4px 9px; text-align: left; vertical-align: top; }
+    th { background: rgba(120,120,120,.12); }
+    pre { background: rgba(120,120,120,.09); border: 1px solid rgba(120,120,120,.25); padding: 10px 12px; overflow-x: auto; border-radius: 4px; }
+    code { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: .9em; }
+    :not(pre) > code { background: rgba(120,120,120,.12); padding: 1px 4px; border-radius: 3px; }
+    blockquote { border-left: 3px solid rgba(120,120,120,.5); margin-left: 0; padding-left: 1em; color: #555; }
+    hr { border: none; border-top: 1px solid rgba(120,120,120,.4); margin: 2em 0; }
+    a { color: #14539a; }
+  </style>
+</head>
+<body>
+  <h1>Solo Mobile App Implementation Plan for Android</h1>
+<h2>Phase 1: Project and Infrastructure Setup</h2>
+<h3>1.1 Creating the Android Project</h3>
+<ul>
+<li>Create a new Android project in <code>solo/native-clients/android/</code></li>
+<li>Set up the module structure (app module)</li>
+<li>Configure Gradle with the required dependencies</li>
+<li>Set the minimum API version to 24 (Android 7.0)</li>
+</ul>
+<h3>1.2 Build Configuration</h3>
+<ul>
+<li>Add dependencies:
+<ul>
+<li>Jetpack Compose for the UI</li>
+<li>Kotlin Coroutines for asynchrony</li>
+<li>Navigation Component</li>
+<li>Accompanist for WebView</li>
+</ul>
+</li>
+<li>Configure proguard/r8 rules</li>
+<li>Configure the signing config for release</li>
+</ul>
+<h3>1.3 Web App Preparation</h3>
+<ul>
+<li>Build the solo web app in single-file mode</li>
+<li>Copy the built files into <code>app/src/main/assets/solo/</code></li>
+<li>Add the <code>typewriter.mp3</code> audio file to assets</li>
+</ul>
+<h2>Phase 2: Core Infrastructure Implementation</h2>
+<h3>2.1 MainActivity and Navigation</h3>
+<ul>
+<li>Create <code>MainActivity</code> with a Navigation Drawer</li>
+<li>Implement basic navigation between screens</li>
+<li>Set up the app theme (light/dark mode)</li>
+</ul>
+<h3>2.2 WebView Integration</h3>
+<ul>
+<li>Create <code>WebViewFragment</code> to render the web app</li>
+<li>Configure WebView with JavaScript support</li>
+<li>Implement loading of local HTML from assets</li>
+</ul>
+<h3>2.3 Bridge Infrastructure</h3>
+<ul>
+<li>Create the base <code>WebViewBridge</code> class</li>
+<li>Set up <code>@JavascriptInterface</code> methods</li>
+<li>Implement secure communication between JS and Kotlin</li>
+</ul>
+<h2>Phase 3: File System Bridge Implementation</h2>
+<h3>3.1 FileSystemManager</h3>
+<ul>
+<li>Implement a class for working with the Android file system</li>
+<li>Add path safety checks (path traversal)</li>
+<li>Implement file read/write methods</li>
+</ul>
+<h3>3.2 Core API Methods</h3>
+<ul>
+<li><code>selectFolder()</code> - folder selection dialog via the Storage Access Framework</li>
+<li><code>getDataFolder()</code> - get the currently selected folder</li>
+<li><code>openFile(relativePath)</code> - read a file with UTF-8 encoding</li>
+<li><code>updateFile(relativePath, content)</code> - write a file</li>
+<li><code>readStructure()</code> - recursive reading of the folder structure</li>
+</ul>
+<h3>3.3 Metadata and Tags</h3>
+<ul>
+<li>Implement parsing of file JSON metadata</li>
+<li>Add support for tags and paragraph tags</li>
+<li>Implement structure caching for performance</li>
+</ul>
+<h2>Phase 4: Additional Features Implementation</h2>
+<h3>4.1 AudioPlayer for the Typewriter Sound</h3>
+<ul>
+<li>Create an <code>AudioPlayer</code> class based on MediaPlayer</li>
+<li>Implement the <code>playTypewriterSound()</code> method</li>
+<li>Add volume control and sound settings</li>
+</ul>
+<h3>4.2 SearchEngine</h3>
+<ul>
+<li>Implement file indexing at load time</li>
+<li>Add a fuzzy search algorithm in Kotlin</li>
+<li>Implement filtering by tags (AND/OR/NOT)</li>
+<li>Optimize search for large collections</li>
+</ul>
+<h3>4.3 Image Upload Support</h3>
+<ul>
+<li>Implement image selection from the gallery</li>
+<li>Add image compression for optimization</li>
+<li>Implement saving images to the assets folder</li>
+</ul>
+<h2>Phase 5: UI/UX Improvements</h2>
+<h3>5.1 Native UI Components</h3>
+<ul>
+<li>Implement a Navigation Drawer with quick access</li>
+<li>Add a Search Bar to the Toolbar</li>
+<li>Create a Floating Action Button for a new note</li>
+<li>Implement Bottom Navigation for the main sections</li>
+</ul>
+<h3>5.2 Web Interface Adaptation</h3>
+<ul>
+<li>Add the meta viewport tag for responsive design</li>
+<li>Configure CSS media queries for mobile devices</li>
+<li>Optimize touch interactions in the editor</li>
+</ul>
+<h3>5.3 App Settings</h3>
+<ul>
+<li>Create a settings screen with SharedPreferences</li>
+<li>Add sound, theme, and font settings</li>
+<li>Implement data folder selection</li>
+</ul>
+<h2>Phase 6: Integration and Testing</h2>
+<h3>6.1 Integration with the Web App</h3>
+<ul>
+<li>Modify <code>useTypewriterSound.ts</code> to support Android</li>
+<li>Update <code>electron.ts</code> for platform detection</li>
+<li>Test all bridge methods</li>
+</ul>
+<h3>6.2 Testing</h3>
+<ul>
+<li>Write unit tests for FileSystemManager and SearchEngine</li>
+<li>Implement UI tests with Espresso</li>
+<li>Test on different devices and Android versions</li>
+</ul>
+<h3>6.3 Performance Optimization</h3>
+<ul>
+<li>Add caching for frequently read files</li>
+<li>Optimize the search index</li>
+<li>Implement background content loading</li>
+</ul>
+<h2>Phase 7: Release Preparation</h2>
+<h3>7.1 App Polishing</h3>
+<ul>
+<li>Add the app icon</li>
+<li>Configure the splash screen</li>
+<li>Add support for multiple languages</li>
+<li>Implement analytics and crash reporting</li>
+</ul>
+<h3>7.2 Build and Publication</h3>
+<ul>
+<li>Set up a CI/CD pipeline</li>
+<li>Create a release build with code obfuscation</li>
+<li>Prepare the description for the Google Play Store</li>
+<li>Publish in the Google Play Console</li>
+</ul>
+<h2>Implementation Details of Key Components</h2>
+<h3>WebViewBridge.kt (structure)</h3>
+<pre><code class="language-kotlin">class WebViewBridge(
+    private val context: Context,
+    private val fileSystemManager: FileSystemManager,
+    private val audioPlayer: AudioPlayer,
+    private val searchEngine: SearchEngine
+) {
+    @JavascriptInterface
+    fun selectFolder(): String {
+        // Folder selection implementation
+    }
+    
+    @JavascriptInterface
+    fun openFile(relativePath: String): String {
+        return fileSystemManager.openFile(relativePath)
+    }
+    
+    @JavascriptInterface
+    fun playTypewriterSound() {
+        audioPlayer.play()
+    }
+    
+    // ... other methods
+}
+</code></pre>
+<h3>FileSystemManager.kt (key methods)</h3>
+<pre><code class="language-kotlin">class FileSystemManager(private val context: Context) {
+    private var dataFolder: File? = null
+    
+    fun setDataFolder(folder: File) {
+        this.dataFolder = folder
+    }
+    
+    fun openFile(relativePath: String): String {
+        val file = File(dataFolder, relativePath)
+        require(isPathSafe(file)) { &quot;Path traversal attempt&quot; }
+        return file.readText()
+    }
+    
+    private fun isPathSafe(file: File): Boolean {
+        return file.canonicalPath.startsWith(dataFolder?.canonicalPath ?: &quot;&quot;)
+    }
+    
+    fun readStructure(): List&lt;FileNode&gt; {
+        // Recursive reading of the folder structure
+    }
+}
+</code></pre>
+<h3>Integration with the existing solo code</h3>
+<ol>
+<li>Modification of <code>src/utils/electron.ts</code>:</li>
+</ol>
+<pre><code class="language-typescript">export function getPlatformAPI() {
+    if (window.electronAPI) {
+        return window.electronAPI;
+    } else if (window.androidBridge) {
+        return window.androidBridge;
+    } else {
+        throw new Error('No platform API available');
+    }
+}
+</code></pre>
+<ol start="2">
+<li>Updating <code>useTypewriterSound.ts</code>:</li>
+</ol>
+<pre><code class="language-typescript">const audioSrc = window.androidBridge
+    ? `android_asset://typewriter.mp3`
+    : window.electronAPI
+    ? `audio://${currentSettings.typewriterSound}.mp3`
+    : `/${currentSettings.typewriterSound}.mp3`;
+</code></pre>
+<h2>Complexity Assessment and Priorities</h2>
+<h3>High priority (MVP):</h3>
+<ol>
+<li>WebView loading the web app</li>
+<li>Basic FileSystem bridge (openFile, updateFile)</li>
+<li>Navigation between notes</li>
+<li>Basic project structure</li>
+</ol>
+<h3>Medium priority:</h3>
+<ol>
+<li>Search across notes</li>
+<li>Typewriter sound</li>
+<li>Native UI components</li>
+<li>App settings</li>
+</ol>
+<h3>Low priority:</h3>
+<ol>
+<li>Advanced editor features</li>
+<li>Synchronization with the desktop version</li>
+<li>Extended theme settings</li>
+<li>Analytics and monitoring</li>
+</ol>
+<h2>Risks and Mitigations</h2>
+<table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Mitigation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>WebView performance on older devices</td>
+<td>Caching, load optimization</td>
+</tr>
+<tr>
+<td>Android file system restrictions</td>
+<td>Using the Storage Access Framework</td>
+</tr>
+<tr>
+<td>Compatibility with different Android versions</td>
+<td>Minimum API version 24, testing</td>
+</tr>
+<tr>
+<td>Path traversal security</td>
+<td>Strict path validation, canonical path</td>
+</tr>
+<tr>
+<td>Memory consumption by large notes</td>
+<td>Incremental loading, lazy loading</td>
+</tr>
+</tbody>
+</table>
+<h2>Next Steps</h2>
+<ol>
+<li>Create the Android project in <code>solo/native-clients/android/</code></li>
+<li>Implement basic WebView integration</li>
+<li>Develop FileSystemManager with the core methods</li>
+<li>Test bridge communication</li>
+<li>Gradually add the remaining features according to the plan</li>
+</ol>
+
+</body>
+</html>

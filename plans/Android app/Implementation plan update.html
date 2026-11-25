@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Updated implementation plan for the Solo mobile app for Android</title>
+
+  <style>
+    body { max-width: 60em; margin: 2em auto; padding: 0 1em; line-height: 1.55; font-family: Georgia, 'Times New Roman', serif; color: #1a1a1a; }
+    h1, h2, h3, h4 { font-family: -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; line-height: 1.25; }
+    table { border-collapse: collapse; margin: 1em 0; display: block; overflow-x: auto; }
+    th, td { border: 1px solid rgba(120,120,120,.45); padding: 4px 9px; text-align: left; vertical-align: top; }
+    th { background: rgba(120,120,120,.12); }
+    pre { background: rgba(120,120,120,.09); border: 1px solid rgba(120,120,120,.25); padding: 10px 12px; overflow-x: auto; border-radius: 4px; }
+    code { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: .9em; }
+    :not(pre) > code { background: rgba(120,120,120,.12); padding: 1px 4px; border-radius: 3px; }
+    blockquote { border-left: 3px solid rgba(120,120,120,.5); margin-left: 0; padding-left: 1em; color: #555; }
+    hr { border: none; border-top: 1px solid rgba(120,120,120,.4); margin: 2em 0; }
+    a { color: #14539a; }
+  </style>
+</head>
+<body>
+  <h1>Updated implementation plan for the Solo mobile app for Android</h1>
+<h2>Changes per the user's requirements</h2>
+<h3>1. Removal of the dark theme</h3>
+<ul>
+<li><strong>Change</strong>: Dark theme support has been removed from the implementation plan</li>
+<li><strong>Reason</strong>: The user does not need a dark theme; minimalism is what matters</li>
+<li><strong>Impact on the plan</strong>:
+<ul>
+<li>Remove the item &quot;Configure the app theme (light/dark mode)&quot; from section 2.1</li>
+<li>Remove theme settings from the settings screen (section 5.3)</li>
+<li>Use only the light theme in the app</li>
+</ul>
+</li>
+</ul>
+<h3>2. Dropping image compression</h3>
+<ul>
+<li><strong>Change</strong>: Image compression on upload has been removed</li>
+<li><strong>Reason</strong>: It is important to preserve image quality unchanged</li>
+<li><strong>Impact on the plan</strong>:
+<ul>
+<li>Remove the item &quot;Add image compression for optimization&quot; from section 4.3</li>
+<li>Change the <code>uploadImage</code> method to preserve original quality</li>
+<li>Increase memory limits to handle large images</li>
+</ul>
+</li>
+</ul>
+<h3>3. Storing data in an arbitrary folder with elevated permissions</h3>
+<ul>
+<li><strong>Change</strong>: Notes and images are stored in a <code>rootFolder</code> that can be located anywhere in the file system</li>
+<li><strong>Reason</strong>: Flexibility in choosing the data storage location</li>
+<li><strong>Impact on the plan</strong>:
+<ul>
+<li>Add the <code>MANAGE_EXTERNAL_STORAGE</code> permission request to AndroidManifest.xml</li>
+<li>Implement folder selection via the Storage Access Framework with support for any location</li>
+<li>Update FileSystemManager to work with arbitrary paths</li>
+<li>Add a security check for arbitrary paths</li>
+</ul>
+</li>
+</ul>
+<h3>4. Removal of native UI components (item 5.1)</h3>
+<ul>
+<li><strong>Change</strong>: The implementation of native UI components has been removed</li>
+<li><strong>Reason</strong>: The web app already has the required UI; minimalism is what matters</li>
+<li><strong>Impact on the plan</strong>:
+<ul>
+<li>Remove the entire section 5.1 &quot;Native UI components&quot;</li>
+<li>Simplify MainActivity to a basic WebView container</li>
+<li>Remove Navigation Drawer, Search Bar, FAB, Bottom Navigation</li>
+<li>Keep only minimal navigation for folder selection and settings</li>
+</ul>
+</li>
+</ul>
+<h3>5. Creating a new nativeBridge.ts (electron.ts stays)</h3>
+<ul>
+<li><strong>Change</strong>: A new file <code>nativeBridge.ts</code> with the <code>getPlatformAPI()</code> abstraction is created; electron.ts remains unchanged</li>
+<li><strong>Reason</strong>: We don't break the Electron client and add a common abstraction for both platforms</li>
+<li><strong>Impact on the plan</strong>:
+<ul>
+<li>Create <code>src/utils/nativeBridge.ts</code> with <code>getPlatformAPI()</code> and <code>getNativeAPI()</code></li>
+<li>Update stores to use nativeBridge where cross-platform support is needed</li>
+<li>electron.ts keeps working as-is for Electron-specific calls</li>
+</ul>
+</li>
+</ul>
+<h3>6. Publishing not only to Google Play, but also to RuStore</h3>
+<ul>
+<li><strong>Change</strong>: Added support for publishing to an alternative app store</li>
+<li><strong>Reason</strong>: Expanding the app's audience</li>
+<li><strong>Impact on the plan</strong>:
+<ul>
+<li>Add build preparation for RuStore</li>
+<li>Configure the store's specific requirements</li>
+<li>Update section 7.2 &quot;Build and publishing&quot;</li>
+</ul>
+</li>
+</ul>
+<h3>7. Removal of analytics and monitoring</h3>
+<ul>
+<li><strong>Change</strong>: Analytics and crash reporting have been removed</li>
+<li><strong>Reason</strong>: The user does not need analytics or monitoring</li>
+<li><strong>Impact on the plan</strong>:
+<ul>
+<li>Remove the item &quot;Implement analytics and crash reporting&quot; from section 7.1</li>
+<li>Remove the corresponding dependencies from Gradle</li>
+<li>Simplify the app's code</li>
+</ul>
+</li>
+</ul>
+<h2>Updated implementation plan</h2>
+<h3>Phase 1: Project and infrastructure setup</h3>
+<h4>1.1 Creating the Android project</h4>
+<ul>
+<li>Create a new Android project in <code>solo/native-clients/android/</code></li>
+<li>Set up the module structure (app module)</li>
+<li>Configure Gradle with the required dependencies</li>
+<li>Set the minimum API version to 24 (Android 7.0)</li>
+</ul>
+<h4>1.2 Build configuration</h4>
+<ul>
+<li>Add dependencies:
+<ul>
+<li>Jetpack Compose for the UI (minimal components)</li>
+<li>Kotlin Coroutines for asynchrony</li>
+<li>Accompanist for WebView</li>
+</ul>
+</li>
+<li>Configure proguard/r8 rules</li>
+<li>Configure the signing config for release</li>
+<li>Add the <code>MANAGE_EXTERNAL_STORAGE</code> permission to AndroidManifest.xml</li>
+</ul>
+<h4>1.3 Preparing the web app</h4>
+<ul>
+<li>Build the solo web app in single-file mode</li>
+<li>Copy the built files to <code>app/src/main/assets/solo/</code></li>
+<li>Add the audio file <code>typewriter.mp3</code> to assets</li>
+</ul>
+<h3>Phase 2: Implementing the basic infrastructure</h3>
+<h4>2.1 MainActivity and minimal UI</h4>
+<ul>
+<li>Create <code>MainActivity</code> as a simple container for WebView</li>
+<li>Implement basic navigation for folder selection</li>
+<li>Use only the light app theme</li>
+</ul>
+<h4>2.2 WebView integration</h4>
+<ul>
+<li>Create <code>WebViewFragment</code> to display the web app</li>
+<li>Configure WebView with JavaScript support</li>
+<li>Implement loading local HTML from assets</li>
+</ul>
+<h4>2.3 Bridge infrastructure</h4>
+<ul>
+<li>Create the base class <code>WebViewBridge</code></li>
+<li>Set up the <code>@JavascriptInterface</code> methods</li>
+<li>Implement secure communication between JS and Kotlin</li>
+</ul>
+<h3>Phase 3: Implementing the File System Bridge with support for arbitrary folders</h3>
+<h4>3.1 FileSystemManager with MANAGE_EXTERNAL_STORAGE support</h4>
+<ul>
+<li>Implement the class for working with the Android file system</li>
+<li>Add a path security check (path traversal)</li>
+<li>Implement methods for reading/writing files in arbitrary folders</li>
+<li>Add support for the <code>MANAGE_EXTERNAL_STORAGE</code> permission</li>
+</ul>
+<h4>3.2 Core API methods</h4>
+<ul>
+<li><code>selectFolder()</code> - folder selection dialog via the Storage Access Framework with support for any location</li>
+<li><code>getDataFolder()</code> - get the currently selected folder (rootFolder)</li>
+<li><code>openFile(relativePath)</code> - read a file with UTF-8 encoding</li>
+<li><code>updateFile(relativePath, content)</code> - write a file</li>
+<li><code>readStructure()</code> - recursively read the folder structure</li>
+</ul>
+<h4>3.3 Metadata and tags</h4>
+<ul>
+<li>Implement parsing of file JSON metadata</li>
+<li>Add support for tags and paragraph tags</li>
+<li>Implement structure caching for performance</li>
+</ul>
+<h3>Phase 4: Implementing additional features</h3>
+<h4>4.1 AudioPlayer for the typewriter sound</h4>
+<ul>
+<li>Create the <code>AudioPlayer</code> class based on MediaPlayer</li>
+<li>Implement the <code>playTypewriterSound()</code> method</li>
+<li>Add volume control</li>
+</ul>
+<h4>4.2 SearchEngine</h4>
+<ul>
+<li>Implement file indexing on load</li>
+<li>Add a fuzzy search algorithm in Kotlin</li>
+<li>Implement filtering by tags (AND/OR/NOT)</li>
+<li>Optimize search for large collections</li>
+</ul>
+<h4>4.3 Image Upload support (without compression)</h4>
+<ul>
+<li>Implement image selection from the gallery</li>
+<li>Save images in original quality</li>
+<li>Implement saving images to the assets folder of the selected rootFolder</li>
+</ul>
+<h3>Phase 5: Minimal UI/UX improvements</h3>
+<h4>5.1 Adapting the web interface</h4>
+<ul>
+<li>Add a meta viewport tag for responsive design</li>
+<li>Configure CSS media queries for mobile devices</li>
+<li>Optimize touch interactions in the editor</li>
+</ul>
+<h4>5.2 Minimal app settings</h4>
+<ul>
+<li>Create a settings screen with SharedPreferences</li>
+<li>Add sound and font settings</li>
+<li>Implement data folder selection (rootFolder)</li>
+</ul>
+<h3>Phase 6: Integration and testing</h3>
+<h4>6.1 Integration with the web app</h4>
+<ul>
+<li>Modify <code>nativeBridge.ts</code> (the former <code>electron.ts</code>) to support Android</li>
+<li>Update <code>useTypewriterSound.ts</code> for platform detection</li>
+<li>Test all bridge methods</li>
+</ul>
+<h4>6.2 Testing</h4>
+<ul>
+<li>Write unit tests for FileSystemManager, SearchEngine</li>
+<li>Implement UI tests with Espresso</li>
+<li>Test on different devices and Android versions</li>
+</ul>
+<h4>6.3 Performance optimization</h4>
+<ul>
+<li>Add caching for frequently read files</li>
+<li>Optimize the search index</li>
+<li>Implement background content loading</li>
+</ul>
+<h3>Phase 7: Release preparation</h3>
+<h4>7.1 App polish</h4>
+<ul>
+<li>Add an app icon</li>
+<li>Configure the splash screen</li>
+<li>Add support for multiple languages</li>
+</ul>
+<h4>7.2 Build and publishing to Google Play and RuStore</h4>
+<ul>
+<li>Configure the CI/CD pipeline</li>
+<li>Create a release build with code obfuscation</li>
+<li>Prepare the description for the Google Play Store</li>
+<li>Prepare the build and documentation for RuStore</li>
+<li>Publish to both app stores</li>
+</ul>
+<h2>Updated bridge architecture</h2>
+<h3>Key architectural decisions (agreed)</h3>
+<ol>
+<li><strong>All @JavascriptInterface methods return JSON strings</strong> -- the Android bridge is synchronous, the JS side parses the JSON</li>
+<li><strong>Async operations (selectFolder) use the callback pattern</strong> -- the Bridge calls <code>evaluateJavascript()</code> with the result after the Activity completes</li>
+<li><strong>SAF (DocumentFile) is the primary approach to the file system</strong> for Google Play compatibility. MANAGE_EXTERNAL_STORAGE -- only for RuStore via product flavors</li>
+<li><strong>nativeBridge.ts is a new file</strong>, electron.ts remains unchanged, without breaking the Electron client</li>
+<li><strong>The Kotlin SearchEngine implements the same API contract</strong> <code>search(query, tags)</code> as Electron</li>
+<li><strong>The typewriter sound is played natively</strong> via AudioPlayer (not via a WebView URL)</li>
+</ol>
+<h3>WebViewBridge.kt (updated structure)</h3>
+<pre><code class="language-kotlin">class WebViewBridge(
+    private val activity: MainActivity,
+    private val fileSystemManager: FileSystemManager,
+    private val audioPlayer: AudioPlayer,
+    private val searchEngine: SearchEngine
+) {
+    // Async: launches SAF picker, calls JS callback via evaluateJavascript()
+    @JavascriptInterface
+    fun selectFolder() {
+        activity.runOnUiThread { activity.launchFolderPicker() }
+    }
+
+    @JavascriptInterface
+    fun getDataFolder(): String {
+        // Returns JSON: {&quot;success&quot;:true,&quot;path&quot;:&quot;/storage/...&quot;}
+        return fileSystemManager.getDataFolderJson()
+    }
+
+    @JavascriptInterface
+    fun openFile(relativePath: String): String {
+        // Returns JSON: {&quot;success&quot;:true,&quot;content&quot;:&quot;...&quot;}
+        return fileSystemManager.openFileJson(relativePath)
+    }
+
+    @JavascriptInterface
+    fun updateFile(relativePath: String, content: String): String {
+        // Returns JSON: {&quot;success&quot;:true}
+        return fileSystemManager.updateFileJson(relativePath, content)
+    }
+
+    @JavascriptInterface
+    fun readStructure(): String {
+        // Returns JSON: {&quot;success&quot;:true,&quot;structure&quot;:[...]}
+        return fileSystemManager.readStructureJson()
+    }
+
+    @JavascriptInterface
+    fun updateMetadata(relativePath: String, metadataJson: String): String {
+        return fileSystemManager.updateMetadataJson(relativePath, metadataJson)
+    }
+
+    @JavascriptInterface
+    fun scanAllTags(): String {
+        return fileSystemManager.scanAllTagsJson()
+    }
+
+    @JavascriptInterface
+    fun createNote(parentPath: String, name: String): String {
+        return fileSystemManager.createNoteJson(parentPath, name)
+    }
+
+    @JavascriptInterface
+    fun createNotebook(parentPath: String, name: String): String {
+        return fileSystemManager.createNotebookJson(parentPath, name)
+    }
+
+    @JavascriptInterface
+    fun deleteNote(relativePath: String): String {
+        return fileSystemManager.deleteNoteJson(relativePath)
+    }
+
+    @JavascriptInterface
+    fun deleteNotebook(relativePath: String): String {
+        return fileSystemManager.deleteNotebookJson(relativePath)
+    }
+
+    @JavascriptInterface
+    fun renameNote(relativePath: String, newName: String): String {
+        return fileSystemManager.renameNoteJson(relativePath, newName)
+    }
+
+    @JavascriptInterface
+    fun renameNotebook(relativePath: String, newName: String): String {
+        return fileSystemManager.renameNotebookJson(relativePath, newName)
+    }
+
+    @JavascriptInterface
+    fun playTypewriterSound() {
+        audioPlayer.play()
+    }
+
+    @JavascriptInterface
+    fun uploadImage(base64Data: String, fileName: String): String {
+        // Returns JSON: {&quot;success&quot;:true,&quot;url&quot;:&quot;assets/...&quot;}
+        return fileSystemManager.saveImageJson(base64Data, fileName)
+    }
+
+    @JavascriptInterface
+    fun search(query: String, tagsJson: String): String {
+        // Returns JSON: {&quot;success&quot;:true,&quot;results&quot;:[...]}
+        return searchEngine.searchJson(query, tagsJson)
+    }
+
+    @JavascriptInterface
+    fun toggleZenMode(enable: Boolean): String {
+        return &quot;&quot;&quot;{&quot;success&quot;:true,&quot;isZenMode&quot;:$enable}&quot;&quot;&quot;
+    }
+}
+</code></pre>
+<h3>Integration with the web app</h3>
+<ol>
+<li>
+<p><strong>New file <code>src/utils/nativeBridge.ts</code></strong> (electron.ts stays as-is):</p>
+<ul>
+<li><code>getNativeAPI()</code> -- returns <code>window.electronAPI</code> or the Android wrapper</li>
+<li>The Android wrapper parses JSON strings from <code>window.SoloBridge</code> into Promise objects compatible with <code>ElectronAPI</code></li>
+<li><code>selectFolder()</code> on Android uses a callback via <code>evaluateJavascript()</code></li>
+</ul>
+</li>
+<li>
+<p><strong>Typewriter sound</strong> -- on Android it is played natively via <code>window.SoloBridge.playTypewriterSound()</code>, Howler.js is not used</p>
+</li>
+</ol>
+<h2>Complexity assessment and priorities</h2>
+<h3>High priority (MVP):</h3>
+<ol>
+<li>WebView loading the web app</li>
+<li>FileSystem bridge with support for arbitrary folders and MANAGE_EXTERNAL_STORAGE</li>
+<li>Basic bridge methods (openFile, updateFile, readStructure)</li>
+<li>Folder selection via the Storage Access Framework</li>
+</ol>
+<h3>Medium priority:</h3>
+<ol>
+<li>Note search</li>
+<li>Typewriter sound</li>
+<li>Image upload without compression</li>
+<li>Minimal app settings</li>
+</ol>
+<h3>Low priority:</h3>
+<ol>
+<li>RuStore publishing support</li>
+<li>Advanced editor features</li>
+<li>Multilingual support</li>
+</ol>
+<h2>Risks and mitigations</h2>
+<table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Mitigation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The MANAGE_EXTERNAL_STORAGE permission may be rejected by Google Play</td>
+<td>Use the Storage Access Framework as a fallback, prepare a justification for Google Play</td>
+</tr>
+<tr>
+<td>WebView performance on older devices</td>
+<td>Caching, load optimization</td>
+</tr>
+<tr>
+<td>Android file system limitations with arbitrary paths</td>
+<td>Thorough testing on different Android versions</td>
+</tr>
+<tr>
+<td>Path traversal security with arbitrary root folders</td>
+<td>Strict canonical path validation, isolation of operations</td>
+</tr>
+<tr>
+<td>Memory consumption by large uncompressed images</td>
+<td>Progressive loading, lazy loading of images</td>
+</tr>
+</tbody>
+</table>
+<h2>Next steps</h2>
+<ol>
+<li>Create the Android project in <code>solo/native-clients/android/</code> with the updated configuration</li>
+<li>Implement the basic WebView integration with a minimal UI</li>
+<li>Develop FileSystemManager with MANAGE_EXTERNAL_STORAGE support and arbitrary folders</li>
+<li>Rename <code>electron.ts</code> to <code>nativeBridge.ts</code> and update the imports</li>
+<li>Test bridge communication with the updated requirements</li>
+<li>Gradually add the remaining features per the updated plan</li>
+</ol>
+
+</body>
+</html>

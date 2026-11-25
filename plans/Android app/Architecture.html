@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Architecture of the Solo Mobile App for Android</title>
+
+  <style>
+    body { max-width: 60em; margin: 2em auto; padding: 0 1em; line-height: 1.55; font-family: Georgia, 'Times New Roman', serif; color: #1a1a1a; }
+    h1, h2, h3, h4 { font-family: -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; line-height: 1.25; }
+    table { border-collapse: collapse; margin: 1em 0; display: block; overflow-x: auto; }
+    th, td { border: 1px solid rgba(120,120,120,.45); padding: 4px 9px; text-align: left; vertical-align: top; }
+    th { background: rgba(120,120,120,.12); }
+    pre { background: rgba(120,120,120,.09); border: 1px solid rgba(120,120,120,.25); padding: 10px 12px; overflow-x: auto; border-radius: 4px; }
+    code { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: .9em; }
+    :not(pre) > code { background: rgba(120,120,120,.12); padding: 1px 4px; border-radius: 3px; }
+    blockquote { border-left: 3px solid rgba(120,120,120,.5); margin-left: 0; padding-left: 1em; color: #555; }
+    hr { border: none; border-top: 1px solid rgba(120,120,120,.4); margin: 2em 0; }
+    a { color: #14539a; }
+  </style>
+</head>
+<body>
+  <h1>Architecture of the Solo Mobile App for Android</h1>
+<h2>Overall Architecture</h2>
+<pre><code class="language-mermaid">graph TB
+    subgraph &quot;UI Layer&quot;
+        A[MainActivity] --&gt; B[WebViewFragment]
+        A --&gt; C[NavigationDrawer]
+        A --&gt; D[SearchFragment]
+        A --&gt; E[SettingsActivity]
+    end
+    
+    subgraph &quot;Bridge Layer&quot;
+        B --&gt; F[WebViewBridge]
+        F --&gt; G[JavaScriptInterface]
+        G --&gt; H[FileSystemManager]
+        G --&gt; I[AudioPlayer]
+        G --&gt; J[SearchEngine]
+    end
+    
+    subgraph &quot;Data Layer&quot;
+        H --&gt; K[Local File Storage]
+        J --&gt; L[Search Index]
+        M[Assets] --&gt; B
+    end
+    
+    subgraph &quot;Web Application&quot;
+        N[Solo Web App] --&gt; B
+        N --&gt; O[TipTap Editor]
+        N --&gt; P[Howler.js Audio]
+        N --&gt; Q[Search UI]
+    end
+    
+    F --&gt; N
+    N --&gt; G
+</code></pre>
+<h2>Component Diagram</h2>
+<pre><code class="language-mermaid">graph LR
+    subgraph &quot;Android Application&quot;
+        A[MainActivity] --&gt; B[WebViewBridge]
+        A --&gt; C[FileSystemManager]
+        A --&gt; D[AudioPlayer]
+        A --&gt; E[SearchEngine]
+        A --&gt; F[SettingsManager]
+        
+        B --&gt; G[JavaScript Interface]
+        G --&gt; H[WebView]
+        
+        C --&gt; I[Local Storage]
+        D --&gt; J[MediaPlayer]
+        E --&gt; K[Search Index]
+        F --&gt; L[SharedPreferences]
+    end
+    
+    subgraph &quot;Web Application&quot;
+        H --&gt; M[Solo App]
+        M --&gt; N[Editor Component]
+        M --&gt; O[Search Component]
+        M --&gt; P[Audio Component]
+    end
+</code></pre>
+<h2>App Startup Sequence</h2>
+<pre><code class="language-mermaid">sequenceDiagram
+    participant User
+    participant MainActivity
+    participant WebView
+    participant WebViewBridge
+    participant FileSystem
+    participant SoloApp
+    
+    User-&gt;&gt;MainActivity: Launch the app
+    MainActivity-&gt;&gt;WebView: Initialization
+    MainActivity-&gt;&gt;WebViewBridge: Create bridge
+    WebView-&gt;&gt;SoloApp: Load index.html from assets
+    SoloApp-&gt;&gt;WebViewBridge: Check bridge availability
+    WebViewBridge-&gt;&gt;FileSystem: Request file structure
+    FileSystem--&gt;&gt;WebViewBridge: Folder structure
+    WebViewBridge--&gt;&gt;SoloApp: Data via JavaScript
+    SoloApp--&gt;&gt;User: Render the interface
+</code></pre>
+<h2>Bridge API Diagram</h2>
+<pre><code class="language-mermaid">graph TD
+    subgraph &quot;JavaScript Interface&quot;
+        A[selectFolder] --&gt; B[Folder selection]
+        C[getDataFolder] --&gt; D[Get current folder]
+        E[openFile] --&gt; F[Read file]
+        G[updateFile] --&gt; H[Write file]
+        I[readStructure] --&gt; J[Read structure]
+        K[search] --&gt; L[Search notes]
+        M[playTypewriterSound] --&gt; N[Play sound]
+        O[uploadImage] --&gt; P[Upload images]
+    end
+    
+    subgraph &quot;Android Implementation&quot;
+        B --&gt; Q[File Picker Dialog]
+        D --&gt; R[SharedPreferences]
+        F --&gt; S[File.readText]
+        H --&gt; T[File.writeText]
+        J --&gt; U[File.walk]
+        L --&gt; V[SearchEngine.search]
+        N --&gt; W[MediaPlayer.play]
+        P --&gt; X[Image Save]
+    end
+</code></pre>
+<h2>Android Project Structure</h2>
+<pre><code>solo/native-clients/android/
+├── app/
+│   ├── src/main/
+│   │   ├── java/com/solo/
+│   │   │   ├── MainActivity.kt
+│   │   │   ├── bridge/
+│   │   │   │   ├── WebViewBridge.kt
+│   │   │   │   ├── FileSystemManager.kt
+│   │   │   │   ├── AudioPlayer.kt
+│   │   │   │   └── SearchEngine.kt
+│   │   │   ├── ui/
+│   │   │   │   ├── components/
+│   │   │   │   └── theme/
+│   │   │   └── utils/
+│   │   ├── res/
+│   │   └── assets/
+│   │       ├── solo/          # Solo web application
+│   │       │   ├── index.html
+│   │       │   ├── assets/
+│   │       │   └── ...
+│   │       └── typewriter.mp3
+├── build.gradle.kts
+└── settings.gradle.kts
+</code></pre>
+<h2>Data Flow During Search</h2>
+<pre><code class="language-mermaid">sequenceDiagram
+    participant User
+    participant SearchUI
+    participant WebViewBridge
+    participant SearchEngine
+    participant FileSystem
+    
+    User-&gt;&gt;SearchUI: Enter a search query
+    SearchUI-&gt;&gt;WebViewBridge: search(query, tags)
+    WebViewBridge-&gt;&gt;SearchEngine: Perform search
+    SearchEngine-&gt;&gt;FileSystem: Get list of HTML files
+    FileSystem--&gt;&gt;SearchEngine: File list
+    loop For each file
+        SearchEngine-&gt;&gt;FileSystem: Read contents
+        FileSystem--&gt;&gt;SearchEngine: File text
+        SearchEngine-&gt;&gt;SearchEngine: Analyze and filter
+    end
+    SearchEngine--&gt;&gt;WebViewBridge: Search results
+    WebViewBridge--&gt;&gt;SearchUI: Display results
+    SearchUI--&gt;&gt;User: Show found notes
+</code></pre>
+<h2>Technology Stack</h2>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Technology</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Language</td>
+<td>Kotlin</td>
+<td>Primary development language</td>
+</tr>
+<tr>
+<td>UI Framework</td>
+<td>Jetpack Compose</td>
+<td>Modern UI toolkit</td>
+</tr>
+<tr>
+<td>Architecture</td>
+<td>MVVM + Clean Architecture</td>
+<td>Code organization</td>
+</tr>
+<tr>
+<td>Asynchrony</td>
+<td>Kotlin Coroutines + Flow</td>
+<td>Asynchronous operations</td>
+</tr>
+<tr>
+<td>WebView</td>
+<td>Android WebView + Chrome Custom Tabs</td>
+<td>Rendering the web application</td>
+</tr>
+<tr>
+<td>Bridge</td>
+<td>@JavascriptInterface</td>
+<td>JS-Kotlin communication</td>
+</tr>
+<tr>
+<td>Audio</td>
+<td>Android MediaPlayer</td>
+<td>Playing sounds</td>
+</tr>
+<tr>
+<td>Storage</td>
+<td>File API + SharedPreferences</td>
+<td>Local data storage</td>
+</tr>
+<tr>
+<td>Search</td>
+<td>Kotlin Sequence + Regex</td>
+<td>Searching files</td>
+</tr>
+<tr>
+<td>Navigation</td>
+<td>Navigation Component</td>
+<td>Navigation between screens</td>
+</tr>
+</tbody>
+</table>
+
+</body>
+</html>

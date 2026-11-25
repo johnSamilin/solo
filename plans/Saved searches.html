@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Saved Search Export Architecture</title>
+
+  <style>
+    body { max-width: 60em; margin: 2em auto; padding: 0 1em; line-height: 1.55; font-family: Georgia, 'Times New Roman', serif; color: #1a1a1a; }
+    h1, h2, h3, h4 { font-family: -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; line-height: 1.25; }
+    table { border-collapse: collapse; margin: 1em 0; display: block; overflow-x: auto; }
+    th, td { border: 1px solid rgba(120,120,120,.45); padding: 4px 9px; text-align: left; vertical-align: top; }
+    th { background: rgba(120,120,120,.12); }
+    pre { background: rgba(120,120,120,.09); border: 1px solid rgba(120,120,120,.25); padding: 10px 12px; overflow-x: auto; border-radius: 4px; }
+    code { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: .9em; }
+    :not(pre) > code { background: rgba(120,120,120,.12); padding: 1px 4px; border-radius: 3px; }
+    blockquote { border-left: 3px solid rgba(120,120,120,.5); margin-left: 0; padding-left: 1em; color: #555; }
+    hr { border: none; border-top: 1px solid rgba(120,120,120,.4); margin: 2em 0; }
+    a { color: #14539a; }
+  </style>
+</head>
+<body>
+  <h1>Saved Search Export Architecture</h1>
+<h2>Goal</h2>
+<p>Add an opt-in export feature for a saved search. When a user opens Search from a
+saved-search card, an Export Settings button appears. It configures a reusable
+PDF or EPUB export profile for that saved search and can run a one-off export.
+Only notes matching the saved-search conditions are exported.</p>
+<h2>Scope And Assumptions</h2>
+<p>This document proposes a desktop-first implementation behind a compile-time
+<code>export-notes</code> feature flag:</p>
+<ul>
+<li><code>DESKTOP</code>: enabled only in development and release builds selected for the
+rollout.</li>
+<li><code>MOBILE</code> and <code>PACKAGED</code>: disabled. They must not include the export UI or
+export implementation in their bundles.</li>
+<li>Export content follows the result presentation: a note matched through a
+whole-note tag is exported in full; a paragraph-level tag or text match is
+exported as only the matched paragraphs, separated and bounded by ellipses.</li>
+<li>A matching PDF note is rendered as its original pages and inserted as
+separate pages in the output.</li>
+<li>Auto-export runs when a note that can affect a profile is closed, or during
+application shutdown if such a note is still open. It is not scheduled in the
+background and is off by default.</li>
+<li>The profile is attached to a saved search, rather than being a global export
+preference. This makes manual and automatic output reproducible.</li>
+</ul>
+<p>These are proposed product decisions, not current behavior. They should be
+validated before implementation if Android, web export, scheduled jobs, or PDF
+source notes are required in the first release.</p>
+<h2>User Flow</h2>
+<ol>
+<li>The user clicks a saved-search card in <code>EmptyState</code>.</li>
+<li><code>App</code> opens <code>SearchPage</code> with that <code>SavedFilter</code> as <code>initialFilters</code>.</li>
+<li>When <code>flags.exportNotes</code> is true and <code>initialFilters</code> is present,
+<code>SearchPage</code> displays an <code>Export settings</code> button in the header. It is not
+shown for an ad-hoc search or while creating a new saved search.</li>
+<li>The settings modal shows the saved-search label, the current matched-note
+count, and the profile form.</li>
+<li>The user selects PDF or EPUB; configures book details; optionally enables
+auto-export; and can save the profile without exporting.</li>
+<li><code>Export now</code> builds the document from a fresh evaluation of the saved
+filter, prompts for the output path, writes the file, and reports success,
+failure, and any resources that could not be rendered.</li>
+<li>With auto-export enabled, closing a note after its content, metadata, or
+paragraph tags changed evaluates every profile that the note can affect. If
+its result set or exported content changed, Solo overwrites the profile's
+configured output file without showing a dialog. A failed automatic export
+is surfaced as a non-blocking error and does not disable the profile.</li>
+</ol>
+<p>An auto-export profile therefore requires a durable output path. The first
+manual export is required before the auto-export toggle can be enabled.</p>
+<h2>Data Model</h2>
+<p>Extend <code>SavedFilter</code> in <code>src/types.tsx</code>; keep all new properties optional to
+read existing <code>solo-saved-filters</code> entries safely.</p>
+<pre><code class="language-ts">export type ExportFormat = 'pdf' | 'epub';
+
+export interface ExportHeaderFooter {
+  enabled: boolean;
+  headerLeft: string;
+  headerCenter: string;
+  headerRight: string;
+  footerLeft: string;
+  footerCenter: string;
+  footerRight: string;
+}
+
+export interface ExportCover {
+  enabled: boolean;
+  title: string;
+  subtitle: string;
+  author: string;
+  imagePath?: string;
+}
+
+export interface SavedSearchExportProfile {
+  format: ExportFormat;
+  autoExport: boolean;
+  outputPath?: string;
+  title?: string;
+  author?: string;
+  language: string;
+  includeTableOfContents: boolean;
+  includeCover: boolean;
+  cover: ExportCover;
+  headerFooter: ExportHeaderFooter;
+  pageSize: 'A4' | 'Letter';
+  pageMarginsMm: { top: number; right: number; bottom: number; left: number };
+  pageNumbering: 'none' | 'footer-center' | 'footer-outer';
+  generatedAt: string;
+}
+
+export interface SavedFilter {
+  id: string;
+  label: string;
+  searchQuery: string;
+  tagFilters: { path: string; operator: 'AND' | 'OR' | 'NOT' }[];
+  showOnlyEmptyNotes: boolean;
+  exportProfile?: SavedSearchExportProfile;
+}
+</code></pre>
+<p><code>SavedFiltersStore</code> owns the profile and must expose <code>updateExportProfile</code> and
+<code>clearExportProfile</code>. It continues persisting the whole list in
+<code>localStorage</code> under <code>solo-saved-filters</code>; no migration is required because
+the profile is optional. <code>outputPath</code> is deliberately never copied into note
+metadata or global settings.</p>
+<p>The modal must validate page margins, required cover fields when the cover is
+enabled, and that auto-export has an <code>outputPath</code>. Header/footer placeholders
+are restricted to <code>{title}</code>, <code>{search}</code>, <code>{page}</code>, <code>{pages}</code>, and <code>{date}</code>.
+Unknown placeholders remain literal text so user input never becomes a template
+execution mechanism.</p>
+<h2>Search And Export Boundary</h2>
+<p><code>SearchPage</code> currently evaluates filters inline. Extract that predicate into a
+pure <code>src/components/Search/model/filterNotes.ts</code> function so the screen and
+exporter cannot diverge:</p>
+<pre><code class="language-ts">export interface SearchCriteria {
+  searchQuery: string;
+  tagFilters: SavedFilter['tagFilters'];
+  showOnlyEmptyNotes: boolean;
+}
+
+export function filterNotes(notes: Note[], criteria: SearchCriteria): Note[];
+</code></pre>
+<p>The UI retains its relevance sorting for display. The exporter instead applies
+the sidebar/book order (<code>notesStore.getSidebarNotes()</code>), filters it with the
+same predicate, and uses that stable order for chapters and the table of
+contents. This separates a user-facing relevance ranking from a deterministic
+book order.</p>
+<p>Extract the match-display decision from <code>SearchResults</code> into a pure function
+used by both the screen and exporter. It returns either <code>whole-note</code> or
+<code>paragraphs</code> with the matching HTML elements. A note matched by a note-level
+tag is <code>whole-note</code>; paragraph-level tag and text matches are <code>paragraphs</code>.
+The export renderer wraps each partial fragment with visible leading and
+trailing ellipses (<code>…</code>) and never includes neighbouring unmatched content.</p>
+<p>Before assembling a document, load the current HTML, CSS and PDF bytes for
+every matched note. The export run takes a snapshot of note IDs, contents,
+metadata, themes, CSS and PDF pages; later edits must not change a running job.</p>
+<h2>Export Document Model</h2>
+<p>Keep document construction independent of PDF, EPUB, and native file APIs in
+<code>src/components/Search/export/</code>:</p>
+<pre><code class="language-ts">export interface ExportAsset {
+  id: string;
+  mimeType: string;
+  bytes: Uint8Array;
+  fileName: string;
+}
+
+export interface ExportChapter {
+  id: string;
+  title: string;
+  html: string;
+  css: string;
+  theme: string;
+}
+
+export interface ExportPdfPage {
+  sourceNoteId: string;
+  pageNumber: number;
+  image: ExportAsset;
+}
+
+export interface ExportBook {
+  title: string;
+  author?: string;
+  language: string;
+  chapters: ExportChapter[];
+  pdfPages: ExportPdfPage[];
+  assets: ExportAsset[];
+  profile: SavedSearchExportProfile;
+}
+</code></pre>
+<p>Suggested file responsibilities:</p>
+<ul>
+<li><code>export/buildExportBook.ts</code>: evaluates the saved filter, loads note content
+and styles, renders matched PDF notes with <code>pdfjs-dist</code>, resolves assets, and
+returns <code>ExportBook</code> plus skipped-note diagnostics.</li>
+<li><code>export/normalizeNoteHtml.ts</code>: sanitizes exported HTML, rewrites resource
+URLs, replaces a carousel with a static image grid, and assigns stable IDs to
+headings.</li>
+<li><code>export/buildBookStyles.ts</code>: produces the common print/EPUB stylesheet and
+a CSS scope for each chapter.</li>
+<li><code>export/buildPdfHtml.ts</code>: renders cover, linked table of contents, chapters,
+headers/footers, and print rules to one HTML document.</li>
+<li><code>export/buildEpubPackage.ts</code>: turns <code>ExportBook</code> into an EPUB 3 package with
+XHTML chapters, navigation document, OPF manifest, and assets.</li>
+<li><code>export/ExportSettingsModal.tsx</code>: profile form, preview data, export action,
+progress and errors.</li>
+<li><code>export/useSavedSearchExport.ts</code>: coordinates modal state and bridge calls;
+it must not contain HTML transformation logic.</li>
+</ul>
+<p>The page-local placement is intentional: export is currently available only
+from a saved search. If other entry points are later added, move the pure
+builder and platform contract to shared modules, retaining UI wiring in Search.</p>
+<h2>Fidelity Rules</h2>
+<h3>Themes And Custom CSS</h3>
+<p>Each chapter gets an isolated root:</p>
+<pre><code class="language-html">&lt;article class=&quot;export-chapter theme-&lt;theme-name&gt;&quot; data-note-id=&quot;&lt;note-id&gt;&quot;&gt;
+  ...note body...
+&lt;/article&gt;
+</code></pre>
+<p>The effective theme is the note's <code>theme</code>; if absent, use the current default
+theme. Export theme tokens are emitted under that chapter selector. Note CSS is
+parsed and rewritten so every selector is prefixed with the chapter root.
+Reject <code>@import</code>, external font URLs, <code>position: fixed</code>, and selectors that
+target <code>html</code>, <code>body</code>, or another chapter. Do not use the existing
+<code>injectNoteStyles</code> helper: it only wraps CSS in <code>#note-editor-content</code> and
+cannot isolate several notes in one book.</p>
+<p>Unsupported or invalid custom CSS must not fail the entire export. Skip the
+rule, retain the default/theme style, and include a warning in the result.</p>
+<h3>PDF Source Notes</h3>
+<p>For every matching PDF note, use the existing <code>openPdfFile</code> bridge and
+<code>pdfjs-dist</code> to render each source page at print resolution. <code>buildPdfHtml.ts</code>
+emits one fixed-size export page per rendered PDF page, with page breaks before
+and after it; it does not combine PDF pages into a text chapter. EPUB receives
+the same images as one XHTML page per source PDF page. The generated table of
+contents includes the source note title and links to its first page.</p>
+<p>If the source PDF cannot be opened or rendered, the export continues and the
+result reports that note and the failing page number. This is the only case in
+which a matching PDF source is omitted.</p>
+<h3>Images And Carousels</h3>
+<p>The asset resolver converts every internal <code>image://</code> image into bytes once and
+assigns a package-local asset path. For EPUB, chapters reference that local
+path; for PDF, the rendered document uses data URLs or an export-only local
+protocol. Remote image URLs must be downloaded only after an explicit user
+consent setting; the default is to omit them and report the URL.</p>
+<p><code>file://</code> DigiKam images must be copied into the export asset set after
+validating that the URL resolves to a regular readable file. If an image cannot
+be read, replace it with an accessible placeholder and report it.</p>
+<p>Transform every TipTap <code>.carousel</code> node to:</p>
+<pre><code class="language-html">&lt;figure class=&quot;export-gallery&quot;&gt;
+  &lt;img src=&quot;...&quot; alt=&quot;&quot; /&gt;
+&lt;/figure&gt;
+</code></pre>
+<p>with one image per carousel item. PDF and EPUB CSS uses a responsive grid;
+the media is static and never retains slider controls or scripts.</p>
+<p>All images, gallery items, tables, headings and their following paragraph use
+break avoidance where the renderer supports it:</p>
+<pre><code class="language-css">img, figure, .export-gallery, table {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+h1, h2, h3 {
+  break-after: avoid;
+  page-break-after: avoid;
+}
+</code></pre>
+<p>An image taller than the printable page is scaled down using <code>max-height</code> and
+<code>max-width</code>; it is never clipped merely to satisfy break avoidance.</p>
+<h3>Table Of Contents, Headers, And Page Numbers</h3>
+<p>Each chapter starts with one <code>h1</code> and a stable anchor ID. The PDF HTML table of
+contents links to these anchors. EPUB emits the equivalent EPUB 3 <code>nav.xhtml</code>
+landmark and table-of-contents navigation, so reader applications offer fast
+chapter navigation.</p>
+<p>On desktop, the PDF renderer owns physical headers, footers, and page numbers.
+The hidden Electron print window must render templates populated with validated
+profile values. CSS counters are not sufficient for dependable total-page
+numbers in Chromium. EPUB does not promise physical page numbering because its
+pagination is reader-controlled; it includes the title and author metadata and
+the navigation document instead.</p>
+<h2>Platform Contract</h2>
+<p>Renderer code may prepare the export book but must never receive arbitrary
+filesystem write access. Add typed request/response APIs to <code>ElectronAPI</code> in
+<code>src/types.tsx</code> and implement them through <code>nativeBridge</code>, Electron preload,
+and Electron main-process IPC:</p>
+<pre><code class="language-ts">export interface ExportFileRequest {
+  format: ExportFormat;
+  suggestedFileName: string;
+  outputPath?: string;
+  html?: string;
+  epubBytes?: Uint8Array;
+  profile: SavedSearchExportProfile;
+}
+
+export interface ExportFileResult {
+  success: boolean;
+  outputPath?: string;
+  error?: string;
+}
+
+exportFile(request: ExportFileRequest): Promise&lt;ExportFileResult&gt;;
+</code></pre>
+<p>For a manual request, Electron main invokes <code>dialog.showSaveDialog</code> with an
+extension matching the format. For an automatic request, <code>outputPath</code> is used
+only after main validates its extension and writes atomically: temporary file
+in the same directory, then rename. The preload bridge exposes only
+<code>exportFile</code>; it never exposes <code>fs</code>, a generic write method, or a generic IPC
+channel.</p>
+<p>PDF uses a hidden, sandboxed <code>BrowserWindow</code> with JavaScript disabled and a
+dedicated export-only CSP. Main loads generated HTML, waits for local assets
+and fonts, then calls <code>webContents.printToPDF</code>. It writes the resulting bytes
+through the same atomic writer. EPUB is a deterministic ZIP package generated
+from <code>ExportBook</code> and passed as bytes to the main process. Select a maintained
+EPUB/ZIP library after licensing and security review; its adapter must be
+isolated in <code>buildEpubPackage.ts</code>.</p>
+<p>The bridge should return progress events for <code>preparing</code>, <code>resolving-assets</code>,
+<code>rendering</code>, and <code>writing</code>. These are job-scoped IDs, not a global singleton,
+so manual and automatic exports cannot overwrite each other's UI state.</p>
+<h2>Auto-Export Coordination</h2>
+<p><code>SavedSearchExportCoordinator</code> is instantiated by the root store only when
+<code>flags.exportNotes</code> is enabled. It receives an explicit <code>noteClosed(noteId)</code>
+event after <code>NotesStore.setSelectedNote</code> has saved the current note and before
+the next selected note is activated. It also receives this event when Escape or
+deep-link navigation closes a note. Metadata and paragraph-tag changes mark a
+note dirty; they do not export immediately.</p>
+<p>For each enabled profile, the coordinator first determines whether the closed
+note could affect the saved filter. It then evaluates the saved filter and
+compares a content fingerprint of the export snapshot with the profile's last
+successful fingerprint. If unchanged, it does not write a file. This handles a
+note entering or leaving a result set as well as changes inside an already
+matching note.</p>
+<p>Electron must delay window destruction for a bounded export flush. In the
+<code>BrowserWindow</code> <code>close</code> handler, main prevents the first close, asks preload to
+dispatch an <code>export:prepare-close</code> event, and waits for the renderer to save
+the selected note and call <code>noteClosed</code>. The renderer replies through a
+dedicated IPC acknowledgement after pending auto-export jobs finish or fail;
+main then closes the window. A visible timeout and explicit cancellation path
+avoid trapping the user if rendering fails. <code>window-all-closed</code> remains only
+the platform quit policy, not the flush trigger.</p>
+<p>The coordinator allows only one export per saved filter at a time. A second
+close event during a job queues exactly one new run after completion. It skips
+profiles without an output path and reports failures through the existing
+toast/error channel. It does not schedule work while Solo is closed.</p>
+<h2>Feature Flag</h2>
+<p>Add <code>export-notes</code> to <code>feature-flags.json</code> and expose it from
+<code>src/utils/featureFlags.ts</code> as <code>flags.exportNotes</code>, with a matching ambient
+<code>__FF_EXPORT_NOTES__</code> declaration. Gate every UI entry point and coordinator
+creation with that static flag. Keep it <code>false</code> for <code>MOBILE</code> and <code>PACKAGED</code>.
+The desktop default should remain <code>false</code> until the export flow is ready for a
+controlled rollout.</p>
+<h2>Delivery Plan</h2>
+<ol>
+<li>Add the flag, export profile types, SavedFiltersStore profile methods, and
+unit tests for profile persistence and validation.</li>
+<li>Extract the pure saved-search predicate from <code>SearchPage</code>; cover text,
+tag, empty-note and combined filters, then make SearchPage use it.</li>
+<li>Add the flag-gated saved-search-only button and settings modal; test that it
+is absent for ad-hoc searches and disabled without an output file when
+auto-export is selected.</li>
+<li>Build and test the snapshot, whole-note/paragraph-fragment selection,
+ellipsis rendering, HTML normalization, theme/CSS scoping, gallery
+conversion, asset resolution, PDF-page rendering and skip diagnostics with
+fixture notes.</li>
+<li>Implement EPUB package generation and validate its manifest, navigation,
+image assets and table of contents using an EPUB validator in CI.</li>
+<li>Implement Electron PDF rendering, save dialog, atomic output write and IPC
+validation. Add an end-to-end desktop test using a fixture search.</li>
+<li>Add the close-triggered coordinator, application-close IPC flush and
+fingerprint tests, then activate the desktop feature flag only after manual
+exports are verified.</li>
+</ol>
+<h2>Acceptance Criteria</h2>
+<ul>
+<li>The export settings entry point appears only after opening a saved search and
+only while <code>export-notes</code> is enabled.</li>
+<li>Exported HTML follows the search-result representation at export time and in
+sidebar order: whole notes for note-level matches, matched paragraphs with
+ellipses for paragraph-level and text matches.</li>
+<li>PDF contains a linked table of contents, configured title page, headers,
+footers, and physical page numbers.</li>
+<li>EPUB contains valid metadata, a navigation document, all resolved assets, and
+an equivalent table of contents.</li>
+<li>Every chapter retains its note theme and allowed custom styles without
+leaking styling into another chapter.</li>
+<li>Every carousel becomes a static image grid; all exportable images are kept
+intact on a page whenever their scaled dimensions allow it.</li>
+<li>Each matching source PDF is included as separate rendered pages. A PDF that
+cannot be rendered and unavailable/unsafe image resources do not crash the
+export; the user receives actionable skipped-item diagnostics.</li>
+<li>Automatic export is disabled by default, never prompts, writes atomically,
+runs at most once per saved filter at a time, and is triggered only when an
+influencing note closes or when the app closes with such a note open.</li>
+</ul>
+
+</body>
+</html>

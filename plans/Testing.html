@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Solo — Playwright Test Case Specification</title>
+
+  <style>
+    body { max-width: 60em; margin: 2em auto; padding: 0 1em; line-height: 1.55; font-family: Georgia, 'Times New Roman', serif; color: #1a1a1a; }
+    h1, h2, h3, h4 { font-family: -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; line-height: 1.25; }
+    table { border-collapse: collapse; margin: 1em 0; display: block; overflow-x: auto; }
+    th, td { border: 1px solid rgba(120,120,120,.45); padding: 4px 9px; text-align: left; vertical-align: top; }
+    th { background: rgba(120,120,120,.12); }
+    pre { background: rgba(120,120,120,.09); border: 1px solid rgba(120,120,120,.25); padding: 10px 12px; overflow-x: auto; border-radius: 4px; }
+    code { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: .9em; }
+    :not(pre) > code { background: rgba(120,120,120,.12); padding: 1px 4px; border-radius: 3px; }
+    blockquote { border-left: 3px solid rgba(120,120,120,.5); margin-left: 0; padding-left: 1em; color: #555; }
+    hr { border: none; border-top: 1px solid rgba(120,120,120,.4); margin: 2em 0; }
+    a { color: #14539a; }
+  </style>
+</head>
+<body>
+  <h1>Solo — Playwright Test Case Specification</h1>
+<p>Status: <strong>design document</strong> (no automation code exists yet — the previous ad-hoc suite was removed).
+This document is the single source of truth for what the future Playwright suite must cover,
+how it must be structured, and which real bugs (GitHub issues) each case protects against.</p>
+<p><strong>Core principle: we test the REAL application.</strong> The primary suite drives the actual Electron
+app (real main process, real IPC handlers, real preload bridge, real filesystem) via
+Playwright's Electron support. No mocking of <code>window.electronAPI</code>: the historical bugs
+(#33 file not moved, #34 symlinks, #17 logs, #28 empty saves) lived in the Electron layer,
+and any mock of it would be blind to exactly those regressions.</p>
+<p>Sources of inspiration: all open and closed issues in <a href="https://github.com/johnSamilin/solo/issues">https://github.com/johnSamilin/solo/issues</a>
+(issues #46–#61 are excluded — they are known to be erroneous).</p>
+<hr>
+<h2>1. Goals and principles</h2>
+<ol>
+<li><strong>Every closed bug must have a regression case.</strong> If an issue was fixed, the suite must
+contain a case that fails when the bug is reintroduced.</li>
+<li><strong>Verify the data on the real disk.</strong> Solo's contract is &quot;your notes are plain HTML + JSON
+metadata in your filesystem&quot;. The primary assertion mechanism is a <strong>workspace snapshot
+comparison</strong>: a real fixture directory is seeded on disk → user manipulations through the
+real UI → the final directory tree is read back and diffed against a golden expected state.
+This catches silent corruption (#28 emptied notes, #84 dropped <code>sourceUrl</code>, #33 un-moved
+files, #19 stale <code>paragraphTags</code>) that no UI assertion would see.</li>
+<li><strong>Deterministic fixtures.</strong> Each scenario starts from a versioned fixture workspace copied
+into a fresh temp data folder, never from leftovers of a previous test. One app instance
+per test (or per isolated group), launched against its own temp <code>userData</code> + <code>dataFolder</code>.</li>
+<li><strong>Real services where feasible, controlled boundaries where not.</strong> The only things stubbed
+are external boundaries the test must control: the network for read-later (a local HTTP
+fixture server instead of live sites) and native OS dialogs (env-guarded test hooks, §2.5).
+The semantic-search binary is the real Go build (<code>SOLO_SEARCH_BIN</code>); digiKam tests use a
+real <code>digikam4.db</code> fixture.</li>
+<li><strong>Feature-flag matrix.</strong> Features are gated by <code>feature-flags.json</code> per platform
+(<code>PACKAGED</code> / <code>DESKTOP</code> / <code>MOBILE</code>). The Electron suite runs the <code>DESKTOP</code> profile.
+The <code>PACKAGED</code> profile (web demo, deep linking) is tested as a second Playwright project
+in a real browser against <code>PLATFORM=packaged npm run dev</code> — its stub API
+(<code>src/utils/createStubAPI.ts</code>) is the <em>production</em> implementation for web, not a test mock.</li>
+<li><strong>Honest scope.</strong> Android-native behavior (system file pickers, share sheet, selection
+handles, widget) cannot be driven by Playwright on desktop. Those items are listed in §7
+as manual/device tests, not silently &quot;covered&quot;.</li>
+<li><strong>The <code>plans/</code> folder is the mock workspace — documentation and fixtures at once.</strong>
+Instead of maintaining separate fake data, the suite points the app at a copy of the repo&#39;s own
+<code>plans/</code> folder: real Solo notes (HTML + JSON sidecars) containing tables, code blocks, tags
+and long cross-referenced text. Every doc case doubles as a dogfooding check that the app can open,
+edit and save its own documentation without loss. The smaller fixtures in §5 remain only for states
+that cannot be expressed as documentation (empty notes, symlinks, oversized workspaces).</li>
+</ol>
+<hr>
+<h2>2. Test architecture (for the future implementation)</h2>
+<h3>2.1 Launching the real app</h3>
+<p>Two Playwright projects:</p>
+<p><strong>Project <code>electron</code> (primary).</strong> Uses <code>_electron.launch()</code> from <code>@playwright/test</code>:</p>
+<pre><code class="language-ts">const app = await _electron.launch({
+  args: ['native-clients/electron'],          // package.json &quot;main&quot;: electron/dist/main.js
+  cwd: repoRoot,
+  env: {
+    ...process.env,
+    NODE_ENV: 'development',                  // renderer loads vite dev server (webServer in config)
+    SOLO_NO_DEVTOOLS: '1',                    // test hook (§2.5)
+    SOLO_DATA_DIR: tempDataDir,               // test hook: pre-seeded fixture workspace (§2.5)
+    SOLO_USER_DATA_DIR: tempUserDataDir,      // test hook: isolated settings.json/logs (§2.5)
+    SOLO_SEARCH_BIN: goBinaryPath,            // already supported by main.ts (optional)
+    SOLO_SEARCH_MODEL_DIR: modelDir,          // already supported by main.ts (optional)
+  },
+});
+const page = await app.firstWindow();
+</code></pre>
+<ul>
+<li>The renderer runs from the vite dev server (fast iteration, source maps) while the
+<strong>main process, preload, IPC handlers, protocols (<code>voice://</code>, <code>video://</code>), logger and
+filesystem code are the real production code</strong>.</li>
+<li>A second, slower <code>electron:packaged</code> suite (optional, run on release branches) launches the
+<code>electron-forge package</code> output to verify the shipped artifact (<code>process.resourcesPath/dist</code>
+code path, auto-update disabled).</li>
+<li>Media recording tests pass Chromium switches through launch args:
+<code>--use-fake-device-for-media-stream</code>, <code>--use-fake-ui-for-media-stream</code>,
+<code>--autoplay-policy=no-user-gesture-required</code>.</li>
+</ul>
+<p><strong>Project <code>web-packaged</code>.</strong> Plain Chromium against <code>PLATFORM=packaged npm run dev</code>
+(the published <a href="http://github.io">github.io</a> demo build). Covers deep linking (DL-*), theme rendering, and
+anything specific to the <code>PACKAGED</code> flag profile.</p>
+<h3>2.2 Per-test isolation</h3>
+<p>Each test gets:</p>
+<ul>
+<li>a fresh temp <code>dataFolder</code> (fixture copied from <code>tests/fixtures/workspaces/&lt;name&gt;/</code>,
+with <code>plans/</code> — the repo&#39;s own documentation folder — as the primary workspace, see §1.7 and §5),</li>
+<li>a fresh temp Electron <code>userData</code> dir (settings.json, logs),</li>
+<li>its own launched app instance; teardown closes the app and keeps the temp dir only on
+failure (attached to the Playwright report as an artifact — the actual corrupted workspace
+is the best debugging evidence).</li>
+</ul>
+<p>Tests within a file may share one seeded app instance only when they are read-only
+(search, statistics, themes); anything that writes gets a fresh instance.</p>
+<h3>2.3 Feature flags</h3>
+<p>The Electron app is the <code>DESKTOP</code> profile. Flag-gated behavior is asserted per profile:
+cases that must NOT exist under a profile (e.g. export UI under <code>PACKAGED</code>) run in the
+<code>web-packaged</code> project. <code>MOBILE</code>-specific flows are manual (§7).</p>
+<h3>2.4 Page objects / action helpers</h3>
+<p>Scenarios must read like issue repro steps:</p>
+<pre><code>sidebar.createNotebook(name, parent?)     sidebar.selectNotebook(name)
+sidebar.createNote(name)                  sidebar.openNote(name)
+sidebar.moveNote(note, toNotebook)        sidebar.renameNote(note, newName)
+editor.type(text)                         editor.appendParagraph(text)
+editor.selectText(sel)                    editor.highlight(color)
+tags.addToNote(note, tagPath)             tags.addToParagraph(index, tagPath)
+settings.openTab('tags'|'statistics'|'typography'|'layout'|'data')
+settings.renameTag(old, new)              settings.deleteTag(tag)
+search.run(query, filters?)               search.saveFilter(label)
+readLater.save(url, notebook)             workspace.dump() / workspace.seed(fixture)
+appUtils.relaunch()                       appUtils.logFile()
+</code></pre>
+<h3>2.5 Required test hooks in <code>electron/main.ts</code> (small, env-guarded, zero prod impact)</h3>
+<p>To automate the real app without fighting native OS dialogs, main.ts needs a few minimal
+hooks (each active only when the corresponding env var is set):</p>
+<table>
+<thead>
+<tr>
+<th>Hook</th>
+<th>Purpose</th>
+<th>Replaces</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SOLO_DATA_DIR</code></td>
+<td>Use this folder as <code>dataFolder</code> at startup (skip/override <code>settings.json</code>)</td>
+<td><code>dialog.showOpenDialog</code> for folder selection</td>
+</tr>
+<tr>
+<td><code>SOLO_USER_DATA_DIR</code></td>
+<td><code>app.setPath('userData', …)</code> before anything reads it</td>
+<td>polluting the developer's real userData</td>
+</tr>
+<tr>
+<td><code>SOLO_E2E_EXPORT_DIR</code></td>
+<td><code>exportFile</code> writes into this dir with the suggested file name instead of showing <code>dialog.showSaveDialog</code></td>
+<td>native save dialog (untestable)</td>
+</tr>
+<tr>
+<td><code>SOLO_E2E_PICK_FILE</code></td>
+<td><code>selectFile</code> returns the pre-set path(s)</td>
+<td>native open dialogs (image pick, cover pick, digiKam db pick)</td>
+</tr>
+<tr>
+<td><code>SOLO_NO_DEVTOOLS</code></td>
+<td>Don't auto-open DevTools in development mode</td>
+<td>flaky focus/screenshot noise</td>
+</tr>
+</tbody>
+</table>
+<p>These are test hooks, not mocks: all real logic (path validation, write-rename-tmp, logging)
+still executes.</p>
+<h3>2.6 Network boundary for read-later</h3>
+<p><code>fetchUrl</code> runs in the main process, so <code>page.route()</code> cannot intercept it. Instead the
+suite starts a <strong>local HTTP fixture server</strong> (<code>tests/fixtures/http/</code>) serving recorded
+article HTML (a couple of representative pages: heavy chrome/ads, clean article, page with
+<code>&lt;img&gt;</code>/<code>&lt;audio&gt;</code>), and read-later cases use <code>http://127.0.0.1:&lt;port&gt;/…</code> URLs. This also
+makes RL cases deterministic and offline-safe.</p>
+<h3>2.7 Proposed layout</h3>
+<pre><code>tests/
+  playwright.config.ts        # projects: electron, web-packaged
+  fixtures/
+    workspaces/
+      plans/                  # copy of repo plans/ — documentation doubles as the primary mock workspace (§1.7)
+      basic/                  # real directory tree: notebooks, .html, .json
+      basic.tag-rename.expected/
+      tagged/
+      empty-notes/
+      read-later/
+      symlinks/               # script-generated (symlinks can't live in git reliably)
+      large/                  # script-generated (500 notes)
+    http/                     # recorded article pages for the fixture server
+    digikam/digikam4.db       # minimal real SQLite fixture
+  helpers/
+    app.ts                    # launch/relaunch/isolation/env plumbing (§2.1–2.2, §2.5)
+    workspace.ts              # seed/copy/dump/normalize/diff of real directories
+    httpServer.ts
+    pages/                    # page objects (§2.4)
+  specs/
+    workspace.spec.ts         # WS-*
+    notes.spec.ts             # NOTE-*
+    tags.spec.ts              # TAG-*
+    search.spec.ts            # SEARCH-*
+    read-later.spec.ts        # RL-*
+    highlights.spec.ts        # HL-*
+    assets.spec.ts            # ASSET-*
+    export.spec.ts            # EXP-*
+    zen-mode.spec.ts          # ZEN-*
+    theme-typography.spec.ts  # THEME-*
+    logging.spec.ts           # LOG-*
+    performance.spec.ts       # PERF-*
+    web/deep-link.spec.ts     # DL-* (web-packaged project)
+</code></pre>
+<hr>
+<h2>3. Snapshot-based verification (core mechanism)</h2>
+<h3>3.1 Idea</h3>
+<p>Each data-integrity scenario is a triple:</p>
+<pre><code>(initial fixture directory, manipulation script through the real UI, expected final directory)
+</code></pre>
+<p>The harness:</p>
+<ol>
+<li><code>workspace.seed(fixture)</code> — copies the fixture tree into the temp <code>dataFolder</code> <strong>before</strong>
+app launch.</li>
+<li>The test performs user-level manipulations via page objects against the real app.</li>
+<li>Trigger a save/settle point (switch note, close modal, or explicit wait for the IPC call
+to land — assert via UI feedback like toast/sidebar state, not sleeps).</li>
+<li><code>workspace.dump(dataFolder)</code> — walks the real directory and serializes it to canonical JSON.</li>
+<li>Assertion: <code>expect(dump).toEqual(expectedDump)</code> where the expected dump is generated from
+the golden directory <code>&lt;fixture&gt;.&lt;scenario&gt;.expected/</code>.</li>
+</ol>
+<p>Because the dump reads the real disk, it verifies the <em>entire</em> stack: renderer logic → preload
+→ IPC handler → fs. A golden-file change in a PR is a red flag requiring explicit human
+approval — that is exactly how silent-corruption regressions (#28, #84) get caught in review.</p>
+<h3>3.2 Dump format &amp; normalization</h3>
+<p>Dump shape: <code>{ [relativePath]: { type: 'folder'|'file'|'symlink', target?, html?, metadata? } }</code>
+(<code>.json</code> sidecars are parsed into <code>metadata</code>, <code>.html</code> kept as text, other files as
+<code>{ size, sha256 }</code> — covers images/audio/video without golden-file bloat).</p>
+<p>Normalization rules:</p>
+<table>
+<thead>
+<tr>
+<th>Volatile data</th>
+<th>Rule</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>createdAt</code> / <code>updatedAt</code> in metadata</td>
+<td>Pre-seeded fixture files keep their fixed timestamps (they come from disk). For notes created <em>during</em> a test, replace timestamp values with the placeholder <code>&quot;&lt;TS&gt;&quot;</code>. Cases asserting time relations (timeline order) compare relative order, not values.</td>
+</tr>
+<tr>
+<td>Generated note <code>id</code></td>
+<td>Replace with <code>&quot;&lt;ID&gt;&quot;</code> placeholder unless the case is about ids (RL-01/#79).</td>
+</tr>
+<tr>
+<td>Absolute paths leaking into files (e.g. <code>outputPath</code>, digiKam db path)</td>
+<td>Temp-dir prefix replaced with <code>&lt;DATA&gt;</code> / <code>&lt;TMP&gt;</code>.</td>
+</tr>
+<tr>
+<td>JSON key order, directory order</td>
+<td>Sorted canonically.</td>
+</tr>
+<tr>
+<td>HTML whitespace</td>
+<td>Compare <strong>strictly</strong> (only CRLF→LF). Strictness is what catches #28.</td>
+</tr>
+<tr>
+<td>Binary assets</td>
+<td><code>sha256</code> + size (catches &quot;asset copied to wrong folder / truncated&quot;).</td>
+</tr>
+</tbody>
+</table>
+<h3>3.3 When NOT to snapshot</h3>
+<p>Pure UI/visual behavior (zen mode, themes, typography, counters) is asserted with DOM/CSS
+assertions. Some cases assert both (tag rename: UI shows the new name <strong>and</strong> the workspace
+diff shows metadata rewritten everywhere).</p>
+<hr>
+<h2>4. Test case catalog</h2>
+<p>Priorities: <strong>P0</strong> — data integrity / core flow, must always pass; <strong>P1</strong> — major features;
+<strong>P2</strong> — nice-to-have, edge cases. <code>Snapshot:</code> — case ends with a workspace diff.
+Default project: <code>electron</code> (DESKTOP profile); <code>web</code> = <code>web-packaged</code> project.</p>
+<h3>4.1 WS — Workspace, notebooks, sidebar</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Title</th>
+<th>P</th>
+<th>Snapshot</th>
+<th>Issue</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>WS-01</td>
+<td>Fresh start: no <code>dataFolder</code> configured → empty state with &quot;select folder&quot; CTA; after <code>SOLO_E2E_PICK_FILE</code>-driven folder selection the workspace opens</td>
+<td>P0</td>
+<td>no</td>
+<td>#21</td>
+</tr>
+<tr>
+<td>WS-02</td>
+<td>Fresh start flow: create notebook &quot;My Test Notebook&quot; → visible in sidebar and selected; create note &quot;1 note&quot; with 2 lorem paragraphs → visible in sidebar; on disk: <code>My Test Notebook/1 note.html</code> + <code>.json</code> with correct metadata</td>
+<td>P0</td>
+<td><strong>yes</strong></td>
+<td>#21</td>
+</tr>
+<tr>
+<td>WS-03</td>
+<td>Nested notebooks: create child inside a notebook; tree renders hierarchy; expand/collapse persists across relaunch</td>
+<td>P1</td>
+<td>yes</td>
+<td>–</td>
+</tr>
+<tr>
+<td>WS-04</td>
+<td>Rename notebook → sidebar updates; on disk the directory is renamed and notes still open</td>
+<td>P1</td>
+<td><strong>yes</strong></td>
+<td>–</td>
+</tr>
+<tr>
+<td>WS-05</td>
+<td>Delete notebook with confirmation → removed from sidebar and from disk</td>
+<td>P1</td>
+<td><strong>yes</strong></td>
+<td>–</td>
+</tr>
+<tr>
+<td>WS-06</td>
+<td><code>assets</code> folder is <strong>not</strong> listed as a notebook</td>
+<td>P1</td>
+<td>no</td>
+<td><strong>#78</strong></td>
+</tr>
+<tr>
+<td>WS-07</td>
+<td>Symlinked notebooks (real symlinks in the fixture, generated by script): structure read, search and tag discovery follow them; symlink escape checks (a symlink pointing <em>outside</em> dataFolder for assets) behave per security rules in main.ts</td>
+<td>P1</td>
+<td>yes</td>
+<td><strong>#34</strong></td>
+</tr>
+<tr>
+<td>WS-08</td>
+<td>Startup on a large workspace (generated fixture, ~500 notes) renders sidebar without errors</td>
+<td>P2</td>
+<td>no</td>
+<td>#67 (see PERF-01)</td>
+</tr>
+<tr>
+<td>WS-09</td>
+<td><strong>Docs round-trip (dogfooding):</strong> workspace seeded from <code>plans/</code>; open each documentation note, switch away, save — every file on disk must remain byte-identical to the input except intended edits; tables, code blocks and sidecar metadata must survive the TipTap schema intact</td>
+<td>P0</td>
+<td><strong>yes</strong></td>
+<td>plans-as-fixtures (§1.7, §5)</td>
+</tr>
+</tbody>
+</table>
+<h3>4.2 NOTE — Note lifecycle &amp; editor</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Title</th>
+<th>P</th>
+<th>Snapshot</th>
+<th>Issue</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>NOTE-01</td>
+<td>Create note → type text → switch to another note → the <code>.html</code> on disk contains the typed text (not empty)</td>
+<td>P0</td>
+<td><strong>yes</strong></td>
+<td><strong>#28</strong></td>
+</tr>
+<tr>
+<td>NOTE-02</td>
+<td><strong>First change is not ignored</strong>: open existing note, make the very first edit immediately after load, switch away → edit is on disk</td>
+<td>P0</td>
+<td><strong>yes</strong></td>
+<td><strong>#73</strong></td>
+</tr>
+<tr>
+<td>NOTE-03</td>
+<td>Same as NOTE-02 but the first change is an attached audio/video asset</td>
+<td>P1</td>
+<td><strong>yes</strong></td>
+<td><strong>#73</strong></td>
+</tr>
+<tr>
+<td>NOTE-04</td>
+<td>Empty-content protection: open note with content, select-all + delete, switch away → warning prompt; &quot;keep original&quot; leaves the file byte-identical; &quot;discard&quot; saves empty</td>
+<td>P0</td>
+<td><strong>yes</strong></td>
+<td><strong>#26</strong></td>
+</tr>
+<tr>
+<td>NOTE-05</td>
+<td>Empty-content protection also triggers when new content is <em>shorter</em> than original</td>
+<td>P1</td>
+<td><strong>yes</strong></td>
+<td>#26</td>
+</tr>
+<tr>
+<td>NOTE-06</td>
+<td>Paragraph tags auto-update: tag a paragraph via editor, save → metadata <code>paragraphTags</code> is the distinct list</td>
+<td>P0</td>
+<td><strong>yes</strong></td>
+<td><strong>#19</strong></td>
+</tr>
+<tr>
+<td>NOTE-07</td>
+<td>Removing a tag from all paragraphs and saving → <code>paragraphTags</code> no longer contains it</td>
+<td>P1</td>
+<td><strong>yes</strong></td>
+<td>#19</td>
+</tr>
+<tr>
+<td>NOTE-08</td>
+<td>Rename note → <code>.html</code> and <code>.json</code> renamed on disk, sidebar updated, note still opens</td>
+<td>P1</td>
+<td><strong>yes</strong></td>
+<td>–</td>
+</tr>
+<tr>
+<td>NOTE-09</td>
+<td>Delete note → both files removed from disk, sidebar updated</td>
+<td>P1</td>
+<td><strong>yes</strong></td>
+<td>–</td>
+</tr>
+<tr>
+<td>NOTE-10</td>
+<td>Rich text round-trip: headings, links, task lists saved to disk are valid HTML and re-render identically after relaunch</td>
+<td>P1</td>
+<td><strong>yes</strong></td>
+<td>–</td>
+</tr>
+<tr>
+<td>NOTE-11</td>
+<td>Word/paragraph counters reflect current content</td>
+<td>P2</td>
+<td>no</td>
+<td>–</td>
+</tr>
+<tr>
+<td>NOTE-12</td>
+<td>Note-level tags persist to metadata <code>tags[]</code> and survive reopen/relaunch</td>
+<td>P0</td>
+<td><strong>yes</strong></td>
+<td>–</td>
+</tr>
+<tr>
+<td>NOTE-13</td>
+<td>App relaunch with unsaved-looking state: content typed before closing is on disk after relaunch (save-on-close path)</td>
+<td>P1</td>
+<td><strong>yes</strong></td>
+<td>#26/#28 family</td>
+</tr>
+</tbody>
+</table>
+<h3>4.3 MOVE — Moving notes between notebooks</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Title</th>
+<th>P</th>
+<th>Snapshot</th>
+<th>Issue</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MOVE-01</td>
+<td>Move note to another notebook → <strong>both</strong> <code>.html</code> and <code>.json</code> physically moved on disk; nothing remains in the source folder; note opens from the new location with intact content and metadata</td>
+<td>P0</td>
+<td><strong>yes</strong></td>
+<td><strong>#33</strong></td>
+</tr>
+<tr>
+<td>MOVE-02</td>
+<td>Move note with attached images/audio → asset references still resolve (protocol handlers point into dataFolder/assets)</td>
+<td>P1</td>
+<td><strong>yes</strong></td>
+<td>#33, #25</td>
+</tr>
+<tr>
+<td>MOVE-03</td>
+<td>Move PDF file between notebooks behaves like HTML notes</td>
+<td>P2</td>
+<td><strong>yes</strong></td>
+<td>#42</td>
+</tr>
+</tbody>
+</table>
+<h3>4.4 TAG — Tag system &amp; management (Settings → Tags)</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Title</th>
+<th>P</th>
+<th>Snapshot</th>
+<th>Issue</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>TAG-01</td>
+<td>Settings → Tags shows hierarchical index of all tags (note + paragraph tags) with usage counts matching the fixture</td>
+<td>P1</td>
+<td>no</td>
+<td><strong>#18</strong></td>
+</tr>
+<tr>
+<td>TAG-02</td>
+<td>Full rename scenario from #29: fixture <code>tagged/</code> (note &quot;Paragraph tag&quot; with 2 paragraphs, first tagged <code>Rename tag 1</code>; note &quot;Note tag&quot; with note-level <code>Rename tag 2</code>); rename both via Settings → Tags; assert: paragraph note still has 2 paragraphs and only the first paragraph's attribute changed; note content unchanged; both metadata files updated on disk</td>
+<td>P0</td>
+<td><strong>yes</strong></td>
+<td><strong>#29, #18</strong></td>
+</tr>
+<tr>
+<td>TAG-03</td>
+<td>Rename tag does <strong>not</strong> empty notes: after rename, every affected <code>.html</code> is byte-identical except the tag attributes</td>
+<td>P0</td>
+<td><strong>yes</strong></td>
+<td><strong>#28</strong></td>
+</tr>
+<tr>
+<td>TAG-04</td>
+<td>Renaming a hierarchical parent tag rewrites children paths in metadata and <code>paragraphTags</code></td>
+<td>P1</td>
+<td><strong>yes</strong></td>
+<td>#18</td>
+</tr>
+<tr>
+<td>TAG-05</td>
+<td>Delete tag → removed from all metadata <code>tags[]</code>, <code>paragraphTags</code>, and paragraph <code>data-tags</code> attributes; sibling tags on the same elements survive</td>
+<td>P0</td>
+<td><strong>yes</strong></td>
+<td>#18</td>
+</tr>
+<tr>
+<td>TAG-06</td>
+<td><strong><code>sourceUrl</code> preservation</strong>: fixture note has <code>sourceUrl</code> in metadata; edit tags (add, remove, rename) → <code>sourceUrl</code> and every other metadata field are still on disk</td>
+<td>P0</td>
+<td><strong>yes</strong></td>
+<td><strong>#84</strong></td>
+</tr>
+<tr>
+<td>TAG-07</td>
+<td>PDF files can be tagged like regular notes; tags persist in the PDF's metadata sidecar</td>
+<td>P1</td>
+<td><strong>yes</strong></td>
+<td><strong>#42</strong></td>
+</tr>
+<tr>
+<td>TAG-08</td>
+<td>Tag modal autocomplete suggests existing tags; creating a new tag path adds it to the index after rescan</td>
+<td>P2</td>
+<td>no</td>
+<td>#18</td>
+</tr>
+</tbody>
+</table>
+<h3>4.5 SEARCH — Search, filters, statistics</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Title</th>
+<th>P</th>
+<th>Snapshot</th>
+<th>Issue</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SEARCH-01</td>
+<td>Full-text search finds a word in a note body; result opens the note</td>
+<td>P0</td>
+<td>no</td>
+<td>–</td>
+</tr>
+<tr>
+<td>SEARCH-02</td>
+<td>Tag filters: AND / OR / NOT operators produce correct result sets on a fixture with known tag distribution</td>
+<td>P1</td>
+<td>no</td>
+<td>–</td>
+</tr>
+<tr>
+<td>SEARCH-03</td>
+<td>Search resilience: empty query, only operators/special chars (<code>&quot;</code>, <code>tag:</code>, <code>AND</code>), very long query → no crash (main process stays alive), empty state or valid results, app remains usable</td>
+<td>P0</td>
+<td>no</td>
+<td><strong>#24</strong></td>
+</tr>
+<tr>
+<td>SEARCH-04</td>
+<td>&quot;Only empty notes&quot; filter finds notes with empty body; non-empty excluded</td>
+<td>P1</td>
+<td>no</td>
+<td><strong>#27</strong></td>
+</tr>
+<tr>
+<td>SEARCH-05</td>
+<td>Save filter → appears in the list → re-run reproduces the result set; delete saved filter</td>
+<td>P1</td>
+<td>no</td>
+<td>–</td>
+</tr>
+<tr>
+<td>SEARCH-06</td>
+<td>Statistics: notebooks / notes / total words / empty notes match fixture expectations</td>
+<td>P1</td>
+<td>no</td>
+<td><strong>#27</strong></td>
+</tr>
+<tr>
+<td>SEARCH-07</td>
+<td>Red indicator over the settings button when empty notes exist; disappears when none</td>
+<td>P2</td>
+<td>no</td>
+<td>#27</td>
+</tr>
+<tr>
+<td>SEARCH-08</td>
+<td>Extended (semantic) search with the <strong>real Go binary</strong> (<code>SOLO_SEARCH_BIN</code>): reindex fixture workspace, semantic query returns relevant paragraphs; <code>reindexAll</code>/<code>reindexNote</code> progress events reach the UI. Skipped when the binary is not built (CI artifact gate)</td>
+<td>P2</td>
+<td>no</td>
+<td>feature-flags, #43-adjacent</td>
+</tr>
+<tr>
+<td>SEARCH-09</td>
+<td>Search discovers notes in symlinked notebooks (real symlinks)</td>
+<td>P1</td>
+<td>no</td>
+<td><strong>#34</strong></td>
+</tr>
+</tbody>
+</table>
+<h3>4.6 RL — Read later (local HTTP fixture server, §2.6)</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Title</th>
+<th>P</th>
+<th>Snapshot</th>
+<th>Issue</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RL-01</td>
+<td>Save article from the fixture server into a chosen notebook → on disk a note whose <strong>file name derives from the article title</strong>, not <code>day month.html</code>; metadata contains <code>sourceUrl</code></td>
+<td>P0</td>
+<td><strong>yes</strong></td>
+<td><strong>#79, #75</strong></td>
+</tr>
+<tr>
+<td>RL-02</td>
+<td>Extracted content: main text kept, page chrome (nav/ads/scripts) dropped; headings/paragraphs/lists/styles reasonably preserved</td>
+<td>P1</td>
+<td><strong>yes</strong></td>
+<td><strong>#83</strong></td>
+</tr>
+<tr>
+<td>RL-03</td>
+<td>Article with images/media: referenced assets handled per product rules and resolvable after save</td>
+<td>P2</td>
+<td><strong>yes</strong></td>
+<td>#83</td>
+</tr>
+<tr>
+<td>RL-04</td>
+<td>Editing tags of a read-later note does not drop <code>sourceUrl</code></td>
+<td>P0</td>
+<td><strong>yes</strong></td>
+<td><strong>#84</strong></td>
+</tr>
+<tr>
+<td>RL-05</td>
+<td>Re-saving the same URL does not corrupt the notebook (golden diff)</td>
+<td>P2</td>
+<td><strong>yes</strong></td>
+<td>–</td>
+</tr>
+<tr>
+<td>RL-06</td>
+<td>Fetch failure (fixture server returns 500 / timeout) → error toast, no partial files on disk</td>
+<td>P1</td>
+<td><strong>yes</strong></td>
+<td>–</td>
+</tr>
+</tbody>
+</table>
+<h3>4.7 HL — Highlights</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Title</th>
+<th>P</th>
+<th>Snapshot</th>
+<th>Issue</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>HL-01</td>
+<td>Select text → apply highlight color → mark present in the editor <strong>and</strong> in the saved HTML on disk</td>
+<td>P1</td>
+<td><strong>yes</strong></td>
+<td><strong>#74</strong></td>
+</tr>
+<tr>
+<td>HL-02</td>
+<td>Multiple highlights with different colors round-trip through save/relaunch</td>
+<td>P1</td>
+<td><strong>yes</strong></td>
+<td>#74</td>
+</tr>
+<tr>
+<td>HL-03</td>
+<td>Remove highlight → mark removed, surrounding text byte-identical</td>
+<td>P2</td>
+<td><strong>yes</strong></td>
+<td>#74</td>
+</tr>
+<tr>
+<td>HL-04</td>
+<td>Highlight spanning paragraph boundaries does not break document structure</td>
+<td>P2</td>
+<td><strong>yes</strong></td>
+<td>#74</td>
+</tr>
+</tbody>
+</table>
+<h3>4.8 ASSET — Images, voice &amp; video memos</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Title</th>
+<th>P</th>
+<th>Snapshot</th>
+<th>Issue</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ASSET-01</td>
+<td>Attach image (pick driven by <code>SOLO_E2E_PICK_FILE</code>) → copied under <code>&lt;dataFolder&gt;/assets/…</code>, <code>&lt;img&gt;</code> inserted with correct src, renders after reopen; file hash matches source</td>
+<td>P1</td>
+<td><strong>yes</strong></td>
+<td>#80 (desktop part)</td>
+</tr>
+<tr>
+<td>ASSET-02</td>
+<td>Attach voice memo → file under <code>assets/voice</code> (per main.ts), note contains <code>&lt;audio&gt;</code> with the file name; <code>voice://</code> protocol resolves (audio element playable, no CSP/protocol errors in console)</td>
+<td>P1</td>
+<td><strong>yes</strong></td>
+<td><strong>#25</strong></td>
+</tr>
+<tr>
+<td>ASSET-03</td>
+<td>Record voice memo with fake media device (<code>--use-fake-device-for-media-stream</code>): start/pause/resume/stop → file on disk, duration &gt; 0, <code>&lt;audio&gt;</code> inserted</td>
+<td>P2</td>
+<td><strong>yes</strong></td>
+<td>#25</td>
+</tr>
+<tr>
+<td>ASSET-04</td>
+<td>Attach video memo → file under <code>assets/video</code>, <code>video://</code> resolves, <code>&lt;video&gt;</code> inserted</td>
+<td>P2</td>
+<td><strong>yes</strong></td>
+<td>#25-adjacent</td>
+</tr>
+<tr>
+<td>ASSET-05</td>
+<td>&quot;Attach asset&quot; modal has tabs for image and voice memo (FAB renamed accordingly)</td>
+<td>P2</td>
+<td>no</td>
+<td><strong>#25</strong></td>
+</tr>
+<tr>
+<td>ASSET-06</td>
+<td>Delete asset removes the file from disk and the reference from the note</td>
+<td>P2</td>
+<td><strong>yes</strong></td>
+<td>–</td>
+</tr>
+<tr>
+<td>ASSET-07</td>
+<td>Path traversal safety: <code>readImage</code>/asset protocol requests with <code>../</code> segments outside <code>dataFolder/assets</code> are rejected (main.ts guards)</td>
+<td>P1</td>
+<td>no</td>
+<td>security</td>
+</tr>
+<tr>
+<td>ASSET-08</td>
+<td>digiKam carousel with the real <code>digikam4.db</code> fixture: pick tag → images by tag rendered in the note</td>
+<td>P2</td>
+<td><strong>yes</strong></td>
+<td>–</td>
+</tr>
+</tbody>
+</table>
+<h3>4.9 EXP — Export (PDF / EPUB), via <code>SOLO_E2E_EXPORT_DIR</code></h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Title</th>
+<th>P</th>
+<th>Snapshot</th>
+<th>Issue</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>EXP-01</td>
+<td>Export saved search to PDF: a real PDF file appears in the export dir; its embedded HTML/styles <strong>use the globally selected theme</strong> for every note (compare text/style extraction across two notes with different per-note state)</td>
+<td>P0</td>
+<td>artifact check</td>
+<td><strong>#69</strong></td>
+</tr>
+<tr>
+<td>EXP-02</td>
+<td>Export to EPUB with cover (title/author/image), TOC, header/footer + page numbers → EPUB artifact is a valid zip with expected structure (OPF, TOC, cover image)</td>
+<td>P1</td>
+<td>artifact check</td>
+<td><strong>#44</strong></td>
+</tr>
+<tr>
+<td>EXP-03</td>
+<td>Export profile persists in the saved filter and is reused on next export</td>
+<td>P1</td>
+<td>no</td>
+<td>#44</td>
+</tr>
+<tr>
+<td>EXP-04</td>
+<td>Auto-export: saved filter with <code>autoExport: true</code> produces the artifact when results change</td>
+<td>P2</td>
+<td>artifact check</td>
+<td>#44</td>
+</tr>
+<tr>
+<td>EXP-05</td>
+<td>Export writes atomically (tmp + rename per main.ts): no <code>*.tmp</code> leftovers after success</td>
+<td>P2</td>
+<td>artifact check</td>
+<td>–</td>
+</tr>
+</tbody>
+</table>
+<h3>4.10 ZEN — Zen mode</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Title</th>
+<th>P</th>
+<th>Snapshot</th>
+<th>Issue</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ZEN-01</td>
+<td>Toggle zen mode on → chrome hidden; off → restored; window state actually changes (real BrowserWindow)</td>
+<td>P1</td>
+<td>no</td>
+<td>–</td>
+</tr>
+<tr>
+<td>ZEN-02</td>
+<td><strong>Zen mode is OFF on app start</strong> even if the previous session ended in zen mode → menu button visible and usable (requires real relaunch — the exact bug #76 was about persisted state)</td>
+<td>P0</td>
+<td>no</td>
+<td><strong>#76</strong></td>
+</tr>
+<tr>
+<td>ZEN-03</td>
+<td>Auto-zen (<code>autoZenMode</code>) activates while typing and always leaves an exit affordance</td>
+<td>P2</td>
+<td>no</td>
+<td>#76-adjacent</td>
+</tr>
+</tbody>
+</table>
+<h3>4.11 LOG — Logging (Electron main)</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Title</th>
+<th>P</th>
+<th>Snapshot</th>
+<th>Issue</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LOG-01</td>
+<td>Log file created under userData; entries contain time, type, message</td>
+<td>P1</td>
+<td>file format check</td>
+<td><strong>#17</strong></td>
+</tr>
+<tr>
+<td>LOG-02</td>
+<td>Errors from IPC handlers (e.g. openFile on a missing file) land in the log</td>
+<td>P2</td>
+<td>file format check</td>
+<td>#17</td>
+</tr>
+<tr>
+<td>LOG-03</td>
+<td>&quot;Show logs&quot; menu item invokes open without error (external editor itself is not assertable → §7)</td>
+<td>P2</td>
+<td>no</td>
+<td><strong>#31</strong></td>
+</tr>
+</tbody>
+</table>
+<h3>4.12 DL — Deep linking (<code>web-packaged</code> project, real browser)</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Title</th>
+<th>P</th>
+<th>Snapshot</th>
+<th>Issue</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DL-01</td>
+<td><code>?note=&lt;id&gt;.html</code> opens the corresponding note of the demo workspace</td>
+<td>P1</td>
+<td>no</td>
+<td>README demo links</td>
+</tr>
+<tr>
+<td>DL-02</td>
+<td><code>sanitizeNoteId</code> / <code>sanitizeQuery</code> / <code>sanitizeTags</code> / <code>parseDeepLink</code> reject injection attempts (path traversal, <code>javascript:</code>, oversized payloads, malformed operators)</td>
+<td>P1</td>
+<td>no</td>
+<td>security</td>
+</tr>
+<tr>
+<td>DL-03</td>
+<td>Unknown note id → graceful empty state, no crash</td>
+<td>P2</td>
+<td>no</td>
+<td>–</td>
+</tr>
+</tbody>
+</table>
+<h3>4.13 THEME — Themes &amp; typography</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Title</th>
+<th>P</th>
+<th>Snapshot</th>
+<th>Issue</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>THEME-01</td>
+<td>Each built-in theme (air, typewriter, narrow, FBI, alighieri, terminal) applies its CSS to editor and reading view</td>
+<td>P2</td>
+<td>no</td>
+<td>#16, #20, #65</td>
+</tr>
+<tr>
+<td>THEME-02</td>
+<td>Typography settings apply live and persist across relaunch; <strong>workspace files are untouched by settings changes</strong> (snapshot proves settings never leak into note HTML)</td>
+<td>P1</td>
+<td><strong>yes</strong></td>
+<td>#16</td>
+</tr>
+<tr>
+<td>THEME-03</td>
+<td>Global theme selection is what export uses (pairs with EXP-01)</td>
+<td>P1</td>
+<td>artifact check</td>
+<td><strong>#69</strong></td>
+</tr>
+</tbody>
+</table>
+<h3>4.14 PERF — Performance (real app, real measurements)</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Title</th>
+<th>P</th>
+<th>Snapshot</th>
+<th>Issue</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PERF-01</td>
+<td>Cold start with the 500-note fixture: launch → interactive sidebar &lt; budget (baseline once on CI hardware; e.g. 3s dev build); guards against O(n²) sorting regressions</td>
+<td>P2</td>
+<td>no</td>
+<td><strong>#67</strong></td>
+</tr>
+<tr>
+<td>PERF-02</td>
+<td>Search over the 500-note fixture responds &lt; budget</td>
+<td>P2</td>
+<td>no</td>
+<td>#67, #24</td>
+</tr>
+<tr>
+<td>PERF-03</td>
+<td>Structure read of a deeply nested workspace (10 levels, 200 dirs) &lt; budget</td>
+<td>P2</td>
+<td>no</td>
+<td>#67</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2>5. Fixture workspaces (real directories on disk)</h2>
+<p>The <strong>primary fixture is the repo&#39;s own <code>plans/</code> folder</strong> — it is documentation and
+mock data at the same time (§1.7): a suite run copies <code>plans/</code> into the temp <code>dataFolder</code>,
+so the app is exercised on real, richly formatted notes (tables, code blocks, tags, sidecar
+metadata). Additional small fixtures live under <code>tests/fixtures/workspaces/</code> and cover only
+states that documentation cannot express. Minimal set required by the catalog:</p>
+<table>
+<thead>
+<tr>
+<th>Fixture</th>
+<th>Contents</th>
+<th>Used by</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>plans/</code> <em>(primary)</em></td>
+<td>the repo&#39;s own documentation notes copied verbatim: HTML + JSON sidecars, tables, code, tags; golden round-trip = re-dumped workspace must equal the input (docs must survive open→edit→save unchanged except intended edits)</td>
+<td>WS-*, NOTE-*, MOVE-*, TAG-*, SEARCH-01/02, THEME-*, snapshot harness self-check</td>
+</tr>
+<tr>
+<td><code>basic/</code></td>
+<td>2 notebooks (one nested), 4 notes with lorem content + metadata (fixed old timestamps)</td>
+<td>WS-<em>, NOTE-</em>, MOVE-*, SEARCH-01/02, THEME-02, PERF</td>
+</tr>
+<tr>
+<td><code>tagged/</code></td>
+<td>notes with note-level tags, paragraph <code>data-tags</code>, hierarchical tags, one note with <code>sourceUrl</code>, one PDF + sidecar</td>
+<td>TAG-*, SEARCH-02/04/06</td>
+</tr>
+<tr>
+<td><code>empty-notes/</code></td>
+<td>mix of empty and non-empty notes with known word counts</td>
+<td>SEARCH-04/06/07</td>
+</tr>
+<tr>
+<td><code>read-later/</code></td>
+<td>notebook &quot;Read later&quot; + one previously saved article</td>
+<td>RL-*</td>
+</tr>
+<tr>
+<td><code>media/</code></td>
+<td>note + small real image/audio/video files for attach &amp; move cases</td>
+<td>ASSET-*, MOVE-02, NOTE-03</td>
+</tr>
+<tr>
+<td><code>symlinks/</code></td>
+<td><strong>generated by script</strong> (git + symlinks are unreliable): notebook with a symlinked sub-notebook and an escaping symlink</td>
+<td>WS-07, SEARCH-09, ASSET-07</td>
+</tr>
+<tr>
+<td><code>large/</code></td>
+<td><strong>generated by script</strong>: 500 notes across 20 notebooks</td>
+<td>WS-08, PERF-*</td>
+</tr>
+</tbody>
+</table>
+<p>Golden expected states: <code>&lt;fixture&gt;.&lt;scenario&gt;.expected/</code> directories, normalized through the
+same dump pipeline (§3.2). A golden-file change in a PR requires explicit human review.</p>
+<p><code>fixtures/http/</code>: recorded article pages for the read-later server (clean article, heavy
+chrome/ads page, 500/timeout endpoints). <code>fixtures/digikam/digikam4.db</code>: minimal real SQLite
+db with 2 tags and a handful of image rows pointing into <code>media/</code>.</p>
+<hr>
+<h2>6. Issue → test case traceability</h2>
+<table>
+<thead>
+<tr>
+<th>Issue</th>
+<th>Cases</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>#17 logging</td>
+<td>LOG-01, LOG-02</td>
+</tr>
+<tr>
+<td>#18 tag management</td>
+<td>TAG-01, TAG-02, TAG-04, TAG-05, TAG-08</td>
+</tr>
+<tr>
+<td>#19 paragraphTags on save</td>
+<td>NOTE-06, NOTE-07</td>
+</tr>
+<tr>
+<td>#21 Playwright setup / fresh start</td>
+<td>WS-01, WS-02</td>
+</tr>
+<tr>
+<td>#24 search crashes</td>
+<td>SEARCH-03, PERF-02</td>
+</tr>
+<tr>
+<td>#25 voice memos</td>
+<td>ASSET-02…ASSET-06, NOTE-03</td>
+</tr>
+<tr>
+<td>#26 empty content protection</td>
+<td>NOTE-04, NOTE-05, NOTE-13</td>
+</tr>
+<tr>
+<td>#27 empty notes statistics</td>
+<td>SEARCH-04, SEARCH-06, SEARCH-07</td>
+</tr>
+<tr>
+<td>#28 note saved empty / rename empties notes</td>
+<td>NOTE-01, TAG-03</td>
+</tr>
+<tr>
+<td>#29 tag renaming scenario</td>
+<td>TAG-02</td>
+</tr>
+<tr>
+<td>#31 show logs</td>
+<td>LOG-03 (+ §7 for the external editor part)</td>
+</tr>
+<tr>
+<td>#33 move note between notebooks</td>
+<td>MOVE-01, MOVE-02</td>
+</tr>
+<tr>
+<td>#34 symlinked notebooks</td>
+<td>WS-07, SEARCH-09</td>
+</tr>
+<tr>
+<td>#42 PDF tags</td>
+<td>TAG-07, MOVE-03</td>
+</tr>
+<tr>
+<td>#44 epub/pdf generator</td>
+<td>EXP-01…EXP-05</td>
+</tr>
+<tr>
+<td>#67 slow startup</td>
+<td>PERF-01, PERF-03, WS-08</td>
+</tr>
+<tr>
+<td>#69 export ignores global theme</td>
+<td>EXP-01, THEME-03</td>
+</tr>
+<tr>
+<td>#73 first change ignored</td>
+<td>NOTE-02, NOTE-03</td>
+</tr>
+<tr>
+<td>#74 highlights</td>
+<td>HL-01…HL-04</td>
+</tr>
+<tr>
+<td>#75 share target / read later</td>
+<td>RL-01 (+ §7 for Android intents)</td>
+</tr>
+<tr>
+<td>#76 zen mode on startup</td>
+<td>ZEN-02, ZEN-03</td>
+</tr>
+<tr>
+<td>#78 assets folder as notebook</td>
+<td>WS-06</td>
+</tr>
+<tr>
+<td>#79 wrong read-later file name</td>
+<td>RL-01</td>
+</tr>
+<tr>
+<td>#83 read-later style extraction</td>
+<td>RL-02, RL-03</td>
+</tr>
+<tr>
+<td>#84 sourceUrl dropped on tag edit</td>
+<td>TAG-06, RL-04</td>
+</tr>
+<tr>
+<td>#80 file picker</td>
+<td>ASSET-01 (desktop), §7 (Android)</td>
+</tr>
+<tr>
+<td>#82 / #45 android copy &amp; selection</td>
+<td>§7 (native)</td>
+</tr>
+<tr>
+<td>#43 device sync</td>
+<td>future; out of scope until implemented</td>
+</tr>
+<tr>
+<td>#16 / #20 / #65 typography &amp; themes</td>
+<td>THEME-01 (extend per new theme)</td>
+</tr>
+<tr>
+<td>#77 android widget</td>
+<td>§7 (native)</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2>7. Out of scope for desktop automation (manual / device checklist)</h2>
+<ol>
+<li><strong>#80</strong> Android system file picker opens and returns an image.</li>
+<li><strong>#82 / #45</strong> Android text selection shows the system copy/actions panel.</li>
+<li><strong>#75</strong> Android registers as a share target and receives ACTION_SEND intents
+(the in-app half of the flow <strong>is</strong> automated by RL-01).</li>
+<li><strong>#77</strong> Android home-screen widget.</li>
+<li><strong>#67</strong> Cold-start time on a physical Android device (desktop budget is PERF-01).</li>
+<li><strong>#31</strong> The external text editor actually opens (LOG-03 covers everything up to the
+<code>shell.openPath</code> call).</li>
+<li><strong>#43</strong> Bluetooth sync (not implemented).</li>
+<li>MOBILE flag profile UI specifics (run the app in an Android WebView/emulator manually
+or via Maestro later).</li>
+</ol>
+<hr>
+<h2>8. Suggested implementation order</h2>
+<ol>
+<li><strong>Harness first</strong>: env-guarded test hooks in <code>main.ts</code> (§2.5) + launch/isolation helper
+(§2.1–2.2) + workspace seed/dump/diff over real directories (§3) + <code>basic/</code> fixture +
+WS-02 (fresh-start flow, end-to-end through the real app) + WS-09 (docs round-trip against
+<code>plans/</code> — doubles as the harness self-check).</li>
+<li><strong>P0 data-integrity batch</strong>: NOTE-01/02/04/06, TAG-02/03/05/06, MOVE-01, ZEN-02, RL-01/04,
+SEARCH-03 — covers the worst historical bugs (#28, #73, #26, #19, #29, #84, #33, #76, #79, #24).</li>
+<li><strong>P1 features</strong>: SEARCH-01/02/04/05/06/09, WS-01/04/05/06/07, RL-02/06, EXP-01/02,
+HL-01/02, ASSET-01/02/07, NOTE-03/05/08/09/10/12/13, TAG-01/04/07, LOG-01, THEME-02/03, ZEN-01.</li>
+<li><strong>P2 long tail</strong> + PERF budgets (baselines measured on CI hardware first) + SEARCH-08
+(gated on the Go binary artifact) + ASSET-08 (digiKam fixture) + <code>web-packaged</code> DL-* suite.</li>
+<li><strong>Release smoke</strong> (<code>electron:packaged</code> project): WS-02 + NOTE-01 + EXP-01 against the
+forge-packaged artifact before each release.</li>
+</ol>
+
+</body>
+</html>

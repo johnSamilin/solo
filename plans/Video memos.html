@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Video Memos — Architecture</title>
+
+  <style>
+    body { max-width: 60em; margin: 2em auto; padding: 0 1em; line-height: 1.55; font-family: Georgia, 'Times New Roman', serif; color: #1a1a1a; }
+    h1, h2, h3, h4 { font-family: -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; line-height: 1.25; }
+    table { border-collapse: collapse; margin: 1em 0; display: block; overflow-x: auto; }
+    th, td { border: 1px solid rgba(120,120,120,.45); padding: 4px 9px; text-align: left; vertical-align: top; }
+    th { background: rgba(120,120,120,.12); }
+    pre { background: rgba(120,120,120,.09); border: 1px solid rgba(120,120,120,.25); padding: 10px 12px; overflow-x: auto; border-radius: 4px; }
+    code { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: .9em; }
+    :not(pre) > code { background: rgba(120,120,120,.12); padding: 1px 4px; border-radius: 3px; }
+    blockquote { border-left: 3px solid rgba(120,120,120,.5); margin-left: 0; padding-left: 1em; color: #555; }
+    hr { border: none; border-top: 1px solid rgba(120,120,120,.4); margin: 2em 0; }
+    a { color: #14539a; }
+  </style>
+</head>
+<body>
+  <h1>Video Memos — Architecture</h1>
+<blockquote>
+<p>Design doc. Design only — implementation is out of scope for this document.</p>
+</blockquote>
+<h2>Goal</h2>
+<p>Add video memos to Solo: record a short square (1:1) video directly from a note,
+analogous to voice memos, but as a <strong>square mini-video</strong> instead of Telegram's
+round &quot;circle&quot;. The video is inserted into the note as a block, plays back inline,
+and can be transcribed (from its audio track) by the same on-device pipeline used
+for voice.</p>
+<h2>Key Constraints (inherited from voice memos)</h2>
+<ol>
+<li><strong>No external runtime</strong> (no <code>ffmpeg</code>) — capture/encoding only with the stock
+WebView/Chromium or native Kotlin.</li>
+<li><strong>Three platforms, one storage model.</strong> Assets already live in <code>&lt;root&gt;/assets/</code>
+and are addressed via custom protocols (<code>image://</code>, <code>voice://</code>). Video goes in
+<code>&lt;root&gt;/assets/video/</code> and is addressed via <code>video://</code>.</li>
+<li><strong>Privacy / offline.</strong> Everything on-device, no cloud.</li>
+</ol>
+<p>We reuse what already exists from voice memos: the TipTap node pattern, the
+protocol pattern, the record/read bridge methods, on-device transcription, the FAB
+toolbar, and the flags.</p>
+<h2>User Flow</h2>
+<ol>
+<li>A &quot;Video memo&quot; button appears in the FAB next to &quot;Voice memo&quot;.</li>
+<li>Clicking opens a camera preview (a 1:1 square) with a record button; clicking
+again stops.</li>
+<li>The recorded clip (<code>.mp4</code>, square) is saved via the bridge into
+<code>&lt;root&gt;/assets/video/</code>, returning <code>video://&lt;fileName&gt;</code>; the first frame is also
+captured as a poster/thumbnail.</li>
+<li>An atomic TipTap <code>videoMemo</code> block is inserted at the cursor.</li>
+<li>The block plays back inline (<code>&lt;video&gt;</code> with a poster); a context menu offers
+<strong>Transcribe</strong> and <strong>Delete</strong>.</li>
+<li>&quot;Transcribe&quot; runs the audio track through the existing transcriber and inserts
+the result as a <code>&lt;p data-voice-transcript&gt;</code> paragraph after the block.</li>
+</ol>
+<h2>1. Recording (square video)</h2>
+<p>The key difference from audio is camera access and fitting the frame to 1:1.</p>
+<h3>Desktop (Electron)</h3>
+<p><code>getUserMedia</code> + <code>MediaRecorder</code> (like audio, but with video):</p>
+<pre><code class="language-ts">const stream = await navigator.mediaDevices.getUserMedia({
+  video: { width: { ideal: 640 }, height: { ideal: 640 }, aspectRatio: { ideal: 1 } },
+  audio: true,
+});
+const recorder = new MediaRecorder(stream, { mimeType: pickMime() });
+</code></pre>
+<ul>
+<li>The square is achieved by requesting <code>width=height=640</code> + <code>aspectRatio: 1</code> — the
+browser crops/fits the frame.</li>
+<li><code>pickMime()</code> selects <code>video/mp4</code> (Chromium 126+, available in Electron 39),
+otherwise falls back to <code>video/webm</code>.</li>
+</ul>
+<h3>Android (native layer)</h3>
+<p><code>getUserMedia</code> for video in WebView is even more unreliable than for audio, so —
+<strong>native capture</strong> (like <code>AudioRecorder</code> for audio):</p>
+<ul>
+<li><strong>CameraX</strong> (<code>PreviewView</code> + <code>VideoCapture</code> + <code>Recorder</code>) with
+<code>AspectRatio.RATIO_1_1</code> — the easiest way to get a square and <code>mp4</code>. Fallback —
+<code>Camera2</code> + <code>MediaRecorder</code> (<code>VideoSource.SURFACE</code>).</li>
+<li>The preview is shown in an overlay over the WebView (a native <code>PreviewView</code>,
+square, centered).</li>
+<li>Permissions: <code>CAMERA</code> + <code>RECORD_AUDIO</code> (runtime), analogous to the already-added
+<code>RECORD_AUDIO</code> in <code>MainActivity</code>.</li>
+</ul>
+<h3>Encoding and size</h3>
+<ul>
+<li>Container: <code>.mp4</code> (H.264/AAC) — universal; on desktop, fall back to <code>webm</code> if
+<code>MediaRecorder</code> doesn't support mp4.</li>
+<li>Square, moderate resolution (480×480 or 640×640), ~1 Mbps → ≈ 7.5 MB/min (video
+is notably &quot;heavier&quot; than audio — see risks).</li>
+</ul>
+<h2>2. Storage format</h2>
+<ul>
+<li>Path: <code>&lt;root&gt;/assets/video/</code> (a <code>video</code> subfolder inside <code>assets/</code>).</li>
+<li>Name: <code>video-&lt;yyyy-mm-dd-hhmmss&gt;.mp4</code> (de-duplicated via <code>buildUniqueAssetName</code>).</li>
+<li>MIME: <code>video/mp4</code> (or <code>video/webm</code>). Protocol: <code>video://&lt;fileName&gt;</code>.</li>
+<li>Poster: a separate <code>video-&lt;...&gt;.jpg</code> next to it (or take the first frame from
+<code>&lt;video preload=&quot;metadata&quot;&gt;</code> — then no separate file is needed).</li>
+</ul>
+<h2>3. Preview / poster</h2>
+<p>To make the block look like a &quot;mini-video&quot;, a first frame is needed:</p>
+<ul>
+<li><strong>Android</strong> — <code>MediaMetadataRetriever.getFrameAtTime(0)</code> → JPEG in <code>assets/video/</code>.</li>
+<li><strong>Desktop</strong> — <code>&lt;video&gt;</code> + <code>&lt;canvas&gt;</code> to capture the first frame after metadata
+loads.</li>
+<li>Simpler, without an extra file: <code>&lt;video preload=&quot;metadata&quot; muted playsinline&gt;</code>
+shows the first frame as the poster on its own. Recommendation — start with this,
+add a dedicated poster only if needed.</li>
+</ul>
+<h2>4. Playback</h2>
+<ul>
+<li><code>&lt;video src=&quot;video://…&quot; poster=&quot;…&quot; preload=&quot;metadata&quot; playsinline&gt;</code>.</li>
+<li>The <code>video://</code> protocol resolves to <code>&lt;root&gt;/assets/video/</code> — mirroring <code>voice://</code>:
+<ul>
+<li>Electron: <code>protocol.handle('video')</code> + <code>registerSchemesAsPrivileged</code>.</li>
+<li>Android: a branch in <code>shouldInterceptRequest</code> + <code>readVideoAsset</code> + mime.</li>
+</ul>
+</li>
+<li>Seeking has the same <code>Range</code> risks as <code>voice://</code> (see risks).</li>
+</ul>
+<h2>5. Transcribing the audio track</h2>
+<p>Reuse the existing on-device transcriber (koffi/AAR). We only need to obtain PCM
+from the video. Two options:</p>
+<ul>
+<li><strong>A. Write a separate WAV in parallel</strong> (like a voice memo) during video
+recording: trivially reuses the existing audio pipeline, but duplicates the audio
+(muxed in the video + a separate WAV). Simple and reliable.</li>
+<li><strong>B. Extract audio from the mp4 after recording</strong>: Android — <code>MediaExtractor</code>
+(easy), Desktop — demux in the renderer (<code>mp4box.js</code> / decode via <code>&lt;audio&gt;</code> +
+Web Audio). Cleaner storage, but needs a demuxer.</li>
+</ul>
+<p><strong>Recommendation:</strong> A for the first iteration (maximum reuse), B as a storage
+optimization later. The result is inserted as the same <code>&lt;p data-voice-transcript&gt;</code>.</p>
+<h2>6. Data model (TipTap node)</h2>
+<p>An atomic <code>videoMemo</code> block after the <code>voiceMemo</code> pattern (<code>ReactNodeViewRenderer</code>):</p>
+<pre><code class="language-ts">addAttributes() {
+  return {
+    src:       { default: '' },   // video://video-....mp4
+    fileName:  { default: '' },   // video-....mp4
+    duration:  { default: 0 },    // ms
+    createdAt: { default: null }, // ISO
+    poster:    { default: '' },   // video://video-....jpg (optional)
+    variant:   { default: 'compact' },
+  };
+}
+</code></pre>
+<p>Serialization (analogous to <code>data-type=&quot;voice-memo&quot;</code>):</p>
+<pre><code class="language-html">&lt;div data-type=&quot;video-memo&quot;
+     data-src=&quot;video://video-2026-10-27-123456.mp4&quot;
+     data-file-name=&quot;video-2026-10-27-123456.mp4&quot;
+     data-duration=&quot;4200&quot;
+     data-created-at=&quot;2026-10-27T12:34:56.000Z&quot;
+     data-poster=&quot;video://video-2026-10-27-123456.jpg&quot;&gt;
+  &lt;!-- fallback for static export --&gt;
+  &lt;video src=&quot;video://video-2026-10-27-123456.mp4&quot; controls&gt;&lt;/video&gt;
+&lt;/div&gt;
+</code></pre>
+<p>The node must not be caught by the <code>.carousel</code> strip in
+<code>NotesStore.saveNoteContent</code> (it serializes on its own). The transcript is a
+separate <code>&lt;p&gt;</code> after the block (as with voice memos).</p>
+<h2>7. Platform contract (bridge)</h2>
+<p>New methods on <code>ElectronAPI</code> / <code>AndroidBridgeRaw</code> (after the audio pattern):</p>
+<pre><code class="language-ts">// write a (square) video file into assets/video/, returns video://&lt;fileName&gt;
+uploadVideo(base64Data: string, fileName: string):
+  Promise&lt;{ success: boolean; url?: string; error?: string }&gt;;
+
+// native video capture (Android): start/stop, stop returns url + duration
+startVideoRecording(): Promise&lt;{ success: boolean; error?: string }&gt;;
+stopVideoRecording(): Promise&lt;{ success: boolean; url?: string; duration?: number; error?: string }&gt;;
+
+// (optional) capture a poster on Android
+captureVideoPoster?(fileName: string):
+  Promise&lt;{ success: boolean; posterUrl?: string; error?: string }&gt;;
+</code></pre>
+<ul>
+<li>Desktop: <code>uploadVideo</code> (main + preload, writes to <code>assets/video/</code>); capture is
+entirely in the renderer via <code>getUserMedia</code> + <code>MediaRecorder</code> (like audio).</li>
+<li>Android: <code>startVideoRecording</code>/<code>stopVideoRecording</code> via CameraX in Kotlin,
+<code>FileSystemManager.saveVideo</code>, <code>readVideoAsset</code>, mime <code>video/mp4</code>.</li>
+<li>Audio-track transcription — the existing <code>transcribeAudio</code>.</li>
+</ul>
+<h2>8. Rendering variants</h2>
+<p>The base is a <strong>square mini-video</strong> with a poster and a play button. Variants only
+differ in the surrounding chrome (the transcript is always a separate <code>&lt;p&gt;</code> after
+the block):</p>
+<ol>
+<li><strong>&quot;Square&quot; (compact)</strong> — square poster, a centered play button, a duration chip
+in the corner. Default.</li>
+<li><strong>&quot;Card&quot;</strong> — square + a metadata row (date · duration) + a menu, visually grouped
+with the transcript via CSS.</li>
+<li><strong>&quot;Film&quot;</strong> — square with a light frame/shadow &quot;like a slide&quot;, a progress bar
+underneath.</li>
+</ol>
+<p>Switching — a <code>videoMemoStyle</code> setting (or a shared <code>memoStyle</code> for audio+video).</p>
+<h2>9. Integration</h2>
+<ul>
+<li><code>src/extensions/VideoMemo.ts</code> — the node; registered in <code>App.tsx</code> next to <code>VoiceMemo</code>.</li>
+<li><code>src/components/Editor/VideoMemoNode.tsx</code> (+ <code>.css</code>) — variants, play/pause, menu.</li>
+<li><code>src/components/Editor/hooks/useVideoMemo.ts</code> — recording (getUserMedia+MediaRecorder
+on desktop / native bridge on Android), <code>uploadVideo</code>, node insertion.</li>
+<li><code>src/components/Editor/FAB.tsx</code> — a <code>Video</code> button next to <code>AudioLines</code>.</li>
+<li><code>src/types.tsx</code>, <code>src/utils/nativeBridge.ts</code>, <code>createStubAPI.ts</code>, preload/main,
+<code>FileSystemManager.kt</code>, <code>WebViewBridge.kt</code>, <code>MainActivity.kt</code> (CameraX + <code>video://</code>).</li>
+<li>PDF/EPUB export — the block becomes a static &quot;▶ 0:07&quot; + (if present) the
+transcript; video doesn't play in PDF.</li>
+</ul>
+<h2>Feature flag</h2>
+<p><code>video-memos</code> in <code>feature-flags.json</code>: <code>true</code> for <code>DESKTOP</code> and <code>MOBILE</code>, <code>false</code>
+for <code>PACKAGED</code> (like <code>voice-memos</code>). The button is gated by <code>flags.videoMemos</code>.</p>
+<h2>Delivery plan</h2>
+<ol>
+<li>Flag, types (<code>uploadVideo</code>, <code>startVideoRecording</code>/<code>stopVideoRecording</code>), the
+<code>VideoMemo</code> node with <code>data-type</code> serialization and a fallback <code>&lt;video&gt;</code>.</li>
+<li>Desktop: <code>getUserMedia</code>(video+audio) + <code>MediaRecorder</code> → <code>uploadVideo</code>; the
+<code>video://</code> protocol in the Electron main.</li>
+<li>Android: CameraX capture (1:1 square) → <code>saveVideo</code>; <code>video://</code> in
+<code>shouldInterceptRequest</code>; <code>CAMERA</code> permission.</li>
+<li>Playback + poster (<code>&lt;video preload=metadata&gt;</code> → a dedicated poster if needed);
+the 3 rendering variants.</li>
+<li>Transcription: a parallel WAV (option A) → <code>transcribeAudio</code> → <code>&lt;p&gt;</code> after the
+block; (later) audio extraction from mp4 (option B).</li>
+<li>PDF/EPUB export: a static &quot;▶ duration&quot; block + transcript.</li>
+</ol>
+<h2>Acceptance criteria</h2>
+<ul>
+<li>A &quot;Video memo&quot; button in the FAB (gated by the flag).</li>
+<li>Recording a square (1:1) video → <code>video-&lt;timestamp&gt;.mp4</code> in <code>&lt;root&gt;/assets/video/</code>,
+a <code>videoMemo</code> block survives save/load correctly.</li>
+<li>Playback and the poster work on Desktop and Android.</li>
+<li>&quot;Transcribe&quot; produces the audio-track text as a paragraph after the block
+(reusing the on-device transcriber).</li>
+<li>Deleting the block deletes the file (or marks it orphaned — see risks).</li>
+<li>Export doesn't break and shows &quot;▶ duration&quot; + transcript.</li>
+</ul>
+<h2>Open questions / risks</h2>
+<ol>
+<li><strong>Desktop format.</strong> <code>MediaRecorder</code> in Chromium produces <code>webm</code> by default;
+<code>mp4</code> is available from Chromium 126+. Verify the actual mime in Electron 39 and
+decide: <code>mp4</code> everywhere (more universal) or <code>webm</code> on desktop + <code>mp4</code> on Android.</li>
+<li><strong>Size.</strong> Video ≈ 7.5 MB/min — notably more than audio. Cap duration/bitrate,
+warn about size, GC orphans in <code>assets/video/</code> (as with voice).</li>
+<li><strong>Square.</strong> 1:1 is cropped from the sensor (centered); on some devices CameraX
+<code>RATIO_1_1</code> is unavailable — fall back to cropping the finished frame.</li>
+<li><strong>Permissions.</strong> <code>CAMERA</code> is a new runtime request on Android (add to the
+existing <code>RECORD_AUDIO</code>); on desktop — the Chromium webcam permission.</li>
+<li><strong>Camera preview.</strong> A native <code>PreviewView</code> over the WebView needs a careful
+overlay (square centered, a record button).</li>
+<li><strong>Transcription.</strong> Option A (parallel WAV) duplicates audio; option B (extraction
+from mp4) needs a demuxer on desktop — defer.</li>
+<li><strong><code>Range</code> seeking</strong> for video — the same risks as <code>voice://</code>; negligible for a
+square mini-video but needed for long clips.</li>
+</ol>
+
+</body>
+</html>

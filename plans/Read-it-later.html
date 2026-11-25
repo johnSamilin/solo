@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Read Later Architecture</title>
+
+  <style>
+    body { max-width: 60em; margin: 2em auto; padding: 0 1em; line-height: 1.55; font-family: Georgia, 'Times New Roman', serif; color: #1a1a1a; }
+    h1, h2, h3, h4 { font-family: -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; line-height: 1.25; }
+    table { border-collapse: collapse; margin: 1em 0; display: block; overflow-x: auto; }
+    th, td { border: 1px solid rgba(120,120,120,.45); padding: 4px 9px; text-align: left; vertical-align: top; }
+    th { background: rgba(120,120,120,.12); }
+    pre { background: rgba(120,120,120,.09); border: 1px solid rgba(120,120,120,.25); padding: 10px 12px; overflow-x: auto; border-radius: 4px; }
+    code { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: .9em; }
+    :not(pre) > code { background: rgba(120,120,120,.12); padding: 1px 4px; border-radius: 3px; }
+    blockquote { border-left: 3px solid rgba(120,120,120,.5); margin-left: 0; padding-left: 1em; color: #555; }
+    hr { border: none; border-top: 1px solid rgba(120,120,120,.4); margin: 2em 0; }
+    a { color: #14539a; }
+  </style>
+</head>
+<body>
+  <h1>Read Later Architecture</h1>
+<h2>Goal</h2>
+<p>Add a &quot;Read later&quot; feature to Solo: extract an article from a URL and save it as
+a regular HTML note. The sidebar menu gets a &quot;Read later&quot; item next to &quot;New
+Note&quot;. Clicking it opens a modal with a URL field (auto-filled from the
+clipboard when it contains a URL) and a &quot;Save styles&quot; checkbox. On confirm the
+content is extracted, cleaned and saved as a new note; when &quot;Save styles&quot; is
+enabled, the page's colors, sizes and typography are written to the note's
+custom CSS.</p>
+<h2>Key Constraint — Portability</h2>
+<p>The target device has no <code>go</code>, <code>node</code>, <code>python</code>, <code>rust</code> or any other external
+runtime. The extraction tool therefore <strong>cannot</strong> be a standalone CLI binary or
+a script launched via <code>child_process</code>. Extraction must live inside Solo's
+existing runtime:</p>
+<ul>
+<li><strong>Desktop (Electron):</strong> main process (<code>net.fetch</code> is already used in
+<code>native-clients/electron/electron/main.ts</code>, see lines 201 and 275) + renderer
+(Chromium, <code>DOMParser</code> available).</li>
+<li><strong>Android (WebView + Kotlin):</strong> an HTTP client in <code>WebViewBridge</code> /
+<code>FileSystemManager</code> for networking + <code>DOMParser</code> in the WebView.</li>
+<li><strong>Packaged web (browser):</strong> <code>fetch</code> + <code>DOMParser</code> only, with CORS limits.</li>
+</ul>
+<p>This imposes two consequences that shape the whole architecture:</p>
+<ol>
+<li><strong>The network request runs in the native layer</strong> (Electron main / Android
+HTTP client) to bypass CORS, which would block a renderer <code>fetch</code>.</li>
+<li><strong>Parsing and cleaning run in the renderer</strong> in pure TypeScript on top of
+<code>DOMParser</code> — no external dependencies and no Markdown conversion (Solo
+stores notes as HTML, not Markdown).</li>
+</ol>
+<h2>User Flow</h2>
+<ol>
+<li>The user opens the sidebar menu (<code>SidebarMenu</code>) and chooses <code>Read later</code>.</li>
+<li><code>ReadLaterModal</code> opens. The URL field is pre-filled from the clipboard if
+<code>navigator.clipboard.readText()</code> returned a valid <code>http(s)</code> URL; otherwise it
+is empty and auto-focused.</li>
+<li>The user optionally edits the URL and toggles &quot;Save styles&quot;.</li>
+<li>On confirm the extraction flow runs:
+<ul>
+<li>native <code>fetchUrl(url)</code> returns the raw HTML and the final URL (after
+redirects);</li>
+<li>the renderer runs the HTML through a Readability-style extractor, producing
+sanitized HTML + metadata (title, byline, image);</li>
+<li>with &quot;Save styles&quot; enabled, the source page's color/typography tokens are
+extracted and written to the note's <code>.css</code>;</li>
+<li>a note is created via the existing <code>NotesStore.createNote</code>, its content is
+overwritten with the extracted HTML, <code>sourceUrl</code> is written to the <code>.json</code>
+metadata (and optionally a <code>read-later</code> tag).</li>
+</ul>
+</li>
+<li>The note opens in the editor like any other. A network/parse error is shown
+as a toast via <code>settingsStore.setToast(...)</code> and no note is created.</li>
+</ol>
+<h2>Content Extraction Tool Comparison</h2>
+<h3>1. Self-written extractor (TypeScript Readability port)</h3>
+<p>A TS extractor running on <code>DOMParser</code> in the renderer — essentially a port of the
+Mozilla Readability algorithm (the one behind Firefox Reader View).</p>
+<ul>
+<li><strong>Pros:</strong> full portability (no external binaries), works offline after the
+fetch, privacy (URL/content never leaves the device), no rate limits,
+deterministic, one implementation for all 3 platforms. A ready
+<code>@mozilla/readability</code> implementation can be vendored (or <code>readability</code> +
+<code>sanitize-html</code>).</li>
+<li><strong>Cons:</strong> quality depends on the algorithm (imperfect on JS-rendered SPAs),
+edge cases need maintenance, no JS execution — pages whose content only
+appears after JS will come back empty.</li>
+<li><strong>Verdict:</strong> <strong>primary option.</strong> The only one that fully satisfies the
+&quot;no go/node/rust/python&quot; requirement.</li>
+</ul>
+<h3>2. Public content-extraction APIs</h3>
+<p>Services such as Jina Reader (<code>https://r.jina.ai/&lt;url&gt;</code>), the deprecated
+Postlight/Mercury, trafilatura-as-a-service, etc.</p>
+<ul>
+<li><strong>Pros:</strong> best-in-class results (the server runs JS, bypasses protections),
+zero code to write.</li>
+<li><strong>Cons:</strong> depends on network and a third party, the URL leaks externally
+(privacy), rate limits and quotas, may be blocked, some require API keys, no
+offline operation.</li>
+<li><strong>Verdict:</strong> only useful as an <strong>optional fallback</strong> for SPAs when the
+self-written extractor returned empty content. Disabled by default.</li>
+</ul>
+<h3>3. Goose</h3>
+<p>Two different tools share this name, and neither fits:</p>
+<ul>
+<li>
+<p><strong>Goose article extractor</strong> (<code>goose3</code>, Python; historically Java) — an article
+extraction library. Requires a Python runtime.</p>
+</li>
+<li>
+<p><strong>block/goose</strong> — an AI agent framework in Go. Requires a Go runtime and an
+LLM (API keys); it is not a pure content extractor.</p>
+</li>
+<li>
+<p><strong>Verdict:</strong> both need an external runtime/binary and (for block/goose)
+network + LLM. Violates the portability requirement. Not considered.</p>
+</li>
+</ul>
+<h3>4. markdowndown</h3>
+<p>A Python tool converting a web page to Markdown (built on
+readability/trafilatura).</p>
+<ul>
+<li><strong>Pros:</strong> clean Markdown content, a curated pipeline under the hood.</li>
+<li><strong>Cons:</strong> requires Python, outputs Markdown (Solo stores HTML — conversion is
+an extra lossy step), networking happens outside the app.</li>
+<li><strong>Verdict:</strong> unsuitable — portability and output format.</li>
+</ul>
+<h3>5. Monolith</h3>
+<p>A Rust CLI that collapses a page plus all assets (CSS/images/fonts) into a single
+self-contained HTML file.</p>
+<ul>
+<li><strong>Pros:</strong> ideal for &quot;archive as-is&quot; — a complete offline snapshot.</li>
+<li><strong>Cons:</strong> requires a per-architecture static binary (absent on the device),
+<strong>does not clean content</strong> (keeps navigation, ads, scripts), does not isolate
+the article itself.</li>
+<li><strong>Verdict:</strong> interesting as a future &quot;full archive&quot; option, but not as the base
+mechanism, because of the binary and the lack of cleaning.</li>
+</ul>
+<h3>Summary Table</h3>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>On-device runtime</th>
+<th>Third-party network</th>
+<th>Output format</th>
+<th>Fits?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Self-written (TS + DOMParser)</td>
+<td>none (WebView/Chromium)</td>
+<td>no</td>
+<td>HTML (cleaned)</td>
+<td><strong>yes — primary</strong></td>
+</tr>
+<tr>
+<td>Public APIs (Jina etc.)</td>
+<td>none</td>
+<td>yes</td>
+<td>Markdown</td>
+<td>fallback for SPAs</td>
+</tr>
+<tr>
+<td>Goose (goose3 / block-goose)</td>
+<td>Python / Go</td>
+<td>(block-goose) yes</td>
+<td>—</td>
+<td>no</td>
+</tr>
+<tr>
+<td>markdowndown</td>
+<td>Python</td>
+<td>yes</td>
+<td>Markdown</td>
+<td>no</td>
+</tr>
+<tr>
+<td>Monolith</td>
+<td>binary (Rust)</td>
+<td>no</td>
+<td>HTML (uncleaned)</td>
+<td>no (maybe archive)</td>
+</tr>
+</tbody>
+</table>
+<h2>Solution Architecture</h2>
+<p>Two-phase extraction: <strong>fetch in native</strong> + <strong>parse in renderer</strong>. This preserves
+portability and bypasses CORS without external binaries.</p>
+<h3>Phase 1 — Fetch (native layer)</h3>
+<p>A new bridge method <code>fetchUrl(url)</code>:</p>
+<ul>
+<li><strong>Electron main</strong> — <code>net.fetch</code> (already in the project), returns <code>text()</code>,
+<code>finalUrl</code> (after redirects) and <code>content-type</code>; <code>net.fetch</code> is not CORS-bound.</li>
+<li><strong>Android</strong> — an HTTP client (e.g. <code>HttpURLConnection</code> or OkHttp) behind a new
+<code>NetworkManager</code>-style call in <code>WebViewBridge</code>, returning the body and final
+URL.</li>
+<li><strong>Packaged web</strong> — renderer <code>fetch</code> (CORS may block it); fallback to a public
+proxy (comparison item 2) or disable the feature. The <code>createStubAPI</code> stub
+returns <code>{ success: false, error: 'Not available in packaged build' }</code>.</li>
+</ul>
+<p>Fetch-phase limits: a timeout (e.g. 15–30 s), a response-size cap (e.g. 5 MB),
+<code>http(s)</code> only, a bounded redirect chain. No secrets or cookies are forwarded.</p>
+<h3>Phase 2 — Parse (renderer, pure TS)</h3>
+<p>New <code>src/utils/readLater/</code> package (independent of MobX/React):</p>
+<ul>
+<li><code>readLater/extractContent.ts</code> — wrapper over the Readability-style port: takes
+raw HTML and the final URL, returns<pre><code class="language-ts">interface ExtractedArticle {
+  title: string;        // &lt;title&gt; or &lt;h1&gt;, fallback — URL hostname
+  byline?: string;
+  html: string;         // sanitized body innerHTML
+  excerpt?: string;
+  siteName?: string;
+}
+</code></pre>
+</li>
+<li><code>readLater/readability.ts</code> — the vendored/ported Readability algorithm,
+operating on a <code>DOMParser</code>-produced <code>document</code> (not <code>window.document</code>, to keep
+the app's live DOM untouched).</li>
+<li><code>readLater/sanitize.ts</code> — removes scripts, <code>on*</code> attributes, <code>javascript:</code>
+URLs, tracking iframes; reduces markup to the subset TipTap accepts (<code>p, h1–h6, ul, ol, li, blockquote, pre, code, img, figure, a, em, strong, table</code>).
+Mirrors the export sanitizer
+(<code>src/components/Search/export/normalizeNoteHtml.ts</code>).</li>
+<li><code>readLater/extractStyles.ts</code> — see &quot;Save Styles&quot; below.</li>
+</ul>
+<p>The phase output is the note's HTML content. No Markdown conversion is needed.</p>
+<h3>Files And Integration Points</h3>
+<ul>
+<li><code>src/components/Modals/ReadLaterModal.tsx</code> — dialog (modeled on
+<code>SaveFilterModal.tsx</code>): URL field (clipboard auto-fill), &quot;Save styles&quot;
+checkbox, loading/error states.</li>
+<li><code>src/components/Modals/Modals.css</code> — dialog styles.</li>
+<li><code>src/stores/ReadLaterStore.ts</code> — orchestration: <code>open()</code>, <code>submit(url, saveStyles)</code>, calls <code>getNativeAPI().fetchUrl</code>, runs the parse phase, then
+<code>NotesStore.createNote</code> + content/CSS/metadata writes; progress and errors.</li>
+<li><code>src/components/Sidebar/SidebarMenu.tsx</code> — a new menu item (icon
+<code>BookmarkPlus</code>/<code>Download</code> from <code>lucide-react</code>) after &quot;New Note&quot;.</li>
+<li><code>src/i18n/translations.ts</code> — keys <code>sidebar.readLater</code>, <code>readLater.title</code>,
+<code>readLater.urlPlaceholder</code>, <code>readLater.saveStyles</code>, <code>readLater.error.*</code>.</li>
+<li><code>src/App.tsx</code> — renders <code>ReadLaterModal</code> (store-flag driven), like other
+modals.</li>
+</ul>
+<h3>Note Creation (reusing the existing bridge)</h3>
+<p>To avoid duplicating <code>create-note</code> across three platforms, reuse existing
+methods:</p>
+<ol>
+<li><code>notesStore.createNote(targetNotebookId)</code> → creates an empty note (<code>.html</code>
+<ul>
+<li><code>.json</code>), returns <code>htmlPath</code>.</li>
+</ul>
+</li>
+<li><code>api.updateFile(htmlPath, article.html)</code> — overwrites the boilerplate with the
+extracted HTML. <code>update-file</code> in Electron main writes any relative path
+regardless of extension (line 578), so it also works for <code>.css</code>.</li>
+<li>If <code>saveStyles</code> — <code>api.updateFile(cssPath, extractedCss)</code>, where
+<code>cssPath = htmlPath.replace('.html', '.css')</code>. The file is picked up by
+<code>read-structure</code> (lines 672–674) and loaded via the existing
+<code>cssPath</code> → <code>loadNoteCss</code> → <code>injectNoteStyles</code> path (see <code>App.tsx:248–261</code>).</li>
+<li><code>api.updateMetadata(htmlPath, { ...meta, sourceUrl, tags: [..., 'read-later'] })</code>.</li>
+</ol>
+<p>The only <strong>new</strong> bridge method is <code>fetchUrl</code>. Everything else already exists.</p>
+<h2>Data Model</h2>
+<p>Extend <code>FileMetadata</code> in <code>src/types.tsx</code> with an optional field (so existing
+<code>.json</code> files read without migration):</p>
+<pre><code class="language-ts">export interface FileMetadata {
+  id: string;
+  tags: string[];
+  createdAt: string;
+  updatedAt?: string;
+  theme?: string;
+  paragraphTags?: string[];
+  sourceUrl?: string;   // original URL for read-later notes
+}
+</code></pre>
+<p><code>sourceUrl</code> lands in the <code>.json</code> sidecar, survives <code>read-structure</code>, and is
+available in the UI (e.g. an &quot;Open original&quot; action in <code>NoteHeader</code> — optional).
+The field is not copied into global settings and does not participate in search
+or export without a separate decision.</p>
+<p>New fetch result interface:</p>
+<pre><code class="language-ts">export interface ReadLaterFetchResult {
+  success: boolean;
+  content?: string;       // raw HTML
+  finalUrl?: string;      // URL after redirects
+  contentType?: string;
+  error?: string;
+}
+</code></pre>
+<h2>Platform Contract</h2>
+<p>The single <code>ElectronAPI</code> extension in <code>src/types.tsx</code>:</p>
+<pre><code class="language-ts">fetchUrl(url: string): Promise&lt;ReadLaterFetchResult&gt;;
+</code></pre>
+<p>Layer-by-layer implementation:</p>
+<ul>
+<li><code>src/utils/nativeBridge.ts</code> — forwards to <code>window.electronAPI.fetchUrl</code> /
+<code>window.SoloBridge</code> (Android) / stub.</li>
+<li><code>native-clients/electron/electron/preload.ts</code> —
+<code>fetchUrl: (url) =&gt; ipcRenderer.invoke('fetch-url', url)</code>.</li>
+<li><code>native-clients/electron/electron/main.ts</code> — <code>ipcMain.handle('fetch-url', ...)</code>
+on <code>net.fetch</code>, URL validation (<code>http/https</code>), timeout and size cap.</li>
+<li><code>native-clients/android/.../WebViewBridge.kt</code> — a <code>fetchUrl(url)</code> interface
+method backed by an HTTP client (the manifest already declares <code>INTERNET</code>).</li>
+<li><code>src/utils/createStubAPI.ts</code> — a <code>{ success: false, error: ... }</code> stub.</li>
+</ul>
+<p>The renderer <strong>does not</strong> get direct network or arbitrary filesystem access: it
+only sees <code>fetchUrl</code> (read) and the existing <code>updateFile</code>/<code>updateMetadata</code>
+(writes by relativePath inside the data folder).</p>
+<h2>Save Styles (custom CSS)</h2>
+<p>When the checkbox is enabled, &quot;colors, sizes and typography&quot; must be preserved.
+A portable implementation without rendering a hidden page:</p>
+<ol>
+<li><code>extractStyles.ts</code> parses the source HTML: collects the article's inline
+<code>style</code> attributes plus the relevant <code>&lt;style&gt;</code>-block rules.</li>
+<li>From those it extracts <strong>typography tokens</strong>: <code>font-family</code>, <code>font-size</code>
+(base and per <code>h1–h6</code>, <code>p</code>, <code>blockquote</code>, <code>pre</code>), <code>line-height</code>, <code>color</code>,
+<code>background-color</code>, <code>letter-spacing</code>.</li>
+<li>The result lands in two places:
+<ul>
+<li><strong>Inline <code>style</code> attributes</strong> on key elements of the extracted HTML
+(a specific block's color/font) — require no scoping and survive TipTap
+editing.</li>
+<li><strong>A <code>.css</code> sidecar</strong> with flat base-typography declarations
+(<code>font-family</code>, <code>font-size</code>, <code>line-height</code>, <code>color</code>, <code>background-color</code>),
+compatible with the current <code>injectNoteStyles</code> (it wraps the CSS in
+<code>#note-editor-content { ... }</code>, so the file holds declarations only, no
+selectors).</li>
+</ul>
+</li>
+</ol>
+<p>Limitation: the current <code>injectNoteStyles</code> does not support selectors. If <code>h1</code>
+and <code>p</code> ever need to be styled differently via the sidecar (rather than inline),
+add a scoping utility to <code>cssUtils.ts</code>:</p>
+<pre><code class="language-ts">export function scopeCss(css: string, scope: string): string;
+// prefixes every selector with `scope`; drops @import, position:fixed,
+// html/body selectors and external font URLs.
+</code></pre>
+<p>The inline approach is primary (simpler and more portable); <code>scopeCss</code> is an
+optional enhancement if inline proves insufficient.</p>
+<p>Optional (Desktop/Android only, higher fidelity): render the page in a hidden
+window and read <code>getComputedStyle</code>. This yields exact computed styles but is
+heavier and platform-specific; it is out of scope for the first iteration.</p>
+<h2>Feature Flag</h2>
+<p>Add <code>read-later</code> to <code>feature-flags.json</code> and expose it as <code>__FF_READ_LATER__</code> /
+<code>flags.readLater</code> (following <code>export-notes</code> in <code>src/utils/featureFlags.ts</code>).
+Recommended default: <code>true</code> for <code>DESKTOP</code> and <code>MOBILE</code>, <code>false</code> for <code>PACKAGED</code>
+(because of CORS). The menu item and modal are gated by the static flag so the
+PACKAGED build never ships the code.</p>
+<h2>Delivery Plan</h2>
+<ol>
+<li>Add the flag, <code>ReadLaterFetchResult</code> and <code>sourceUrl</code> in <code>FileMetadata</code>; test
+backward-compatible reading of <code>.json</code> without <code>sourceUrl</code>.</li>
+<li>Implement <code>fetchUrl</code> in Electron main (net.fetch + validation/timeout) and
+preload; stubs in the Android bridge and stub API.</li>
+<li>Vendor/port Readability + sanitizer in <code>src/utils/readLater/</code>; cover with HTML
+fixtures (an article with navigation/scripts, an SPA empty shell, a page with
+no readable content).</li>
+<li>Build <code>ReadLaterStore</code> and <code>ReadLaterModal</code> (clipboard URL auto-fill, checkbox,
+loading/error states); wire the menu item and i18n.</li>
+<li>Implement <code>extractStyles.ts</code> and the <code>.css</code> write; verify the custom CSS is
+picked up by the existing <code>loadNoteCss</code>/<code>injectNoteStyles</code> flow.</li>
+<li>Implement <code>fetchUrl</code> on Android (HTTP client; <code>INTERNET</code> already declared).</li>
+<li>End-to-end manual verification on Desktop and Android: clipboard URL →
+extraction → note → open → (with &quot;Save styles&quot;) applied custom CSS.</li>
+</ol>
+<h2>Acceptance Criteria</h2>
+<ul>
+<li>The sidebar menu has a &quot;Read later&quot; item after &quot;New Note&quot;, gated by the
+<code>read-later</code> flag and absent from the PACKAGED build.</li>
+<li>The modal auto-fills the URL from the clipboard when it holds a valid
+<code>http(s)</code> URL, and focuses the field otherwise.</li>
+<li>Confirming a valid URL creates a note with cleaned HTML content (no scripts or
+tracking) and metadata (<code>sourceUrl</code>, <code>read-later</code> tag).</li>
+<li>Network error/timeout/empty content is shown as a toast; no note is created.</li>
+<li>With &quot;Save styles&quot; enabled, a <code>.css</code> file with colors/typography is created
+next to the <code>.html</code> and applied through the existing
+<code>loadNoteCss</code>/<code>injectNoteStyles</code>.</li>
+<li>Extraction requires no <code>go</code>/<code>node</code>/<code>python</code>/<code>rust</code>: all parsing runs in
+TypeScript in the renderer, networking only through the native bridge.</li>
+</ul>
+
+</body>
+</html>
