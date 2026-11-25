@@ -7,6 +7,10 @@ import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
+import Table from '@tiptap/extension-table';
+import TableRow from '@tiptap/extension-table-row';
+import TableHeader from '@tiptap/extension-table-header';
+import TableCell from '@tiptap/extension-table-cell';
 import { observer } from 'mobx-react-lite';
 import { ParagraphTags } from './extensions/ParagraphTags';
 import { FullWidthImage } from './extensions/FullWidthImage';
@@ -111,6 +115,13 @@ const App = observer(() => {
       TaskItem.configure({
         nested: true,
       }),
+      Table.configure({
+        // No resizable column handles: Solo keeps notes as clean, portable HTML.
+        resizable: false,
+      }),
+      TableRow,
+      TableHeader,
+      TableCell,
       ParagraphTags,
       TextHighlight,
       CutIn,
